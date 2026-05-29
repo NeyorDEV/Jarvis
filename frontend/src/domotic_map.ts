@@ -721,7 +721,7 @@ export class DomoticMap {
         let dThetaY = currAngleY - prevAngleY;
         if (dThetaY > Math.PI) dThetaY -= Math.PI * 2;
         if (dThetaY < -Math.PI) dThetaY += Math.PI * 2;
-        this.group.rotation.y -= dThetaY * 1.5;
+        this.group.rotation.y += dThetaY * 1.5;
 
         // Rotation autour de X (pitch vertical) basé sur l'angle XY
         const prevAngleX = Math.atan2(prevVector.y, prevVector.x);
@@ -729,7 +729,7 @@ export class DomoticMap {
         let dThetaX = currAngleX - prevAngleX;
         if (dThetaX > Math.PI) dThetaX -= Math.PI * 2;
         if (dThetaX < -Math.PI) dThetaX += Math.PI * 2;
-        this.group.rotation.x += dThetaX * 1.2;
+        this.group.rotation.x -= dThetaX * 1.2;
         this.group.rotation.x = THREE.MathUtils.clamp(this.group.rotation.x, -0.2, Math.PI / 2.2);
       }
 

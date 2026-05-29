@@ -1255,7 +1255,7 @@ export class SpatialFileExplorer {
         let dThetaY = currAngleY - prevAngleY;
         if (dThetaY > Math.PI) dThetaY -= Math.PI * 2;
         if (dThetaY < -Math.PI) dThetaY += Math.PI * 2;
-        this.explorerGroup.rotation.y -= dThetaY * 1.5;
+        this.explorerGroup.rotation.y += dThetaY * 1.5;
 
         // Rotation autour de X (pitch vertical) basé sur l'angle XY
         const prevAngleX = Math.atan2(prevVector.y, prevVector.x);
@@ -1263,7 +1263,7 @@ export class SpatialFileExplorer {
         let dThetaX = currAngleX - prevAngleX;
         if (dThetaX > Math.PI) dThetaX -= Math.PI * 2;
         if (dThetaX < -Math.PI) dThetaX += Math.PI * 2;
-        this.explorerGroup.rotation.x += dThetaX * 1.2;
+        this.explorerGroup.rotation.x -= dThetaX * 1.2;
         this.explorerGroup.rotation.x = THREE.MathUtils.clamp(this.explorerGroup.rotation.x, -Math.PI / 3, Math.PI / 3);
       }
 
