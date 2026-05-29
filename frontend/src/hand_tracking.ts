@@ -373,9 +373,14 @@ function onHandResults(results: any) {
       const targetX = isArMirror ? (1 - indexTip.x) * canvasEl.width : indexTip.x * canvasEl.width;
       const targetY = indexTip.y * canvasEl.height;
 
-      // Lissage par Lerp indépendant par main
-      cursorX[i] += (targetX - cursorX[i]) * SMOOTHING;
-      cursorY[i] += (targetY - cursorY[i]) * SMOOTHING;
+      // Lissage adaptatif chirurgical par Lerp dynamique (élimine le tremblement mais reste ultra réactif)
+      const lastX = cursorX[i];
+      const lastY = cursorY[i];
+      const cursorDist = Math.hypot(targetX - lastX, targetY - lastY);
+      const dynamicSmoothing = Math.min(0.38, Math.max(0.03, cursorDist / 160));
+      
+      cursorX[i] += (targetX - lastX) * dynamicSmoothing;
+      cursorY[i] += (targetY - lastY) * dynamicSmoothing;
 
       // 2.5. Si un widget est activement manipulé par CETTE main (on utilise la première main pour la manipulation globale)
       if (i === 0 && activeManipulatedWidget) {

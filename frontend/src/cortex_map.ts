@@ -116,12 +116,19 @@ class CortexNode {
     // Estompage fluide (Lerp vers targetOpacity)
     this.opacity += (this.targetOpacity - this.opacity) * dt * 5.0;
  
-    // A. Breathe & Drift (Dérive lente tridimensionnelle)
-    const speed = 0.5;
-    const amp = 0.18;
-    this.currentPos.x = this.basePos.x + Math.sin(time * speed + this.driftSeed.x) * amp;
-    this.currentPos.y = this.basePos.y + Math.cos(time * (speed * 0.8) + this.driftSeed.y) * amp;
-    this.currentPos.z = this.basePos.z + Math.sin(time * (speed * 1.2) + this.driftSeed.z) * (amp * 0.7);
+    // A. Breathe & Drift (Dérive lente tridimensionnelle organique et complexe style essaim)
+    const tX = time * 0.35 + this.driftSeed.x;
+    const tY = time * 0.30 + this.driftSeed.y;
+    const tZ = time * 0.40 + this.driftSeed.z;
+    
+    // Superposition de vagues de fréquences différentes pour un mouvement d'essaim fluide
+    const dx = Math.sin(tX) * 0.22 + Math.cos(tX * 2.2) * 0.08;
+    const dy = Math.cos(tY) * 0.22 + Math.sin(tY * 1.8) * 0.08;
+    const dz = Math.sin(tZ) * 0.16 + Math.cos(tZ * 2.5) * 0.06;
+    
+    this.currentPos.x = this.basePos.x + dx;
+    this.currentPos.y = this.basePos.y + dy;
+    this.currentPos.z = this.basePos.z + dz;
 
     this.group.position.copy(this.currentPos);
 
@@ -275,6 +282,12 @@ export class CortexMap {
   private gestHandGrabbedNode: CortexNode | null = null;
   private isGestDragging = false;
   private wasGestPinched = false;
+
+  // Lissage adaptatif chirurgical
+  private smoothedHandPos0 = new THREE.Vector3();
+  private smoothedHandPos1 = new THREE.Vector3();
+  private isHand0Smoothed = false;
+  private isHand1Smoothed = false;
 
 
   constructor(scene: THREE.Scene, camera: THREE.Camera, ws: WebSocket) {
@@ -505,10 +518,12 @@ export class CortexMap {
       }
     });
 
-    // Connecter par proximité sémantique/3D (2 voisins les plus proches)
+    // Connecter par proximité sémantique/3D globale (effet toile de neurones connectée)
     this.nodes.forEach((n) => {
       if (n.isDisintegrating) return;
-      const peers = this.nodes.filter(p => p !== n && p.data.type === n.data.type && !p.isDisintegrating);
+      
+      // Chercher des voisins dans toute la constellation (liaisons croisées inter-lobes pour effet toile)
+      const peers = this.nodes.filter(p => p !== n && !p.isDisintegrating);
       
       // Trier par distance 3D
       peers.sort((a, b) => {
@@ -517,7 +532,7 @@ export class CortexMap {
         return d1 - d2;
       });
 
-      const limit = Math.min(2, peers.length);
+      const limit = Math.min(4, peers.length); // Plus de liaisons pour démultiplier l'effet toile
       for (let i = 0; i < limit; i++) {
         const target = peers[i];
         // Éviter de dupliquer la liaison exacte
@@ -525,7 +540,7 @@ export class CortexMap {
           (s.fromNode === n && s.toNode === target) || 
           (s.fromNode === target && s.toNode === n)
         );
-        if (!alreadyLinked && n.basePos.distanceTo(target.basePos) < 1.8) {
+        if (!alreadyLinked && n.basePos.distanceTo(target.basePos) < 2.5) { // Attraction à plus longue portée
           this._createSynapseLine(n, target);
         }
       }
@@ -1140,7 +1155,38 @@ export class CortexMap {
       this.gestHandGrabbedNode = null;
       this.isGestDragging = false;
       this.wasGestPinched = false;
+      this.isHand0Smoothed = false;
+      this.isHand1Smoothed = false;
       return;
+    }
+
+    // Appliquer un lissage adaptatif 3D chirurgical par Lerp dynamique (élimine le tremblement mais réagit vite)
+    if (pos0) {
+      if (!this.isHand0Smoothed) {
+        this.smoothedHandPos0.copy(pos0);
+        this.isHand0Smoothed = true;
+      } else {
+        const d = this.smoothedHandPos0.distanceTo(pos0);
+        const factor = THREE.MathUtils.clamp(d * 3.5, 0.02, 0.38); // Amortissement adaptatif
+        this.smoothedHandPos0.lerp(pos0, factor);
+      }
+      pos0 = this.smoothedHandPos0;
+    } else {
+      this.isHand0Smoothed = false;
+    }
+
+    if (pos1) {
+      if (!this.isHand1Smoothed) {
+        this.smoothedHandPos1.copy(pos1);
+        this.isHand1Smoothed = true;
+      } else {
+        const d = this.smoothedHandPos1.distanceTo(pos1);
+        const factor = THREE.MathUtils.clamp(d * 3.5, 0.02, 0.38);
+        this.smoothedHandPos1.lerp(pos1, factor);
+      }
+      pos1 = this.smoothedHandPos1;
+    } else {
+      this.isHand1Smoothed = false;
     }
 
     // ── GESTE DE ROTATION / SCALE À 2 MAINS ────────────────────
