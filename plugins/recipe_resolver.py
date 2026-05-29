@@ -23,6 +23,22 @@ def extraire_nombre(texte):
             return val
     return None
 
+def extraire_personnes_proactif(texte):
+    # Cherche strictement "pour X personnes" ou "pour X"
+    # où X est un chiffre ou un mot-nombre
+    pattern = r"\bpour\s+(\d+|un|une|deux|trois|quatre|cinq|six|sept|huit|neuf|dix|douze)\b"
+    match = re.search(pattern, texte, flags=re.IGNORECASE)
+    if match:
+        valeur = match.group(1).lower()
+        if valeur.isdigit():
+            return int(valeur)
+        mots_nombres = {
+            "un": 1, "une": 1, "deux": 2, "trois": 3, "quatre": 4, "cinq": 5,
+            "six": 6, "sept": 7, "huit": 8, "neuf": 9, "dix": 10, "douze": 12
+        }
+        return mots_nombres.get(valeur)
+    return None
+
 async def resoudre_recipe(cmd):
     t = nettoyer_accent(cmd.lower().strip())
 
@@ -84,8 +100,9 @@ async def resoudre_recipe(cmd):
                     ingredients_text = ", ".join(ingredients)
                     instructions_text = " ".join([f"Étape {i+1} : {inst}" for i, inst in enumerate(instructions)])
                     
+                    # Correction de répétition dans le titre
                     vocal_response = (
-                        f"J'ai affiché la recette de {title} sur l'hud pour {nb_personnes} personnes, mylane. "
+                        f"J'ai affiché la recette de {title} sur l'hud, mylane. "
                         f"Voici la liste des ingrédients requis : {ingredients_text}. "
                         f"Concernant les étapes de préparation : {instructions_text}. Bon appétit !"
                     )
@@ -126,10 +143,10 @@ async def resoudre_recipe(cmd):
     if recipe_name:
         print(f"[Recipe Resolver] Première demande de recette détectée pour : {recipe_name}")
         
-        # DÉTECTION PROACTIVE : L'utilisateur a-t-il déjà spécifié le nombre de personnes ?
-        nb_personnes = extraire_nombre(t)
+        # DÉTECTION PROACTIVE STRICTE (Nécessite le mot "pour" en amont)
+        nb_personnes = extraire_personnes_proactif(t)
         if nb_personnes:
-            print(f"[Recipe Resolver] Détection proactive du nombre de personnes : {nb_personnes}")
+            print(f"[Recipe Resolver] Détection proactive stricte du nombre de personnes : {nb_personnes}")
             # Nettoyer le nom de la recette pour retirer "pour X personnes"
             recipe_name_clean = re.sub(r"\bpour\s+\d+\s+personnes?\b", "", recipe_name, flags=re.IGNORECASE)
             recipe_name_clean = re.sub(r"\bpour\s+(un|une|deux|trois|quatre|cinq|six|sept|huit|neuf|dix|douze)\s+personnes?\b", "", recipe_name_clean, flags=re.IGNORECASE)
@@ -177,8 +194,9 @@ async def resoudre_recipe(cmd):
                     ingredients_text = ", ".join(ingredients)
                     instructions_text = " ".join([f"Étape {i+1} : {inst}" for i, inst in enumerate(instructions)])
                     
+                    # Correction de répétition dans le titre
                     return (
-                        f"J'ai affiché la recette de {title} sur l'hud pour {nb_personnes} personnes, mylane. "
+                        f"J'ai affiché la recette de {title} sur l'hud, mylane. "
                         f"Voici la liste des ingrédients requis : {ingredients_text}. "
                         f"Concernant les étapes de préparation : {instructions_text}. Bon appétit !"
                     )
