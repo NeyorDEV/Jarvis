@@ -2699,7 +2699,7 @@ async def traiter_reponse_ia(texte_utilisateur, mobile_ws=None, from_voice=False
         # Résolution locale dynamique (Pour les résolveurs additionnels enregistrés à chaud sans redémarrage)
         if not reponse:
             for attr_name in sorted(dir(builtins)):
-                if attr_name.startswith("resoudre_") and attr_name not in ["resoudre_developpement", "resoudre_dom_hud"]:
+                if attr_name.startswith("resoudre_") and attr_name not in ["resoudre_developpement", "resoudre_dom_hud", "resoudre_chemin"]:
                     try:
                         resolver_fn = getattr(builtins, attr_name)
                         if asyncio.iscoroutinefunction(resolver_fn):
