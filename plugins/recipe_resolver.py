@@ -2,7 +2,8 @@ import builtins
 import json
 import unicodedata
 import re
-from core.brain import chat_with_gemini
+import asyncio
+from google.genai import types
 
 def nettoyer_accent(texte):
     return "".join(c for c in unicodedata.normalize('NFD', texte) if unicodedata.category(c) != 'Mn')
@@ -39,11 +40,18 @@ async def resoudre_recipe(cmd):
 
         try:
             print("[Recipe Resolver] Appel à Gemini pour générer la recette...")
-            # Utilisation du mode de réponse JSON structuré de Gemini
-            response_text = await chat_with_gemini(prompt, response_format="json")
+            # Appel à Gemini via le client global synchrone dans un thread asynchrone non bloquant
+            def call_gemini():
+                return builtins.client.models.generate_content(
+                    model=builtins.CHOSEN_MODEL,
+                    contents=prompt,
+                    config=types.GenerateContentConfig(
+                        response_mime_type="application/json"
+                    )
+                )
             
-            # La réponse est déjà un objet Python (dict ou None) si response_format="json" a été utilisé
-            recipe_data = response_text
+            response = await asyncio.to_thread(call_gemini)
+            recipe_data = json.loads(response.text)
 
             if recipe_data and isinstance(recipe_data, dict) and recipe_data.get("recipe_title"):
                 print(f"[Recipe Resolver] Recette générée : {recipe_data.get('recipe_title')}")
