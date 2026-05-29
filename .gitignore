@@ -12,6 +12,8 @@ memory.json
 alarmes.json
 jarvis_config.json
 token_*.json
+token.pickle
+*.pickle
 credentials.json
 
 # Base vectorielle
