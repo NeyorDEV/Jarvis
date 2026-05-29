@@ -3462,6 +3462,10 @@ async def traiter_reponse_ia(texte_utilisateur, mobile_ws=None, from_voice=False
                     paliers   = data.get("paliers", 4)
                     res = await deezer_volume(direction, paliers)
                     parler(res)
+                else:
+                    # Envoi par défaut au frontend pour les actions personnalisées/inconnues
+                    if "action" in data or "type" in data:
+                        _safe_ws_send(block)
 
             except Exception as e:
                 print(f"[ACTION ERROR] Block failed: {block} | Error: {e}")
