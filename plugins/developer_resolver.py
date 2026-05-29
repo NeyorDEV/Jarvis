@@ -40,11 +40,16 @@ Voici la structure de ton projet pour t'orienter :
     - widgets.css : Style CSS des widgets (.hud-widget, .hud-revealed)
     - style.css : Styles néon Iron Man globaux du HUD
 
-Tu dois renvoyer obligatoirement un TABLEAU JSON d'objets décrivant chaque modification. Chaque objet doit suivre ce schéma précis :
+Tu dois renvoyer obligatoirement un OBJET JSON ayant ce schéma précis :
 {
-  "file_path": "chemin/relatif/depuis/racine.ts",
-  "target_code": "code exact à remplacer, y compris l'indentation et les espaces",
-  "replacement_code": "nouveau code complet à insérer"
+  "edits": [
+    {
+      "file_path": "chemin/relatif/depuis/racine.ts",
+      "target_code": "code exact à remplacer, y compris l'indentation et les espaces",
+      "replacement_code": "nouveau code complet à insérer"
+    }
+  ],
+  "test_instructions": "Une phrase courte et naturelle en français expliquant comment l'utilisateur peut tester la fonctionnalité ajoutée ou modifiée. Exemple : 'Pour tester cette fonctionnalité, demandez-moi : \"donne-moi la recette des crêpes\".'"
 }
 
 Pour CRÉER un nouveau fichier (ex: plugins/nouveau_resolver.py), mets "target_code" à "" (chaîne vide) et fournis le code complet dans "replacement_code".
@@ -244,6 +249,7 @@ async def resoudre_developpement(cmd):
         
         err_prev = ""
         edits = []
+        test_instructions = ""
         success = False
         
         for attempt in range(3):
@@ -256,7 +262,7 @@ async def resoudre_developpement(cmd):
                         f"{json.dumps(edits, indent=2)}\n\n"
                         f"Cependant, la compilation a échoué avec l'erreur suivante :\n"
                         f"\"{err_prev}\"\n\n"
-                        f"Corrige ces erreurs et renvoie le nouveau tableau JSON complet corrigé."
+                        f"Corrige ces erreurs et renvoie le nouvel objet JSON complet et corrigé."
                     )
                 else:
                     prompt_actuel = prompt
@@ -270,7 +276,13 @@ async def resoudre_developpement(cmd):
                     )
                 )
                 
-                edits = json.loads(response.text)
+                response_data = json.loads(response.text)
+                if isinstance(response_data, list):
+                    edits = response_data
+                else:
+                    edits = response_data.get("edits", [])
+                    test_instructions = response_data.get("test_instructions", "")
+                
                 print(f"[MUTATOR] Application des modifications (tentative {attempt+1})...")
                 appliquer_edits(edits)
                 
@@ -305,7 +317,8 @@ async def resoudre_developpement(cmd):
                     icon="◈"
                 )
             
-            return "Les modifications ont été écrites, compilées avec succès, et injectées à chaud dans mes processeurs, mylane. La nouvelle fonctionnalité est active."
+            test_msg = f" {test_instructions}" if test_instructions else ""
+            return f"Les modifications ont été écrites, compilées avec succès, et injectées à chaud dans mes processeurs, mylane. La nouvelle fonctionnalité est active.{test_msg}"
         else:
             # Restauration finale propre en cas d'échec de toutes les tentatives (remise au dernier commit stable)
             subprocess.run(["git", "reset", "--hard", "HEAD"], cwd="n:\\JARVIS", capture_output=True)
