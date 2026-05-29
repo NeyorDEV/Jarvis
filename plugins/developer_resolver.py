@@ -152,7 +152,21 @@ def compiler_et_valider():
     return True, "Validation réussie !"
 
 def recharger_plugins_python():
-    """Recharge dynamiquement à chaud tous les modules du package plugins."""
+    """Recharge dynamiquement à chaud tous les modules du package plugins et charge les nouveaux."""
+    # 1. Scanner et importer les nouveaux modules plugins
+    plugins_dir = os.path.join("n:\\JARVIS", "plugins")
+    if os.path.exists(plugins_dir):
+        for file in os.listdir(plugins_dir):
+            if file.endswith(".py") and not file.startswith("__"):
+                module_name = f"plugins.{file[:-3]}"
+                if module_name not in sys.modules:
+                    try:
+                        importlib.import_module(module_name)
+                        print(f"[MUTATOR] Nouveau module Python importé à chaud : {module_name}")
+                    except Exception as e:
+                        print(f"[MUTATOR] Échec de l'import à chaud de {module_name} : {e}")
+
+    # 2. Recharger les modules déjà importés
     for name in list(sys.modules.keys()):
         if name.startswith("plugins."):
             try:

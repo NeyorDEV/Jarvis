@@ -2695,7 +2695,23 @@ async def traiter_reponse_ia(texte_utilisateur, mobile_ws=None, from_voice=False
         # TENTATIVE DE RÉSOLUTION LOCALE (Commandes, Math, Français, etc.)
         print(f"[DEBUG] Tentative de résolution locale pour : {texte_utilisateur}")
         reponse = await builtins.resoudre_developpement(texte_utilisateur)
-        if not reponse: reponse = await builtins.resoudre_recipe(texte_utilisateur)
+        
+        # Résolution locale dynamique (Pour les résolveurs additionnels enregistrés à chaud sans redémarrage)
+        if not reponse:
+            for attr_name in sorted(dir(builtins)):
+                if attr_name.startswith("resoudre_") and attr_name not in ["resoudre_developpement", "resoudre_dom_hud"]:
+                    try:
+                        resolver_fn = getattr(builtins, attr_name)
+                        if asyncio.iscoroutinefunction(resolver_fn):
+                            reponse = await resolver_fn(texte_utilisateur)
+                        else:
+                            reponse = resolver_fn(texte_utilisateur)
+                        if reponse:
+                            print(f"[DEBUG] Commande résolue dynamiquement par : {attr_name}")
+                            break
+                    except Exception as e:
+                        print(f"[DEBUG DYNAMIC] Erreur lors de l'appel du résolveur {attr_name} : {e}")
+
         if not reponse: reponse = await builtins.resoudre_dom_hud(texte_utilisateur)
         if not reponse: reponse = await resoudre_commandes_locales(texte_utilisateur)
         if not reponse: reponse = await builtins.resoudre_commandes_systeme(texte_utilisateur)
