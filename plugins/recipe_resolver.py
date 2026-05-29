@@ -61,20 +61,17 @@ async def resoudre_recipe(cmd):
                     "ingredients": recipe_data.get("ingredients", []),
                     "instructions": recipe_data.get("instructions", []),
                 })
-                return True
+                return f"J'ai affiché la recette de {recipe_data.get('recipe_title')} sur l'hud, mylane. Bon appétit !"
             else:
                 print("[Recipe Resolver] Aucune recette valide n'a pu être générée ou la réponse est vide.")
-                await builtins.send_action_to_frontend({"type": "speak", "text": "Désolé, je n'ai pas pu trouver de recette pour cela."})
-                return True # On gère l'action même si c'est un échec pour ne pas passer au LLM global
-
+                return "Désolé, je n'ai pas pu trouver de recette pour cela."
+ 
         except json.JSONDecodeError as e:
             print(f"[Recipe Resolver] Erreur de décodage JSON : {e}")
-            await builtins.send_action_to_frontend({"type": "speak", "text": "Désolé, il y a eu un problème pour générer la recette."})
-            return True
+            return "Désolé, il y a eu un problème pour générer la recette."
         except Exception as e:
             print(f"[Recipe Resolver] Une erreur inattendue est survenue : {e}")
-            await builtins.send_action_to_frontend({"type": "speak", "text": "Désolé, une erreur interne est survenue lors de la recherche de la recette."})
-            return True
+            return "Désolé, une erreur interne est survenue lors de la recherche de la recette."
 
     return None
 

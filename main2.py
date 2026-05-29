@@ -2737,6 +2737,10 @@ async def traiter_reponse_ia(texte_utilisateur, mobile_ws=None, from_voice=False
         if mobile_ws:
             _skip_pc_audio = True
 
+        # Robustesse type : Si le résolveur a retourné un booléen, le convertir en chaîne
+        if isinstance(reponse, bool):
+            reponse = "Commande exécutée." if reponse else ""
+
         # 1. Extraction robuste des blocs JSON
         def extract_json_blocks(text):
             blocks = []
