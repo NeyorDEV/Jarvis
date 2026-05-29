@@ -1,0 +1,34 @@
+{
+  "le code du portail": {
+    "valeur": "4321",
+    "timestamp": "21/05/2026 16:28"
+  },
+  "ton café préféré": {
+    "valeur": "Un double espresso serré avec un filet de lait d'avoine.",
+    "timestamp": "27/05/2026 17:19"
+  },
+  "mot de passe du wifi": {
+    "valeur": "MylaneJarvisHologram2026!",
+    "timestamp": "27/05/2026 17:19"
+  },
+  "adresse email principale": {
+    "valeur": "mylane.dev@jarvis.net",
+    "timestamp": "27/05/2026 17:19"
+  },
+  "sport préféré de mylane": {
+    "valeur": "La boxe anglaise et les séances de HIIT intensives.",
+    "timestamp": "27/05/2026 17:19"
+  },
+  "heure du réveil idéal": {
+    "valeur": "7h15 pour avoir le temps de courir et coder.",
+    "timestamp": "27/05/2026 17:19"
+  },
+  "montre préférée": {
+    "valeur": "L'Omega Speedmaster Dark Side of the Moon.",
+    "timestamp": "27/05/2026 17:19"
+  },
+  "couleur de ma voiture": {
+    "valeur": "Noir mat satiné avec étriers de freins rouge sport.",
+    "timestamp": "27/05/2026 17:19"
+  }
+}

@@ -1,0 +1,27 @@
+103: WS_LOOP = None
+104: 
+105: def _safe_ws_send(msg):
+106: global WS_LOOP
+107: if not CONNECTED_CLIENTS or WS_LOOP is None: return
+108: async def _send():
+109: if CONNECTED_CLIENTS:
+110: await asyncio.gather(*[ws.send(msg) for ws in CONNECTED_CLIENTS], return_exceptions=True)
+111: try:
+112: asyncio.run_coroutine_threadsafe(_send(), WS_LOOP)
+113: except Exception:
+114: pass
+115: 
+116: async def envoyer_image_web(url, prompt):
+117: """Envoie l'URL de l'image générée au frontend via WebSocket."""
+118: msg = json.dumps({
+119: "action": "display_image",
+120: "url": url,
+121: "prompt": prompt,
+122: "timestamp": time.time()
+123: })
+124: _safe_ws_send(msg)
+125: from openai import OpenAI
+126: import uuid
+127: import base64
+128: import io
+129: try:

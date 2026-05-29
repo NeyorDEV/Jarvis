@@ -1,0 +1,31 @@
+# Environnement Python
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Données sensibles & personnelles
+.env
+memory.json
+alarmes.json
+jarvis_config.json
+token_*.json
+credentials.json
+
+# Base vectorielle
+chroma_db/
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini

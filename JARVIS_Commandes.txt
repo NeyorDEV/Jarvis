@@ -1,0 +1,333 @@
++----------------------------------------------------------+
+          J.A.R.V.I.S - Guide Complet des Commandes       
+               www.techenclair.fr                         
++----------------------------------------------------------+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  COMMANDES LOCALES & SYSTÈME (Instantané)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[ Heure & Date ]
+  - Quelle heure est-il ? -> Donne l'heure locale actuelle de votre système
+  - On est quel jour ? / Quelle date ? / Quel jour sommes-nous ? -> Date complète du jour
+  - C'est quel mois ? / Quelle année ? -> Mois ou année en cours
+  - J'ai quel âge ? -> Calcule automatiquement votre âge actuel basé sur votre date de naissance (21 mai 1988)
+
+[ Système PC ]
+  - État de la batterie / Niveau de charge / Autonomie -> Niveau de charge et si le PC est branché
+  - CPU / Charge du processeur / Utilisation RAM / Mémoire vive -> État de santé matériel du PC en temps réel
+  - Allumé depuis combien de temps ? / Uptime -> Temps écoulé depuis le dernier démarrage du PC
+  - Volume monte / baisse / coupe (Mute) -> Contrôle matériel pas-à-pas du volume Windows
+  - Volume à [X]% / Son à [X]% -> Règle précisément le volume Windows au pourcentage demandé
+  - Remets le son / Unmute -> Réactive le volume système s'il était coupé
+  - Prends un screenshot / Capture d'écran -> Capture l'écran et sauvegarde automatiquement le fichier image sur votre Bureau
+  - Éteins le PC / Arrête le PC / Shutdown [dans X secondes/minutes] -> Éteint proprement votre PC (avec option de délai)
+  - Redémarre le PC / Reboot [dans X secondes/minutes] -> Redémarre le PC (avec option de délai)
+  - Mets le PC en veille / Mode veille / Sleep [dans X secondes/minutes] -> Suspend l'activité du PC (avec option de délai)
+  - Verrouille le PC / Verrouille la session / Lock le PC -> Verrouille instantanément la session utilisateur Windows (délai de 5s)
+  - Annule l'arrêt / Annule le redémarrage / Annule la veille -> Annule immédiatement une commande de mise hors tension ou veille planifiée
+  - Vide la corbeille / Nettoie la corbeille -> Efface définitivement tous les fichiers de la corbeille Windows de façon silencieuse
+
+[ Gestion des Fichiers & Dossiers ]
+  - Ouvre mon [Bureau / Documents / Téléchargements / Images / Musique / Vidéos] -> Accès direct aux dossiers système
+  - Ouvre le dossier [Nom] / Ouvre le fichier [Nom] -> Recherche et ouverture intelligente d'un répertoire ou d'un document local
+  - Range mes dossiers / Mosaïque dossiers -> Organisation spatiale des fenêtres d'explorateur
+  - Trie mes fichiers par [Type / Date] -> Classement des fichiers du dossier actif par catégorie ou chronologie
+  - Trie complet -> Range tous les fichiers par type puis par date à l'intérieur de chaque répertoire
+  - Crée le dossier [Nom] / Renomme [Ancien] en [Nouveau] -> Gestion à chaud de l'arborescence locale
+  - Déplace [Fichier] vers [Destination] -> Déplacement physique de fichiers
+  - Analyse le fichier [Nom] -> Lecture, extraction et résumé intelligent du contenu textuel par l'IA
+
+[ Applications & Jeux ]
+  - Ouvre / Lance [Calculatrice / Notepad / Paint / Chrome / Firefox / Edge / Opera] -> Lancement d'applications courantes
+  - Ouvre / Lance [Steam / Origin / EA App / Gestionnaire de tâches] -> Lancement de plateformes de jeux ou d'utilitaires
+  - Ferme / Quitte [Nom de l'application] -> Fermeture propre de la fenêtre ciblée par son processus
+  - Mode Boulot ! -> Lance votre environnement complet de travail (Claude, Outlook, Chrome, Spotify)
+  - Mode Gaming / On joue ! -> Optimise le système et lance la plateforme de jeu préférée
+  - On joue à Rocket League -> Lance directement le jeu Rocket League sur votre PC
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  DIVERTISSEMENT, INTERFACES HUD, MODE HOLO & AR
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[ Contrôle de l'Interface Graphique (HUD) ]
+  - Ouvre les paramètres / Ferme les paramètres -> Configuration et profilage à chaud de JARVIS
+  - Active / Désactive l'accélération graphique / Boost le GPU -> Performance 3D Three.js
+  - Active les sous-titres / Désactive le texte -> Bascule l'affichage textuel de la parole sur le HUD
+  - Active le clavier / Ferme le clavier -> Module de saisie de commandes écrites
+  - Ferme la recette / Masque la recette -> Fermeture des fiches cuisine actives
+  - Ferme le panneau température / Masque la température -> Masque le volet des capteurs domotiques
+  - Ferme la météo / Masque la météo -> Fermeture du panneau météo latéral
+  - Montre / Cache le widget [Calendrier / Météo / Musique] -> Affichage dynamique des modules de bureau
+  - Active / Désactive le mode hologramme (ou "mode holo") -> Environnement spatial 3D interactif dans votre navigateur
+  - Active / Désactive le mode AR -> Hand-tracking webcam et contrôle gestuel à distance sans contact
+  - Active / Désactive le miroir AR -> Commutation d'orientation caméra (direct vs miroir) pour le tracking des mains
+  - Active / Désactive le miroir holo -> Inverse l'orientation des mains dans la scène 3D Hologramme
+
+[ Minuteurs Interactifs (HUD) ]
+  - Mets un minuteur de [X] minutes / Lance un timer de [X] minutes -> Démarre un compte à rebours et l'affiche sur le HUD
+  - Ajoute [X] minutes au minuteur / Rallonge le timer de [X] minutes -> Augmente dynamiquement la durée du minuteur actif
+  - Retire [X] minutes au minuteur / Diminue le timer de [X] minutes -> Réduit la durée du minuteur en cours d'exécution
+  - Annule le minuteur / Arrête le minuteur / Stop le chrono -> Arrête immédiatement le compte à rebours et l'efface du HUD
+  - Combien de minuteurs actifs ? / Combien de temps reste-t-il ? -> Affiche l'état et le nombre de minuteurs en cours
+
+[ Mode Hologramme 3D - Gestes & Commandes ]
+  - *Balayage Main (Swipe Gauche/Droite)* -> Fait défiler les formes géométriques 3D actives (Sphère, Cube, Tore, Cône...)
+  - *Balayage avec 2 Mains* -> Efface instantanément toutes les formes de la scène (CLR)
+  - *Main Ouverte* -> Déclenche une explosion de particules de lumière cyan et détruit la forme Three.js ciblée
+  - *Poing Fermé* -> Compresse et déforme la figure 3D active (effet de compression gravitationnelle)
+  - *Serrer Index + Pouce (Pinch 1 Main)* -> Attrape un sommet de la figure 3D pour étirer et sculpter sa géométrie en temps réel
+  - *Serrer Index + Pouce (Pinch 2 Mains)* -> Permet de translater, d'appliquer un zoom orbital (Scale) et de tourner la figure dans l'espace
+  - *Bouton "JEU" (Interface)* -> Lance ou arrête le jeu de briques holographique (fais rebondir la balle physique avec ta main !)
+  - *Bouton "CLR" (Interface)* -> Supprime toutes les figures géométriques de la scène d'un seul clic
+  - *Raccourcis Clavier* :
+    - Touches [1-9] -> Génère instantanément une forme (1: Sphère, 2: Cube, 3: Cylindre, 6: Octaèdre, 7: Tore, 8: Noeud ADN...)
+    - Touche [Delete / Backspace] -> Efface la scène
+    - Touche [R] -> Réinitialise la déformation de la figure ciblée
+
+[ Explorateur de Fichiers Spatial 3D (Hologramme) ]
+  - Ouvre mes dossiers / Explorateur 3D / Mode explorer / Affiche mes fichiers / Ouvre l'explorateur spatial -> Déploie l'explorateur de fichiers spatial 3D en hologramme
+  - *Clic Gauche / Pincement Main sur un Dossier (Cube)* -> Entre dans le dossier et l'affiche au centre en 3D concentrique
+  - *Clic Gauche / Pincement Main sur un Fichier (Sphère)* -> Ouvre le fichier avec son application par défaut sur le PC
+  - *Clic Gauche / Pincement Main sur la Pyramide Jaune (Retour)* -> Dépile l'arborescence et remonte au dossier parent en 3D
+  - *Clic Gauche / Pincement Main sur la Corbeille (Tore Rouge)* -> Ouvre le dossier de la Corbeille Windows en 3D concentrique
+  - *Glisser-Déposer (Drag & Drop) Souris ou Main* :
+    - Fichier/Dossier sur un dossier -> Déplace l'élément dans ce sous-dossier (avec indexation intelligente et sans doublon)
+    - Fichier/Dossier sur le bouton RETOUR (ou sur le parent en périphérie) -> Remonte l'élément d'un niveau dans l'arborescence
+    - Fichier/Dossier sur la Corbeille -> Envoie l'élément à la Corbeille Windows native (ou le supprime définitivement si déjà dans la Corbeille)
+    - Déplacer un élément hors de la Corbeille vers le dossier parent -> Restaure le fichier avec son nom et son extension d'origine préservés
+  - *Glisser Clic Gauche en zone vide (Souris)* -> Translation (panning) de toute la scène 3D pour naviguer confortablement
+  - *Glisser Clic Droit (Souris)* -> Rotation orbitale tridimensionnelle complète (spin) pour observer l'hologramme sous tous les angles
+
+[ Carte Domotique 3D de la Maison (Hologramme) ]
+  - Jarvis, affiche ma maison / Carte domotique / Mode carte 3D / Affiche la carte 3D / Ma maison 3D -> Déploie la maquette 3D interactive et dynamique de la maison
+  - *Interaction tactile ou geste* -> Permet d'allumer/éteindre ou changer l'intensité/couleur des lumières et prises connectées directement en 3D
+  - *Glisser Clic Gauche en zone vide (Souris)* -> Déplacement latéral (translation) dans l'environnement 3D de la maquette
+  - *Glisser Clic Droit (Souris)* -> Rotation orbitale complète de la structure de la maison 3D
+
+[ Cortex Neuronal 3D - Constellation de la Mémoire (Hologramme) ]
+  - Cortex / Affiche ton cortex / Mode cortex / Ouvre le cortex / Connexions neuronales -> Déploie la double constellation synaptique 3D interactive (mémoires vectorielles et faits)
+  - *Lobe Gauche (Cyan)* -> Constellation des souvenirs conversationnels sémantiques (ChromaDB)
+  - *Lobe Droit (Magenta)* -> Constellation des faits et informations statiques (jarvis_memoire.json)
+  - *Clic Gauche / Pincement Main sur un Noeud* -> Ouvre la bulle de détail cybernétique holographique du souvenir (Date, Type, Contenu textuel complet de Mylane et de l'assistant)
+  - *Bouton "SUPPRIMER" du Panel* -> Supprime définitivement le souvenir à chaud de la base de données (ChromaDB ou jarvis_memoire.json) avec effet de désintégration 3D et de propagation d'onde lumineuse (Ripple)
+  - *Sparks & Synapses* -> Visualisation dynamique de signaux électriques circulant à travers les connexions synaptiques actives
+  - *Glisser Clic Gauche en zone vide (Souris)* -> Déplacement de la constellation dans l'espace 3D
+  - *Glisser Clic Droit (Souris)* -> Rotation de la structure neuronale tridimensionnelle
+
+
+[ Globe Terrestre 3D ]
+  - Affiche la Terre / Globe terrestre / Vue depuis l'espace -> Initialise et affiche le globe terrestre 3D en mode orbital
+  - Zoom / Rapproche / Plus près -> Zoom orbital sur la Terre
+  - Dézoom / Éloigne / Plus loin -> Éloignement orbital de la caméra
+  - Montre-moi / Va à / Vol vers [Lieu/Ville/Pays] -> Décollage et vol orbital vers la destination ciblée
+  - Direction / Cherche [Nom de Lieu] -> Géocodage et centrage immédiat de la caméra sur le point d'intérêt
+  - Affiche ma position / Où suis-je ? / Localise-moi -> Utilise la géolocalisation du navigateur pour voler au-dessus de chez vous
+  - Trace un itinéraire de [Ville A] à [Ville B] / Trajet de [A] à [B] -> Calcule et trace une route visuelle entre deux villes sur le globe
+  - Ferme la carte / Ferme le globe / Retour à JARVIS -> Ferme le globe et revient à l'interface principale
+
+[ Télévision (Philips / Android TV) ]
+  - Allume la télé / Éteins la télé -> Contrôle électrique de votre téléviseur par Wake-on-LAN et ADB
+  - Lance [Netflix / YouTube / Disney+ / Prime Video / Deezer / Crunchyroll / Twitch / Apple TV] sur la télé -> Lancement d'applications
+  - Mets [Titre] sur YouTube (Télé) -> Recherche automatique et lecture directe de la première vidéo correspondante
+  - Pause la télé / Reprends la télé / Stop la télé -> Contrôle de lecture multimédia par signaux ADB
+  - Monte le son de la télé / Baisse le son de la télé -> Ajustement du volume (avec option "un peu" = 3 pts ou "beaucoup" = 25 pts)
+  - Quitte l'application sur la télé / Retour à l'accueil -> Retour à l'écran d'accueil Android TV
+
+[ Musique - Spotify ]
+  - Lance Spotify / Mets de la musique -> Ouvre l'application Spotify et met en lecture la dernière piste
+  - Joue [Titre] / Mets du [Artiste] sur Spotify -> Recherche et lance automatiquement la chanson ou l'artiste ciblé
+  - Pause / Reprends / Suivant / Précédent -> Commandes de lecture globales
+  - Monte le volume Spotify / Baisse le volume Spotify -> Contrôle du volume de l'application Spotify par raccourcis système
+  - Mets de la musique sur YouTube (PC) -> Lance votre playlist musicale de secours sur YouTube en plein écran
+
+[ Musique - Deezer ]
+  - Ouvre Deezer / Mets de la musique sur Deezer -> Ouvre l'application Deezer et lance la lecture
+  - Lance ma playlist Deezer / Ma musique personnalisée -> Ouvre l'URL de playlist ou le lien personnalisé configuré dans votre profil
+  - Recherche [Titre/Artiste] sur Deezer -> Recherche via l'API Deezer et lance la lecture du meilleur résultat correspondant
+  - Pause / Suivant / Précédent / Stop -> Commandes multimédia Deezer
+  - Volume Deezer monte / baisse -> Ajustement du volume système pas-à-pas lors de l'écoute sur Deezer
+
+[ HomePod Mini & Audio Casque ]
+  - Passe ta voix sur le HomePod / Utilise le HomePod -> Bascule le flux audio de synthèse vocale (TTS) sur le HomePod Mini à chaud
+  - Repasse sur le casque / Bascule sur le casque -> Réactive instantanément la sortie audio de votre PC
+  - Règle le volume du HomePod à [X]% -> Ajustement précis du volume du HomePod de 0 à 100% via l'API AirPlay (pyatv)
+  - Pause le HomePod / Reprends le HomePod -> Contrôle de lecture multimédia directe sur le HomePod Mini
+  - Musique suivante / précédente sur le HomePod -> Navigation dans la playlist active du HomePod
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  AUTOPILOTE & CURSEUR VIRTUEL SUR LE WEB (Extension Chrome)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[ Recherche & Navigation Autonomes (Amazon & Web) ]
+  - Ouvre Amazon, cherche [Produit], et clique sur le premier/troisième/cinquième article -> Simulation complète de navigation d'achat
+  - Ouvre Amazon, saisis [Texte] dans la barre de recherche, clique sur le bouton de recherche et ouvre le premier article
+  - Va sur [URL], tape [Texte] dans [Sélecteur/Champ] et clique sur [Bouton] -> Commande d'automatisation web universelle
+  - Ouvre YouTube et recherche [Artiste/Sujet] -> Autopilote complet sur le site YouTube
+  
+[ Capacités Spéciales de l'Autopilote ]
+  - *Filtrage Anti-Publicité* -> JARVIS filtre automatiquement les annonces sponsorisées et carrousels publicitaires sur Amazon pour ne cliquer que sur de vrais articles organiques.
+  - *Sélection par Index Visuel* -> Utilise un sélecteur universel `[item-number=N]` pour repérer de manière infaillible le Nième article réellement visible à l'écran, sans se laisser induire en erreur par les décalages d'index.
+  - *HUD Diagnostic en Temps Réel* :
+    - Génère une bannière cybernétique `#jarvis-hud-banner` en haut de l'écran affichant les logs et l'étape d'autopilote en cours.
+    - Encadre en vert fluo néon (`3px solid #00ffaa`) les éléments de saisie et les articles sur lesquels le curseur virtuel s'apprête à cliquer.
+  - *File d'Attente Anti-Collision (Queue)* -> Enchaîne de façon fluide des séquences complexes de clics, saisies clavier simulées (à 100ms/caractère) et de focus.
+  - *Persistance inter-pages* -> L'autopilote survit aux rechargements de page (soumission de formulaires) grâce à un stockage local temporaire persistant.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  🤖 AUTOPILOTE IA VISUEL UNIVERSEL (visual_web_agent.py)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  Système autonome qui ouvre Opera GX en visible et accomplit n'importe
+  quelle tâche web complexe étape par étape via la vision IA (Gemini Vision).
+  Flux : Planification LLM → Screenshot → Vision → Action → Confirmation
+
+[ Exemples de commandes ]
+  - "Jarvis, cherche un hôtel avec spa à Annecy pour ce week-end à moins de 120€ sur Booking"
+    → JARVIS planifie : goto booking.com → fill dates → fill destination → filter → scroll résultats
+  - "Jarvis, trouve-moi les baskets Nike Air Max en taille 42 moins de 100€ sur Zalando"
+    → JARVIS ouvre Zalando, cherche, filtre et te montre les résultats
+  - "Jarvis, va sur Leboncoin et cherche une PS5 moins de 400€ à Lyon"
+    → JARVIS navigue et affiche les annonces correspondantes
+  - "Jarvis, cherche les vols Paris-Barcelone ce vendredi sur Kayak"
+    → JARVIS remplit les dates, cherche et présente les offres
+  - Toute commande web complexe : formulaires, recherches, réservations, comparaisons de prix
+
+[ Contrôle de l'agent ]
+  - "Ferme le navigateur" / "Stop le navigateur" / "Stop l'autopilote" / "Ferme Opera"
+    → Ferme Opera GX proprement et arrête l'agent
+
+[ Fonctionnement Technique ]
+  - Navigateur : Opera GX en mode VISIBLE (par-dessus le HUD)
+  - Vision : Screenshot à chaque étape → Gemini Vision localise les éléments
+  - Popups/Cookies : Détection et fermeture automatique
+  - Boucle max 18 étapes → vérification visuelle finale → résumé vocal
+  - Le navigateur reste ouvert après la tâche pour que tu puisses interagir
+
+[ Fichier ]
+  n:\JARVIS\module\visual_web_agent.py
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  DOMOTIQUE & MAISON CONNECTÉE (Home Assistant)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[ Lumières & Prises ]
+  - Allume / Éteins la lumière du [Salon / Chambre / Bureau / Cuisine] -> Contrôle domotique instantané
+  - Mets la lumière en [Couleur] -> Ajuste la couleur de la lumière (Rouge, Bleu, Vert, Cyan, Rose, Violet...)
+  - Règle la luminosité à [X]% -> Configure précisément le pourcentage de luminosité de vos ampoules connectées
+  - Allume / Éteins la prise du [Bureau / Sapin / ...] -> Active ou désactive l'alimentation des prises connectées
+
+[ Confort & Capteurs ]
+  - Quelle est la température dans le [Salon / Bureau] ? -> Récupère l'état thermique de vos capteurs intérieurs
+  - Quel est le taux d'humidité dans le [Bureau] ? -> Niveau d'humidité ambiant
+  - Règle le thermostat à [X] degrés -> Ajustement de la température du système de chauffage connecté
+  - État de la batterie de [Mon téléphone / Téléphone de Julie / ...] -> Renvoie la batterie des smartphones enregistrés
+  - Combien ai-je consommé d'énergie ce mois-ci ? / Consommation de [Appareil] -> Suivi énergétique précis mensuel ou journalier
+  - Quelle est la puissance consommée à la maison ? / Consommation électrique -> Puissance instantanée de la maison (en Volt-Ampères)
+  - Combien d'abonnés sur TikTok ? / Abonnés TikTok -> Récupère le nombre actuel de followers sur votre compte TikTok
+  - Quand a eu lieu le dernier ramassage des œufs ? -> Date et heure exactes du dernier ramassage enregistré
+  - Qui a son anniversaire aujourd'hui ? / Anniversaires du jour -> Récupère les anniversaires à fêter depuis votre calendrier domotique
+
+[ Sécurité & Scènes ]
+  - Active la scène [Nom de la scène] -> Ambiance préconfigurée (Cinéma, Dîner, Nuit, Réveil...)
+  - Active / Désactive l'alarme -> Arme ou désarme votre système de sécurité Home Base
+  - Verrouille / Déverrouille la porte -> Verrouillage physique de votre porte d'entrée
+  - Active la simulation de présence -> Active ou désactive le protocole de simulation de vie domotique par les lumières
+
+[ Aspirateur Robot ]
+  - Lance le nettoyage / Aspire la maison -> Bob démarre son cycle de nettoyage
+  - Arrête l'aspirateur / Pause / Retour à la base -> Contrôle du robot Bob
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  INTELLIGENCE & ASSISTANCE IA (Moteurs AI)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[ Intelligence & Assistance IA ]
+  - Recherche approfondie sur [Sujet] -> Analyse en temps réel de plusieurs sources web via un navigateur autonome (Playwright)
+  - Analyse mon écran / Aide-moi -> Capture d'écran instantanée et diagnostic visuel IA (Code, UI, bugs...)
+  - Regarde mon écran / Analyse ce que tu vois -> Conseil de programmation en direct
+  - Clique sur [Bouton] / Écris [Texte] dans le champ [Nom] -> Clic et saisie intelligente par vision IA
+  - Lance la caméra / Regarde-moi -> Analyse visuelle physique via la webcam physique de votre machine
+  - Génère une image de [Description] / Dessine-moi [Description] -> Génère instantanément une image artistique par IA (via Pollinations.ai) et l'affiche sur l'interface du HUD en direct
+  - Dictée : tape [Texte] / écris [Texte] -> Tape fidèlement le texte dicté à l'endroit exact de votre curseur textuel Windows
+
+[ Mémoire & Apprentissage ]
+  - Souviens-toi que [Information] / Enregistre que [Info] -> Enregistrement sémantique et clé-valeur immédiat à chaud
+  - Oublie [Information] / Supprime le souvenir [Sujet] -> Efface une clé spécifique de votre mémoire locale et de ChromaDB
+  - Qu'est-ce que tu sais sur moi ? / Liste ma mémoire -> Affiche la totalité de vos données et faits personnels retenus
+  - Cherche dans mes souvenirs [Sujet] -> Recherche sémantique vectorielle profonde (ChromaDB) pour extraire vos anciens souvenirs
+
+[ Google Workspace (Docs, Sheets, Gmail, Calendar, Tasks & Drive) ]
+  - Crée un Google Doc intitulé [Titre] -> Génère et ouvre un nouveau document avec option de contenu
+  - Écris / Ajoute dans mon Google Doc [Texte] -> Rédige dans le dernier document actif
+  - Lis le contenu de mon Google Doc -> Lecture et analyse IA de votre document en session
+  - Crée un Google Sheet intitulé [Titre] -> Génère et ouvre une feuille de calcul Sheets
+  - Ajoute [Valeur1, Valeur2...] dans mon Google Sheet -> Insère une nouvelle ligne de données
+  - Lis les données de mon Google Sheet de [Plage, ex: A1:C10] -> Récupération de données Sheets
+  - Lis mes derniers emails / nouveaux emails -> Affiche vos 5 derniers messages non lus de la boîte principale
+  - Lis le détail du dernier email -> Extraction complète et lecture du texte brut
+  - Envoie un email à [Email] au sujet de [Sujet] contenant [Corps] -> Envoi d'email Gmail autonome
+  - Réponds au dernier email avec [Texte] -> Rédige une réponse dans la conversation email en cours
+  - Archive / Supprime le dernier email -> Gestion rapide de votre boîte mail Gmail
+  - Montre mon agenda / Quels sont mes événements -> Liste vos prochains événements Google Agenda
+  - Crée un événement [Titre] du [Date début] au [Date fin] -> Ajoute un rendez-vous dans Calendar
+  - Modifie l'événement [Titre] en [Nouveau titre / Nouvelle heure] -> Édition dynamique d'événement
+  - Supprime l'événement [Titre] -> Retrait immédiat de l'événement de l'agenda
+  - Ouvre mon Google Drive -> Ouvre votre espace de stockage cloud dans le navigateur
+  - Cherche sur mon Drive [Nom de fichier] -> Recherche de fichiers/dossiers sur Google Drive par nom
+  - Téléverse le fichier [Chemin local] sur mon Drive -> Upload de document local vers le cloud
+  - Partage le document [Titre] avec [Email] -> Configure les permissions de partage Drive
+  - Crée le dossier [Nom] sur mon Drive -> Organisation de votre cloud Google Drive
+  - Ajoute une tâche [Titre] dans mes tâches -> Enregistrement d'un rappel dans Google Tasks
+  - Liste mes tâches Google Tasks -> Récupération de votre To-Do list active
+  - Valide la tâche [Titre] comme faite -> Coche et finalise la tâche sélectionnée
+  - Supprime la tâche [Titre] -> Suppression de la tâche de votre liste Google
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  OUTILS PRATIQUES, UTILITIES & CONVERSATIONNEL
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[ Gestion des Listes Locales ]
+  - Ajoute [Élément] à ma liste de courses -> Insère un article dans votre liste de courses locale (`jarvis_listes.json`)
+  - Affiche ma liste de courses / Qu'est-ce que j'ai dans ma liste ? -> Énonce vos articles à acheter
+  - Vide la liste de courses / Efface mes courses -> Remet à zéro votre liste de courses locale
+  - Note ça : [Texte] / Prends note de [Texte] -> Enregistre une note rapide avec horodatage dans vos notes
+  - Lis mes notes / Montre mes notes -> Affiche vos 5 dernières notes locales
+  - Efface mes notes / Vide mes notes -> Supprime toutes vos notes locales
+  - Ajoute une tâche : [Tâche] / Ajoute à ma to-do -> Ajoute une tâche à accomplir localement
+  - Mes tâches / Ma to-do / Liste de tâches -> Affiche vos tâches locales non finalisées
+  - Efface mes tâches / Vide ma to-do -> Réinitialise votre to-do list locale
+
+[ Outils Pratiques & Communication ]
+  - Rappelle-moi de [Tâche] à [Heure] -> Programmation d'une alarme ou d'un rappel vocal
+  - Liste mes alarmes / Annule l'alarme de [Heure] / Annule toutes les alarmes -> Gestion d'alarmes persistantes
+  - Traduis [Texte] en [Langue] / Comment dit-on [Mot] en [Langue] ? -> Traduction ultra-rapide (dictionnaire de mots courants) ou IA
+  - Appelle [Nom du Contact] sur WhatsApp -> Lancement instantané de l'appel audio ou vidéo WhatsApp PC
+
+[ Jeux & Utilitaires ]
+  - Lance une pièce / Pile ou face -> Lance une pièce de monnaie virtuelle pour obtenir Pile ou Face
+  - Lance un dé [à X faces] / Jette le dé -> Simule un jet de dé (dé à 6 faces par défaut ou dé personnalisé à X faces)
+  - Génère un nombre aléatoire entre [A] et [B] / Nombre aléatoire -> Tire un nombre au sort dans l'intervalle demandé
+  - Génère un mot de passe [de X caractères] / Mot de passe sécurisé -> Crée un mot de passe hautement sécurisé à la volée (max 64 car.)
+  - Épelle [Mot] / Alphabet phonétique -> Épelle phonétiquement le mot demandé à l'aide de l'alphabet radio international (NATO)
+  - [Lettre] comme ? -> Donne l'équivalent phonétique de la lettre (ex: "A comme Alfa", "B comme Bravo")
+  - Combien de jours avant Noël ? -> Compte à rebours festif jusqu'au 25 Décembre
+  - Combien de jours avant le Nouvel An ? -> Compte à rebours jusqu'au 1er Janvier de l'année suivante
+
+[ Culture Générale & Heure Mondiale ]
+  - Quelle heure est-il à [Ville] ? -> Fuseaux horaires mondiaux (Paris, Londres, New York, Tokyo, Sydney, Dubaï, Moscou...)
+  - Quelle est la monnaie de/du [Pays] ? / Devise de [Pays] -> Donne la monnaie officielle de pays (France, USA, Japon, Royaume-Uni, Suisse, Canada...)
+  - Quelle est la capitale de/du [Pays] ? -> Énonce la capitale d'un pays du monde
+
+[ Humour, Identité & Salutations ]
+  - Raconte-moi une blague / Fais-moi de l'humour -> Choisit et énonce une blague amusante de son répertoire local
+  - Donne-moi une citation / Inspire-moi -> Partage une citation philosophique célèbre et motivante
+  - Qui es-tu ? / Quel est ton nom ? / C'est quoi JARVIS ? -> Présente son identité (Just A Rather Very Intelligent System)
+  - Qui est ton créateur ? / Qui t'a fait ? -> Rend hommage à son créateur (Mylane)
+  - Bonjour / Salut / Comment tu vas ? / Ça va ? -> Répond chaleureusement avec l'état de ses processeurs
+
+[ Configuration & Flux Vocaux ]
+  - Prends la voix d'homme -> Bascule sur la voix premium masculine (Habituelle / Onyx / Henri)
+  - Prends la voix de femme -> Bascule sur la voix premium féminine (Fréquence alternative / Nova / Denise)
+  - Active / Désactive le mode Iron Man -> Active ou désactive la détection continue par applaudissements pour piloter les lampes et YouTube
+  - Tais-toi ! / Silence ! / Arrête ! -> Interruption immédiate du flux de parole, nettoyage de la mémoire vive et suppression instantanée des fichiers audios temporaires.

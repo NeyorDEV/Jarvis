@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(Get-ChildItem \"$env:LOCALAPPDATA\" -ErrorAction SilentlyContinue | Select-Object Name)"
+    ]
+  }
+}
