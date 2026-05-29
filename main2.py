@@ -71,6 +71,7 @@ import plugins.list_manager
 import plugins.time_resolver
 import plugins.app_launcher_resolver
 import plugins.dom_controller_resolver
+import plugins.developer_resolver
 
 from controller.app_launcher import _fermer_app, _boulot_lancer, _APPS_CATALOGUE
 builtins._APPS_CATALOGUE = _APPS_CATALOGUE
@@ -2687,7 +2688,8 @@ async def traiter_reponse_ia(texte_utilisateur, mobile_ws=None, from_voice=False
 
         # TENTATIVE DE RÉSOLUTION LOCALE (Commandes, Math, Français, etc.)
         print(f"[DEBUG] Tentative de résolution locale pour : {texte_utilisateur}")
-        reponse = await builtins.resoudre_dom_hud(texte_utilisateur)
+        reponse = await builtins.resoudre_developpement(texte_utilisateur)
+        if not reponse: reponse = await builtins.resoudre_dom_hud(texte_utilisateur)
         if not reponse: reponse = await resoudre_commandes_locales(texte_utilisateur)
         if not reponse: reponse = await builtins.resoudre_commandes_systeme(texte_utilisateur)
         if not reponse: reponse = await builtins.resoudre_tv_localement(texte_utilisateur)
