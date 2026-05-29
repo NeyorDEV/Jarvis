@@ -8,16 +8,109 @@ from google.genai import types
 def nettoyer_accent(texte):
     return "".join(c for c in unicodedata.normalize('NFD', texte) if unicodedata.category(c) != 'Mn')
 
+def extraire_nombre(texte):
+    # Cherche un nombre en chiffres
+    match = re.search(r'\d+', texte)
+    if match:
+        return int(match.group(0))
+    # Cherche des mots-clés de nombres en français
+    mots_nombres = {
+        "un": 1, "une": 1, "deux": 2, "trois": 3, "quatre": 4, "cinq": 5,
+        "six": 6, "sept": 7, "huit": 8, "neuf": 9, "dix": 10, "douze": 12
+    }
+    for mot, val in mots_nombres.items():
+        if re.search(rf"\b{mot}\b", texte):
+            return val
+    return None
+
 async def resoudre_recipe(cmd):
     t = nettoyer_accent(cmd.lower().strip())
 
-    # Patterns de détection des demandes de recette
+    # 1. SI ON ATTEND LE NOMBRE DE PERSONNES (CONTEXTE ACTIF)
+    if hasattr(builtins, "recipe_context") and builtins.recipe_context:
+        ctx = builtins.recipe_context
+        if ctx.get("awaiting_people_count"):
+            recipe_name = ctx.get("recipe_name")
+            nb_personnes = extraire_nombre(t)
+            
+            # Si aucun nombre n'est détecté, on utilise 4 personnes par défaut
+            if not nb_personnes:
+                nb_personnes = 4
+                
+            print(f"[Recipe Resolver] Contexte actif pour {recipe_name}. Nombre de personnes choisi : {nb_personnes}")
+            
+            # Réinitialiser le contexte immédiatement
+            builtins.recipe_context = None
+            
+            # Appel à Gemini pour générer la recette adaptée
+            prompt = (
+                f"Génère une recette de cuisine pour \"{recipe_name}\", spécifiquement adaptée et dosée pour {nb_personnes} personnes. "
+                "Le résultat doit être un objet JSON STRICTEMENT du format suivant :\n"
+                "```json\n{\n  \"recipe_title\": \"Nom de la recette\",\n  \"ingredients\": [\"Ingrédient 1\", \"Ingrédient 2\"],\n  \"instructions\": [\"Étape 1\", \"Étape 2\"]\n}\n```\n"
+                "Assure-toi que les valeurs des tableaux `ingredients` et `instructions` sont des chaînes de caractères simples avec les proportions exactes recalculées pour "
+                f"{nb_personnes} personnes. Ne rajoute aucun texte avant ou après le JSON. Si tu ne trouves pas la recette, réponds avec un JSON vide comme ceci : {{}}."
+            )
+            
+            try:
+                print("[Recipe Resolver] Appel à Gemini pour générer la recette adaptée...")
+                def call_gemini():
+                    return builtins.client.models.generate_content(
+                        model=builtins.CHOSEN_MODEL,
+                        contents=prompt,
+                        config=types.GenerateContentConfig(
+                            response_mime_type="application/json"
+                        )
+                    )
+                
+                response = await asyncio.to_thread(call_gemini)
+                recipe_data = json.loads(response.text)
+                
+                if recipe_data and isinstance(recipe_data, dict) and recipe_data.get("recipe_title"):
+                    title = recipe_data.get("recipe_title", "")
+                    ingredients = recipe_data.get("ingredients", [])
+                    instructions = recipe_data.get("instructions", [])
+                    
+                    print(f"[Recipe Resolver] Recette générée : {title}")
+                    
+                    # Envoi au HUD
+                    await builtins.send_action_to_frontend({
+                        "type": "show_recipe",
+                        "recipe_title": title,
+                        "ingredients": ingredients,
+                        "instructions": instructions,
+                    })
+                    
+                    # Construction de la lecture complète
+                    ingredients_text = ", ".join(ingredients)
+                    instructions_text = " ".join([f"Étape {i+1} : {inst}" for i, inst in enumerate(instructions)])
+                    
+                    vocal_response = (
+                        f"J'ai affiché la recette de {title} sur l'hud pour {nb_personnes} personnes, mylane. "
+                        f"Voici la liste des ingrédients requis : {ingredients_text}. "
+                        f"Concernant les étapes de préparation : {instructions_text}. Bon appétit !"
+                    )
+                    return vocal_response
+                else:
+                    print("[Recipe Resolver] Aucune recette valide générée.")
+                    return "Désolé, je n'ai pas pu trouver de recette pour cela."
+                    
+            except Exception as e:
+                print(f"[Recipe Resolver] Erreur de traitement : {e}")
+                return "Désolé, une erreur est survenue lors de la recherche de la recette."
+
+    # 2. PREMIÈRE DEMANDE DE RECETTE (DETECTION PAR MOTS CLÉS)
     recipe_patterns = [
         r"donne moi la recette de (.*)",
         r"quelle est la recette de (.*)",
         r"je voudrais la recette de (.*)",
         r"trouve moi une recette de (.*)",
         r"montre moi la recette de (.*)",
+        r"recette de (.*)",
+        r"recette pour faire des (.*)",
+        r"recette pour faire de la (.*)",
+        r"recette pour faire du (.*)",
+        r"recette pour faire un (.*)",
+        r"recette pour faire une (.*)",
         r"recette (.*)"
     ]
 
@@ -26,52 +119,32 @@ async def resoudre_recipe(cmd):
         match = re.search(pattern, t)
         if match:
             recipe_name = match.group(1).strip()
+            if recipe_name.endswith("."):
+                recipe_name = recipe_name[:-1].strip()
             break
 
     if recipe_name:
-        print(f"[Recipe Resolver] Demande de recette détectée pour : {recipe_name}")
-        prompt = (
-            f"Génère une recette de cuisine pour \"{recipe_name}\". "
-            "Le résultat doit être un objet JSON STRICTEMENT du format suivant :\n"
-            "```json\n{{\n  \"recipe_title\": \"Nom de la recette\",\n  \"ingredients\": [\"Ingrédient 1\", \"Ingrédient 2\"],\n  \"instructions\": [\"Étape 1\", \"Étape 2\"]\n}}\n```\n"
-            "Assure-toi que les valeurs des tableaux `ingredients` et `instructions` sont des chaînes de caractères simples. "
-            "Ne rajoute aucun texte avant ou après le JSON. Si tu ne trouves pas la recette, réponds avec un JSON vide comme ceci : {}."
-        )
-
-        try:
-            print("[Recipe Resolver] Appel à Gemini pour générer la recette...")
-            # Appel à Gemini via le client global synchrone dans un thread asynchrone non bloquant
-            def call_gemini():
-                return builtins.client.models.generate_content(
-                    model=builtins.CHOSEN_MODEL,
-                    contents=prompt,
-                    config=types.GenerateContentConfig(
-                        response_mime_type="application/json"
-                    )
-                )
+        print(f"[Recipe Resolver] Première demande de recette détectée pour : {recipe_name}")
+        # Enregistrer le contexte et poser la question du nombre de personnes
+        builtins.recipe_context = {
+            "recipe_name": recipe_name,
+            "awaiting_people_count": True
+        }
+        
+        # Formatage grammatical naturel en français
+        nom_propre = recipe_name
+        if nom_propre.startswith("des "):
+            phrase_nom = nom_propre
+        elif nom_propre.startswith("de la "):
+            phrase_nom = nom_propre
+        elif nom_propre.startswith("du "):
+            phrase_nom = nom_propre
+        elif nom_propre.startswith("d'"):
+            phrase_nom = nom_propre
+        else:
+            phrase_nom = f"de {nom_propre}"
             
-            response = await asyncio.to_thread(call_gemini)
-            recipe_data = json.loads(response.text)
-
-            if recipe_data and isinstance(recipe_data, dict) and recipe_data.get("recipe_title"):
-                print(f"[Recipe Resolver] Recette générée : {recipe_data.get('recipe_title')}")
-                await builtins.send_action_to_frontend({
-                    "type": "show_recipe",
-                    "recipe_title": recipe_data.get("recipe_title", ""),
-                    "ingredients": recipe_data.get("ingredients", []),
-                    "instructions": recipe_data.get("instructions", []),
-                })
-                return f"J'ai affiché la recette de {recipe_data.get('recipe_title')} sur l'hud, mylane. Bon appétit !"
-            else:
-                print("[Recipe Resolver] Aucune recette valide n'a pu être générée ou la réponse est vide.")
-                return "Désolé, je n'ai pas pu trouver de recette pour cela."
- 
-        except json.JSONDecodeError as e:
-            print(f"[Recipe Resolver] Erreur de décodage JSON : {e}")
-            return "Désolé, il y a eu un problème pour générer la recette."
-        except Exception as e:
-            print(f"[Recipe Resolver] Une erreur inattendue est survenue : {e}")
-            return "Désolé, une erreur interne est survenue lors de la recherche de la recette."
+        return f"Pour combien de personnes souhaitez-vous préparer cette recette {phrase_nom} ?"
 
     return None
 
