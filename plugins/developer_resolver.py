@@ -218,8 +218,15 @@ async def resoudre_developpement(cmd):
         # B. Informer l'utilisateur
         builtins.parler("J'initialise les protocoles d'auto-évolution, mylane. J'analyse le projet et je prépare les modifications de code...")
         
-        # C. Boucle d'essais pour la génération et l'auto-correction
-        prompt = f"L'utilisateur (mylane) demande la modification suivante :\n\"{description}\"\n\nGénère le tableau JSON des modifications de code nécessaires."
+        # Fournir des informations de contexte supplémentaires sur la codebase
+        contexte_codebase = (
+            "\n\nNOTE DE CONTEXTE D'ARCHITECTURE :\n"
+            "- Le HUD possède déjà la structure HTML '#recipe-modal' dans frontend/index.html.\n"
+            "- Le HUD possède déjà le style CSS pour le widget recette dans frontend/src/style.css.\n"
+            "- Le HUD possède déjà le gestionnaire de messages 'show_recipe' dans frontend/src/main.ts qui attend un message WebSocket de type 'show_recipe' avec les champs 'recipe_title' (string), 'ingredients' (array of strings) et 'instructions' (array of strings).\n"
+            "- Ainsi, pour la demande de widget de recette, TU NE DOIS PAS MODIFIER les fichiers frontend (index.html, main.ts, etc.). Il te suffit de créer le plugin Python backend 'plugins/recipe_resolver.py' qui va capter la demande vocale, utiliser un appel LLM interne si nécessaire pour générer la recette demandée de manière structurée, puis renvoyer l'action WebSocket 'show_recipe' correspondante via le courtier d'actions génériques de main2.py, et enfin importer et enregistrer ce resolver dans main2.py."
+        )
+        prompt = f"L'utilisateur (mylane) demande la modification suivante :\n\"{description}\"\n{contexte_codebase}\n\nGénère le tableau JSON des modifications de code nécessaires."
         
         err_prev = ""
         edits = []
