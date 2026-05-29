@@ -26,7 +26,7 @@ def extraire_nombre(texte):
 async def resoudre_recipe(cmd):
     t = nettoyer_accent(cmd.lower().strip())
 
-    # 1. SI ON ATTEND LE NOMBRE DE PERSONNES (CONTEXTE ACTIF)
+    # 1. SI ON ATTEND LE NOMBRE DE PERSONNES (CONTEXTE ACTIF - DEUXIÈME TOUR)
     if hasattr(builtins, "recipe_context") and builtins.recipe_context:
         ctx = builtins.recipe_context
         if ctx.get("awaiting_people_count"):
@@ -125,7 +125,70 @@ async def resoudre_recipe(cmd):
 
     if recipe_name:
         print(f"[Recipe Resolver] Première demande de recette détectée pour : {recipe_name}")
-        # Enregistrer le contexte et poser la question du nombre de personnes
+        
+        # DÉTECTION PROACTIVE : L'utilisateur a-t-il déjà spécifié le nombre de personnes ?
+        nb_personnes = extraire_nombre(t)
+        if nb_personnes:
+            print(f"[Recipe Resolver] Détection proactive du nombre de personnes : {nb_personnes}")
+            # Nettoyer le nom de la recette pour retirer "pour X personnes"
+            recipe_name_clean = re.sub(r"\bpour\s+\d+\s+personnes?\b", "", recipe_name, flags=re.IGNORECASE)
+            recipe_name_clean = re.sub(r"\bpour\s+(un|une|deux|trois|quatre|cinq|six|sept|huit|neuf|dix|douze)\s+personnes?\b", "", recipe_name_clean, flags=re.IGNORECASE)
+            recipe_name_clean = recipe_name_clean.strip()
+            if not recipe_name_clean:
+                recipe_name_clean = recipe_name
+
+            prompt = (
+                f"Génère une recette de cuisine pour \"{recipe_name_clean}\", spécifiquement adaptée et dosée pour {nb_personnes} personnes. "
+                "Le résultat doit être un objet JSON STRICTEMENT du format suivant :\n"
+                "```json\n{\n  \"recipe_title\": \"Nom de la recette\",\n  \"ingredients\": [\"Ingrédient 1\", \"Ingrédient 2\"],\n  \"instructions\": [\"Étape 1\", \"Étape 2\"]\n}\n```\n"
+                "Assure-toi que les valeurs des tableaux `ingredients` et `instructions` sont des chaînes de caractères simples avec les proportions exactes recalculées pour "
+                f"{nb_personnes} personnes. Ne rajoute aucun texte avant ou après le JSON. Si tu ne trouves pas la recette, réponds avec un JSON vide comme ceci : {{}}."
+            )
+            
+            try:
+                print("[Recipe Resolver] Appel à Gemini pour générer la recette adaptée...")
+                def call_gemini():
+                    return builtins.client.models.generate_content(
+                        model=builtins.CHOSEN_MODEL,
+                        contents=prompt,
+                        config=types.GenerateContentConfig(
+                            response_mime_type="application/json"
+                        )
+                    )
+                
+                response = await asyncio.to_thread(call_gemini)
+                recipe_data = json.loads(response.text)
+                
+                if recipe_data and isinstance(recipe_data, dict) and recipe_data.get("recipe_title"):
+                    title = recipe_data.get("recipe_title", "")
+                    ingredients = recipe_data.get("ingredients", [])
+                    instructions = recipe_data.get("instructions", [])
+                    
+                    print(f"[Recipe Resolver] Recette générée : {title}")
+                    
+                    # Envoi au HUD
+                    await builtins.send_action_to_frontend({
+                        "type": "show_recipe",
+                        "recipe_title": title,
+                        "ingredients": ingredients,
+                        "instructions": instructions,
+                    })
+                    
+                    ingredients_text = ", ".join(ingredients)
+                    instructions_text = " ".join([f"Étape {i+1} : {inst}" for i, inst in enumerate(instructions)])
+                    
+                    return (
+                        f"J'ai affiché la recette de {title} sur l'hud pour {nb_personnes} personnes, mylane. "
+                        f"Voici la liste des ingrédients requis : {ingredients_text}. "
+                        f"Concernant les étapes de préparation : {instructions_text}. Bon appétit !"
+                    )
+                else:
+                    return "Désolé, je n'ai pas pu trouver de recette pour cela."
+            except Exception as e:
+                print(f"[Recipe Resolver] Erreur de traitement : {e}")
+                return "Désolé, une erreur est survenue lors de la recherche de la recette."
+
+        # SINON : Enregistrer le contexte et poser la question du nombre de personnes
         builtins.recipe_context = {
             "recipe_name": recipe_name,
             "awaiting_people_count": True
