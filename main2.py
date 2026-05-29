@@ -72,6 +72,7 @@ import plugins.time_resolver
 import plugins.app_launcher_resolver
 import plugins.dom_controller_resolver
 import plugins.developer_resolver
+import plugins.recipe_resolver
 
 from controller.app_launcher import _fermer_app, _boulot_lancer, _APPS_CATALOGUE
 builtins._APPS_CATALOGUE = _APPS_CATALOGUE
@@ -610,6 +611,11 @@ async def send_web_text_interim(text):
     """Envoie la transcription partielle (en cours de parole) au HUD."""
     _safe_ws_send(json.dumps({"action": "interim_speech", "text": text}))
 
+async def send_action_to_frontend(action):
+    """Envoie une action WebSocket brute au frontend."""
+    _safe_ws_send(json.dumps(action))
+
+builtins.send_action_to_frontend = send_action_to_frontend
 builtins.send_web_state = send_web_state
 builtins.send_web_text = send_web_text
 builtins.send_web_volume = send_web_volume
@@ -2689,6 +2695,7 @@ async def traiter_reponse_ia(texte_utilisateur, mobile_ws=None, from_voice=False
         # TENTATIVE DE RÉSOLUTION LOCALE (Commandes, Math, Français, etc.)
         print(f"[DEBUG] Tentative de résolution locale pour : {texte_utilisateur}")
         reponse = await builtins.resoudre_developpement(texte_utilisateur)
+        if not reponse: reponse = await builtins.resoudre_recipe(texte_utilisateur)
         if not reponse: reponse = await builtins.resoudre_dom_hud(texte_utilisateur)
         if not reponse: reponse = await resoudre_commandes_locales(texte_utilisateur)
         if not reponse: reponse = await builtins.resoudre_commandes_systeme(texte_utilisateur)
