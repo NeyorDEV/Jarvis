@@ -15,6 +15,9 @@ token_*.json
 token.pickle
 *.pickle
 credentials.json
+adb_key
+adb_key.pub
+
 
 # Base vectorielle
 chroma_db/
