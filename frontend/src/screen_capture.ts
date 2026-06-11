@@ -67,14 +67,18 @@ export async function captureFrame(): Promise<string | null> {
 }
 
 export function injectVisionButton() {
-  const btn = document.createElement("button");
-  btn.id = "vision-button";
-  btn.textContent = "ACTIVER LA VISION";
-  
+  const track = document.getElementById('carousel-track');
+  const target = track || document.body;
+
+  const btn = document.createElement('button');
+  btn.id = 'vision-button';
+  btn.textContent = 'VISION';
+
   btn.onclick = async () => {
     const ok = await enableScreenCapture();
-    btn.textContent = ok ? "VISION ACTIVE" : "VISION REFUSÉE";
-    btn.className = ok ? "active" : "error";
+    btn.textContent = ok ? 'VISION • ON' : 'VISION KO';
+    btn.classList.toggle('vision-active', ok);
+    btn.classList.toggle('vision-error', !ok);
   };
-  document.body.appendChild(btn);
+  target.appendChild(btn);
 }

@@ -25,16 +25,16 @@ if _USE_HOMEPOD:
         _USE_HOMEPOD = False
         print("[SPEECH] homepod_audio introuvable — fallback sur pygame.")
 
-# TTS local F5-TTS optionnel (USE_LOCAL_TTS=true dans .env)
+# TTS local Kokoro-TTS optionnel (USE_LOCAL_TTS=true dans .env)
 _USE_LOCAL_TTS = os.getenv("USE_LOCAL_TTS", "false").lower() == "true"
 if _USE_LOCAL_TTS:
     try:
         from core.tts_local import init_tts, generer_audio as _generer_audio_local
         init_tts()  # Charge le modèle en VRAM au démarrage
-        print("[SPEECH] Mode TTS local (F5-TTS) activé.")
+        print("✔ [🗣 SPEECH] Moteur vocal local (Kokoro-TTS) actif.")
     except Exception as e:
         _USE_LOCAL_TTS = False
-        print(f"[SPEECH] F5-TTS indisponible ({e}) — fallback edge_tts.")
+        print(f"❌ [🗣 SPEECH] Moteur vocal local (Kokoro-TTS) indisponible ({e}) — fallback en ligne (edge_tts).")
 
 is_speaking = False
 speak_volume = 0.0
@@ -60,25 +60,52 @@ async def _generer_tts_fichier(texte) -> str | None:
     try:
         from core.config import VOIX_ACTUELLE
         
+        # 1. Option Kokoro-TTS local
         if _USE_LOCAL_TTS:
-            # Génération locale F5-TTS (WAV) avec clone de voix
             tmp_path = tmp + ".wav"
             ok = await asyncio.get_event_loop().run_in_executor(
                 None, _generer_audio_local, texte_tts, tmp_path
             )
-            if not ok:
-                # Fallback edge_tts si F5-TTS échoue
-                tmp_path = tmp + ".mp3"
-                voice_standard = "fr-FR-HenriNeural" if VOIX_ACTUELLE == "homme" else "fr-FR-DeniseNeural"
-                communicate = edge_tts.Communicate(texte_tts, voice=voice_standard, rate="+20%")
-                await communicate.save(tmp_path)
-        else:
+            if ok:
+                return tmp_path
+                
+        # 2. Essai standard avec edge_tts (requiert internet)
+        try:
             tmp_path = tmp + ".mp3"
             voice_standard = "fr-FR-HenriNeural" if VOIX_ACTUELLE == "homme" else "fr-FR-DeniseNeural"
             communicate = edge_tts.Communicate(texte_tts, voice=voice_standard, rate="+20%")
             await communicate.save(tmp_path)
+            return tmp_path
+        except Exception as net_err:
+            print(f"[SPEECH] Échec edge_tts (déconnexion ?) : {net_err}. Bascule sur pyttsx3 natif...")
+            # Fallback 100% offline via pyttsx3 (SAPI5 natif de Windows)
+            tmp_path = tmp + ".wav"
+            try:
+                import pyttsx3
+                
+                def _synthetiser_sapi5():
+                    engine = pyttsx3.init()
+                    
+                    # Augmenter légèrement le rythme pour correspondre au style dynamique
+                    rate = engine.getProperty('rate')
+                    engine.setProperty('rate', rate + 25)
+                    
+                    # Essayer de configurer une voix française si disponible
+                    voices = engine.getProperty('voices')
+                    for voice in voices:
+                        if "french" in voice.name.lower() or "fr" in voice.languages or "fr-fr" in voice.id.lower():
+                            engine.setProperty('voice', voice.id)
+                            break
+                            
+                    engine.save_to_file(texte_tts, tmp_path)
+                    engine.runAndWait()
+                    
+                await asyncio.get_event_loop().run_in_executor(None, _synthetiser_sapi5)
+                return tmp_path
+            except Exception as sapi_err:
+                print(f"[SPEECH] Échec ultime du fallback pyttsx3 : {sapi_err}")
+                return None
             
-        return tmp_path
     except Exception as e:
         print(f"[SPEECH GENERATION ERROR] {e}")
         return None
@@ -206,6 +233,18 @@ def gestionnaire_lecture_worker():
 
 def gestionnaire_parole_worker():
     """Point d'entrée du thread JARVIS : pilote le générateur et le lecteur en parallèle."""
+    # Nettoyage des fichiers TTS orphelins laissés par la session précédente
+    try:
+        _base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        for _f in os.listdir(_base):
+            if _f.startswith("jarvis_tts_") and (_f.endswith(".mp3") or _f.endswith(".wav")):
+                try:
+                    os.remove(os.path.join(_base, _f))
+                except Exception:
+                    pass
+    except Exception:
+        pass
+
     t_gen = threading.Thread(target=gestionnaire_generateur_worker, daemon=True)
     t_play = threading.Thread(target=gestionnaire_lecture_worker, daemon=True)
     t_gen.start()
@@ -238,7 +277,17 @@ def vider_files():
 def parler(texte, print_console=True):
     if not texte or not texte.strip(): return
     if print_console:
-        print(f"[JARVIS] {texte}")
+        try:
+            print(f"[JARVIS] {texte}")
+        except UnicodeEncodeError:
+            try:
+                import sys
+                enc = sys.stdout.encoding or 'utf-8'
+                safe_text = texte.encode(enc, errors='replace').decode(enc)
+                print(f"[JARVIS] {safe_text}")
+            except Exception:
+                safe_text = "".join(c for c in texte if ord(c) < 128)
+                print(f"[JARVIS] {safe_text}")
     parole_queue.put(texte)
 
 builtins.parler = parler

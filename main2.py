@@ -1,24 +1,230 @@
+import os
+import sys
+
+# Configuration de l'encodage standard en UTF-8 pour supporter les emojis et caractères spéciaux sur Windows
+try:
+    sys.stdout.reconfigure(encoding='utf-8')
+    sys.stderr.reconfigure(encoding='utf-8')
+except Exception:
+    pass
+
+os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
 # from ursina import *  # DESACTIVE — interface web Three.js
 import threading
 import asyncio
 import warnings
-# Masquer l'avertissement de dépréciation de pkg_resources (pygame/setuptools) avant tout import
-warnings.filterwarnings("ignore", message="pkg_resources is deprecated")
-import controller.homepod_controller as homepod_controller
-import google.genai as genai
-from google.genai import types
-import speech_recognition as sr
-import edge_tts
-# --- Pygame (audio TTS) : optionnel ---
+
+# ── Banner affiché immédiatement avant les imports lourds ──────
 try:
-    import pygame
-except ImportError:
-    pygame = None
-    print("[AVERTISSEMENT] pygame non installe — l'audio TTS sera desactive.")
-    print("  -> Pour l'installer : pip install pygame --only-binary :all:")
+    from rich.console import Console
+    from rich.panel import Panel
+    from rich.text import Text
+    from rich.align import Align
+    import builtins
+    import re
+    
+    console = Console()
+    
+    # ── Custom printing wrapper to beautify all console output ──
+    _original_print = builtins.print
+    
+    def safe_original_print(s, **kwargs):
+        try:
+            _original_print(s, **kwargs)
+        except UnicodeEncodeError:
+            try:
+                enc = sys.stdout.encoding or 'utf-8'
+                safe_s = s.encode(enc, errors='replace').decode(enc)
+                _original_print(safe_s, **kwargs)
+            except Exception:
+                safe_s = s.encode('ascii', errors='replace').decode('ascii')
+                _original_print(safe_s, **kwargs)
+                
+    def custom_print(*args, **kwargs):
+        sep = kwargs.get('sep', ' ')
+        # Fallback to original print if output target is custom (e.g. file, stderr redirection)
+        if kwargs.get('file') is not None:
+            safe_original_print(sep.join(str(arg) for arg in args) if args else '', **kwargs)
+            return
+            
+        msg = sep.join(str(arg) for arg in args)
+        
+        # Adjust spacing for double-width emojis in classic Windows conhost
+        for emo in ["⏰", "🤖", "🔄", "📱", "👏", "💬", "🌐", "🎙", "🌤", "🗣", "🚀", "⚙", "✔", "❌", "⚠"]:
+            if emo in msg:
+                msg = re.sub(re.escape(emo) + r"\s*", emo + "  ", msg)
+        
+        # Define log module mapping: prefix -> (emoji, rich color)
+        prefixes = {
+            "[ALARME]": ("⏰", "cyan"),
+            "[JARVIS]": ("🤖", "cyan"),
+            "[UPDATE]": ("🔄", "cyan"),
+            "[MOBILE]": ("📱", "cyan"),
+            "[CLAP]": ("👏", "cyan"),
+            "[CONV]": ("💬", "cyan"),
+            "[WEB]": ("🌐", "cyan"),
+            "[MIC]": ("🎙", "cyan"),
+            "[METEO]": ("🌤", "cyan"),
+            "[TTS LOCAL]": ("🗣", "cyan"),
+            "[SPEECH]": ("🗣", "cyan"),
+            "[DÉMARRAGE]": ("🚀", "cyan"),
+            "[INFO]": ("ℹ️", "cyan"),
+            "[SPEAKER]": ("🎙", "cyan"),
+            "[BIOMETRICS]": ("🎙", "cyan"),
+            "[VAD]": ("🎙", "cyan"),
+        }
+        
+        stripped = msg.lstrip()
+        indent = msg[:len(msg) - len(stripped)]
+        
+        # Format 1: Text starting with an emoji/symbol followed by a bracketed tag
+        # e.g., "✔ [🗣 Kokoro-TTS] Parole générée..." or "❌ [🗣 Kokoro-TTS] Échec..."
+        # Or simple prefix like "[JARVIS] Tentative de lancement..."
+        if '[' in stripped and ']' in stripped:
+            idx_open = stripped.index('[')
+            idx_close = stripped.index(']')
+            if idx_open < 10 and idx_close > idx_open:  # tag is near the start
+                prefix_symbol = stripped[:idx_open].strip()
+                tag = stripped[idx_open+1:idx_close]
+                rest = stripped[idx_close+1:].strip()
+                
+                # Format prefix symbol if it has status icons
+                if "✔" in prefix_symbol:
+                    prefix_symbol = prefix_symbol.replace("✔", "[bold green]✔[/bold green]")
+                if "⚡" in prefix_symbol:
+                    prefix_symbol = prefix_symbol.replace("⚡", "[bold yellow]⚡[/bold yellow]")
+                if "❌" in prefix_symbol:
+                    prefix_symbol = prefix_symbol.replace("❌", "[bold red]❌[/bold red]")
+                if "⚠" in prefix_symbol:
+                    prefix_symbol = prefix_symbol.replace("⚠", "[bold orange1]⚠[/bold orange1]")
+                
+                tag_upper = f"[{tag.upper()}]"
+                known = False
+                for prefix, (emoji, color) in prefixes.items():
+                    if tag_upper == prefix:
+                        symbol_to_use = prefix_symbol if prefix_symbol else emoji
+                        
+                        # Apply inline highlight styling to the rest of the text
+                        if "[OK]" in rest:
+                            rest = rest.replace("[OK]", "[bold green]✔  OK[/bold green]")
+                        if "[KO]" in rest:
+                            rest = rest.replace("[KO]", "[bold red]❌  KO[/bold red]")
+                        if "✔" in rest:
+                            rest = rest.replace("✔", "[bold green]✔  [/bold green]")
+                        if "❌" in rest:
+                            rest = rest.replace("❌", "[bold red]❌  [/bold red]")
+                        if "⚠" in rest:
+                            rest = rest.replace("⚠", "[bold orange1]⚠  [/bold orange1]")
+                            
+                        formatted = f"{indent}[bold {color}]{symbol_to_use}  [{tag}][/bold {color}] {rest}"
+                        known = True
+                        break
+                
+                if not known:
+                    # Generic tag not in our primary map (e.g. Kokoro-TTS or custom speech tag)
+                    symbol = f"{prefix_symbol}  " if prefix_symbol else ""
+                    
+                    if "[OK]" in rest:
+                        rest = rest.replace("[OK]", "[bold green]✔  OK[/bold green]")
+                    if "[KO]" in rest:
+                        rest = rest.replace("[KO]", "[bold red]❌  KO[/bold red]")
+                    if "✔" in rest:
+                        rest = rest.replace("✔", "[bold green]✔  [/bold green]")
+                    if "❌" in rest:
+                        rest = rest.replace("❌", "[bold red]❌  [/bold red]")
+                    if "⚠" in rest:
+                        rest = rest.replace("⚠", "[bold orange1]⚠  [/bold orange1]")
+                        
+                    formatted = f"{indent}{symbol}[bold grey70][{tag}][/bold grey70] {rest}"
+                
+                try:
+                    console.print(formatted, **{k: v for k, v in kwargs.items() if k not in ('sep',)})
+                    return
+                except Exception:
+                    pass
+        
+        # Format 2: Bullet item like "      [3] Microphone (BIRD UM1)"
+        if stripped.startswith("[") and "]" in stripped:
+            match = re.match(r"^\[(\d+)\]", stripped)
+            if match:
+                idx = match.group(1)
+                rest = stripped[len(match.group(0)):].strip()
+                formatted = f"{indent}[bold cyan][{idx}][/bold cyan] {rest}"
+                try:
+                    console.print(formatted, **{k: v for k, v in kwargs.items() if k not in ('sep',)})
+                    return
+                except Exception:
+                    pass
+            else:
+                match_generic = re.match(r"^\[([^\]]+)\]", stripped)
+                if match_generic:
+                    tag = match_generic.group(1)
+                    rest = stripped[len(match_generic.group(0)):].strip()
+                    formatted = f"{indent}[bold grey70][{tag}][/bold grey70] {rest}"
+                    try:
+                        console.print(formatted, **{k: v for k, v in kwargs.items() if k not in ('sep',)})
+                        return
+                    except Exception:
+                        pass
+        
+        # Default fallback
+        safe_original_print(msg, **kwargs)
+        
+    builtins.print = custom_print
+    
+    # ── Modern, high-tech initialization header ──
+    banner = Text()
+    banner.append("J.A.R.V.I.S", style="bold cyan")
+    
+    print()
+    console.print(Panel(
+        Align.center(banner),
+        border_style="cyan",
+        title="[bold red]SYSTEM INITIALIZATION[/bold red]",
+        subtitle="[bold cyan]v5.5[/bold cyan]",
+        expand=False,
+        padding=(1, 6)
+    ))
+    console.print("[yellow]⚡  Chargement des modules neuronaux de J.A.R.V.I.S...[/yellow]\n")
+except Exception as e:
+    print()
+    print("=" * 60)
+    print("   J.A.R.V.I.S — Demarrage du systeme")
+    print("=" * 60)
+    print()
+    print("  Chargement des modules en cours...")
+    print()
+# ───────────────────────────────────────────────────────────────
+
+# Masquer l'avertissement de dépréciation de pkg_resources (pygame/setuptools) avant tout import
+import warnings
+warnings.filterwarnings("ignore", message="pkg_resources is deprecated")
+
+# ── Imports lourds en parallèle via threads (gain ~0.6-0.8s) ───
+import importlib, concurrent.futures as _cf
+
+def _import(name):
+    return importlib.import_module(name)
+
+with _cf.ThreadPoolExecutor(max_workers=4) as _pool:
+    _f_genai   = _pool.submit(_import, "google.genai")
+    _f_edge    = _pool.submit(_import, "edge_tts")
+    _f_pygame  = _pool.submit(_import, "pygame")
+    _f_sr      = _pool.submit(_import, "speech_recognition")
+    genai      = _f_genai.result()
+    edge_tts   = _f_edge.result()
+    sr         = _f_sr.result()
+    try:
+        pygame = _f_pygame.result()
+    except Exception:
+        pygame = None
+        print("[AVERTISSEMENT] pygame non installe — l'audio TTS sera desactive.")
+
+from google.genai import types
+
+import controller.homepod_controller as homepod_controller
 import os
 from dotenv import load_dotenv
-
 import random
 import math
 import builtins
@@ -45,6 +251,35 @@ _derniere_reponse_streamed = False
 phrases_streamed = []
 threading.Thread(target=speech.gestionnaire_parole_worker, daemon=True).start()
 
+# --- INITIALISATION DE SILERO VAD & BIOMÉTRIE SPEECH ---
+VAD_MODEL = None
+VOICE_BIOMETRICS = None
+ACTIVE_SPEAKER = "mylane"
+builtins.ACTIVE_SPEAKER = ACTIVE_SPEAKER
+SPEAKER_ANNOUNCED = None
+
+try:
+    from core.vad import init_models, SileroVAD, SpeakerBiometrics, VAD_MODEL_PATH, SPEAKER_MODEL_PATH, VOICEPRINTS_DIR
+    init_models()
+    if os.path.exists(VAD_MODEL_PATH):
+        VAD_MODEL = SileroVAD(VAD_MODEL_PATH)
+        print("✔  [VAD] Silero VAD initialisé avec succès.")
+    if os.path.exists(SPEAKER_MODEL_PATH):
+        VOICE_BIOMETRICS = SpeakerBiometrics(SPEAKER_MODEL_PATH, VOICEPRINTS_DIR)
+        print("✔  [BIOMETRICS] Biométrie vocale initialisée avec succès.")
+        voiceprints = VOICE_BIOMETRICS.load_voiceprints()
+        if voiceprints:
+            ACTIVE_SPEAKER = "guest"
+            builtins.ACTIVE_SPEAKER = ACTIVE_SPEAKER
+            print(f"🎙  [BIOMETRICS] Empreintes chargées : {list(voiceprints.keys())}. Mode initial : guest")
+        else:
+            ACTIVE_SPEAKER = "mylane"
+            builtins.ACTIVE_SPEAKER = ACTIVE_SPEAKER
+            print("🎙  [BIOMETRICS] Aucune empreinte vocale trouvée. Mode par défaut : mylane")
+except Exception as e:
+    print(f"❌  [VAD/BIOMETRICS] Erreur lors de l'initialisation : {e}")
+
+
 # Nouveaux modules extraits
 from module.file_manager import *
 builtins.resoudre_chemin = resoudre_chemin
@@ -57,22 +292,28 @@ from controller.spotify_controller import *
 builtins.spotify_lancer_playlist = spotify_lancer_playlist
 
 from controller.deezer_controller import *
-import plugins.tv_resolver
 from controller.app_launcher import *
 from module.image_generator import generer_image_ia
 
-# --- PLUGINS DE RÉSOLUTION ---
-import plugins.local_resolver
-import plugins.system_resolver
-import plugins.extras
-import plugins.globe_resolver
-import plugins.memory_resolver
-import plugins.list_manager
-import plugins.time_resolver
-import plugins.app_launcher_resolver
-import plugins.dom_controller_resolver
-import plugins.developer_resolver
-import plugins.recipe_resolver
+# ── Plugins de résolution : importés en arrière-plan (gain ~1.4s) ─
+_plugins_prets = threading.Event()
+def _charger_plugins():
+    import plugins.tv_resolver
+    import plugins.local_resolver
+    import plugins.system_resolver
+    import plugins.extras
+    import plugins.globe_resolver
+    import plugins.memory_resolver
+    import plugins.list_manager
+    import plugins.time_resolver
+    import plugins.app_launcher_resolver
+    import plugins.dom_controller_resolver
+    import plugins.developer_resolver
+    import plugins.recipe_resolver
+    import plugins.os_autopilot_resolver
+    import plugins.local_mode_resolver
+    _plugins_prets.set()
+threading.Thread(target=_charger_plugins, daemon=True).start()
 
 from controller.app_launcher import _fermer_app, _boulot_lancer, _APPS_CATALOGUE
 builtins._APPS_CATALOGUE = _APPS_CATALOGUE
@@ -485,18 +726,42 @@ async def ws_handler(websocket):
                     except Exception:
                         config_data = {}
                     
-                    # Charger la liste des micros réels via pyaudio
+                    # Charger la liste des micros réels via pyaudio — même logique que detecter_microphone()
                     mic_list = []
                     try:
-                        import pyaudio as _py
+                        import pyaudio as _py, re as _re
                         _pya = _py.PyAudio()
+                        _raw = []
                         for _i in range(_pya.get_device_count()):
                             try:
                                 _info = _pya.get_device_info_by_index(_i)
                                 if _info.get("maxInputChannels", 0) > 0:
-                                    mic_list.append({"index": _i, "name": _info.get("name", f"Micro {_i}")})
+                                    _nom = _info.get("name", f"Micro {_i}")
+                                    _nom_low = _nom.lower().strip()
+                                    _exclus = ["mappeur de sons", "capture audio principal", "mixage", "stereo mix", "ivcam", "entrée ligne", "line input", "realtek hd audio mic input"]
+                                    if any(x in _nom_low for x in _exclus):
+                                        continue
+                                    _propre = _re.sub(r'\d+-\s*', '', _nom)
+                                    _propre = _re.sub(r'sur casque', '', _propre, flags=_re.IGNORECASE)
+                                    _propre = _propre.replace("Headset Microphone", "Microphone")
+                                    _propre = _re.sub(r'\(\s*\)', '', _propre)
+                                    _propre = _re.sub(r'\s+', ' ', _propre).strip()
+                                    if _propre.lower() in ["microphone", ""]:
+                                        continue
+                                    _raw.append({"index": _i, "clean_name": _propre})
                             except: pass
                         _pya.terminate()
+                        # Déduplication par longueur décroissante
+                        _raw.sort(key=lambda d: len(d["clean_name"]), reverse=True)
+                        _seen = set()
+                        _filtered = []
+                        for _dev in _raw:
+                            _nl = _dev["clean_name"].lower()
+                            if not any(_nl in _s or _s.startswith(_nl) for _s in _seen):
+                                _seen.add(_nl)
+                                _filtered.append(_dev)
+                        _filtered.sort(key=lambda d: d["index"])
+                        mic_list = [{"index": d["index"], "name": d["clean_name"]} for d in _filtered]
                     except: pass
                     config_data["mic_list"] = mic_list
                     
@@ -554,8 +819,13 @@ async def ws_handler(websocket):
                     print(f"[VISION] Frame recue pour ID: {req_id}")
                 elif data.get("type") == "set_location":
                     global CLIENT_LOCATION
-                    CLIENT_LOCATION["lat"] = data.get("lat")
-                    CLIENT_LOCATION["lon"] = data.get("lon")
+                    _cfg = _charger_config()
+                    if _cfg.get("latitude") is not None and _cfg.get("longitude") is not None:
+                        CLIENT_LOCATION["lat"] = _cfg["latitude"]
+                        CLIENT_LOCATION["lon"] = _cfg["longitude"]
+                    else:
+                        CLIENT_LOCATION["lat"] = data.get("lat")
+                        CLIENT_LOCATION["lon"] = data.get("lon")
                     asyncio.ensure_future(update_client_city())
                     # Forcer un broadcast immédiat après mise à jour
                     asyncio.ensure_future(asyncio.sleep(1)).add_done_callback(lambda _: asyncio.ensure_future(broadcast_weather_stats_once()))
@@ -621,6 +891,25 @@ builtins.send_web_text = send_web_text
 builtins.send_web_volume = send_web_volume
 builtins.send_web_action = send_web_action
 builtins.send_web_text_interim = send_web_text_interim
+
+builtins.FORCE_LOCAL_MODE = False
+
+def est_connecte_internet():
+    """Détecte de manière ultra-rapide si une connexion internet est active et fonctionnelle."""
+    import socket
+    try:
+        # Tenter d'ouvrir une connexion TCP rapide vers le DNS public de Google
+        socket.create_connection(("8.8.8.8", 53), timeout=0.8)
+        return True
+    except Exception:
+        try:
+            # Fallback vers Cloudflare DNS
+            socket.create_connection(("1.1.1.1", 53), timeout=0.8)
+            return True
+        except Exception:
+            return False
+
+builtins.est_connecte_internet = est_connecte_internet
 
 async def send_globe_command(**kwargs):
     payload = {"action": "jarvis_globe"}
@@ -720,8 +1009,8 @@ def construire_system_prompt(souvenirs=""):
     jour_nom = jours_semaine[now.weekday()]
     date_str = f"CONSIGNE DE TEMPS CRITIQUE : Aujourd'hui nous sommes le {jour_nom} {now.strftime('%d/%m/%Y')} (année {now.year}) et il est {now.strftime('%H:%M')}."
     
+    # Le prompt principal est construit de manière 100% statique pour permettre le Prefix Caching (Ollama / Cloud)
     base = (
-        f"{date_str}\n\n"
         "Tu es JARVIS, une IA sophistiquée, élégante et experte mondiale. mylane est ton créateur. Sois très concis dans tes réponses. "
         "Tu as accès aux conversations passées avec mylane (incluses dans l'historique), ce qui te permet de te souvenir de ce qui a été dit dans les sessions précédentes — réfère-toi y naturellement quand pertinent. "
         "Tu possèdes une expertise de niveau professionnel dans les domaines suivants :\n"
@@ -740,9 +1029,6 @@ def construire_system_prompt(souvenirs=""):
         "- CONSIGNE CRITIQUE ACTIONS GLOBALE : Si ta réponse contient un ou plusieurs blocs d'actions JSON à exécuter (Home Assistant, Spotify, fichiers, applications, alarmes, mémoire manuelle/oublier/lister, Google, etc., à l'exception de 'auto_memoriser'), ton texte parlé associé doit obligatoirement se limiter à une transition ultra-courte de 2 à 5 mots (ex: 'Tout de suite...', 'Très bien...', 'C'est noté...', 'Voyons cela...') ou même rester vide. Ne confirme jamais le succès de l'action par avance dans ton texte parlé, car c'est l'action système backend qui se chargera d'énoncer précisément et dynamiquement la réussite après son exécution. Évite absolument toute double confirmation ou phrase redondante.\n\n"
         + CREATOR_INFO
     )
-
-    if souvenirs:
-        base += "\n\n[CONTEXTE HISTORIQUE PROFOND (Souvenirs de conversations passées)] :\n" + souvenirs + "\n"
     
     base += (
         "\n\nTu es connecte a Home Assistant, la domotique de mylane.\n"
@@ -833,8 +1119,6 @@ def construire_system_prompt(souvenirs=""):
         '{"action": "mode_iron_man", "etat": "on/off"}\n'
         "Instructions : Active ou désactive la détection des applaudissements pour contrôler les lumières et YouTube.\n\n"
     )
-    if contexte_memoire:
-        base += "\n\n" + contexte_memoire + "\n"
     base += (
         "\nAPPRENTISSAGE CONTINU :\n"
         "Si mylane te donne une information personnelle, une préférence, ou un fait qu'il veut que tu retiennes à long terme, "
@@ -917,6 +1201,33 @@ def construire_system_prompt(souvenirs=""):
         "4. INTERDICTION d'inclure des blocs JSON de démonstration comme {'action': 'lister_dossier'} si ce n'est pas l'action demandée.\n\n"
         "REGLE ABSOLUE : Si la demande n est PAS une commande JSON, reponds TOUJOURS en texte naturel, sans JSON."
     )
+    
+    # AJOUT DES ÉLÉMENTS DYNAMIQUES A LA TOUTE FIN POUR ASSURER LE PREFIX CACHING
+    if contexte_memoire:
+        base += "\n\n" + contexte_memoire + "\n"
+        
+    if souvenirs:
+        base += "\n\n[CONTEXTE HISTORIQUE PROFOND (Souvenirs de conversations passées)] :\n" + souvenirs + "\n"
+        
+    base += f"\n\n{date_str}\n"
+    
+    # Restriction de sécurité et adaptation de la personnalité selon l'utilisateur actif identifié
+    speaker = globals().get("ACTIVE_SPEAKER", "mylane")
+    if speaker == "guest":
+        base += (
+            "\n\n[CONSIGNE DE SÉCURITÉ CRITIQUE - MODE INVITÉ ACTIVÉ] :\n"
+            "L'utilisateur actuel est un INVITÉ (non reconnu par la biométrie vocale).\n"
+            "Tu as l'interdiction absolue d'exécuter des commandes système, de modifier ou lister des fichiers, d'ouvrir des applications PC, de gérer les alarmes, de lire/écrire des emails ou tâches Google, ou de manipuler Home Assistant.\n"
+            "Refuse poliment toute action sensible en expliquant que l'accès est réservé à mylane."
+        )
+    elif speaker != "mylane":
+        base += (
+            f"\n\n[CONSIGNE D'UTILISATEUR SECONDAIRE] :\n"
+            f"L'utilisateur actuel s'appelle {speaker.capitalize()} (biométrie vocale authentifiée).\n"
+            f"Tu dois t'adresser à lui/elle en tant que {speaker.capitalize()}. Tu as le droit de l'aider pour les tâches ordinaires, "
+            f"mais tu ne dois pas effectuer d'opérations critiques ou destructrices réservées à ton créateur principal mylane."
+        )
+    
     return base
 
 historique = _charger_historique_recent()
@@ -983,10 +1294,55 @@ def executer_action_pc(commande):
             time.sleep(5)
             pyautogui.press('f')
             return "C'est parti mylane, je lance votre musique sur YouTube."
-        ok = spotify_lancer_playlist(SPOTIFY_MUSIQUE_URI)
-        if ok:
-            return "C'est parti mylane, je lance votre playlist sur Spotify."
-        return "Je n'ai pas réussi à ouvrir Spotify, mylane."
+            
+        import json as _j
+        musique_lien = None
+        try:
+            _p = os.path.join(os.path.dirname(os.path.abspath(__file__)), "jarvis_config.json")
+            if os.path.exists(_p):
+                with open(_p, "r", encoding="utf-8") as _f:
+                    cfg_temp = _j.load(_f)
+                    musique_lien = cfg_temp.get("musique_lien")
+        except: pass
+
+        if musique_lien:
+            musique_lien_lower = musique_lien.lower()
+            if "youtube.com" in musique_lien_lower or "youtu.be" in musique_lien_lower:
+                webbrowser.open(musique_lien, new=2)
+                time.sleep(5)
+                pyautogui.press('f')
+                return "C'est parti mylane, je lance votre musique sur YouTube."
+            elif "spotify" in musique_lien_lower or musique_lien_lower.startswith("spotify:"):
+                try:
+                    from controller.spotify_controller import spotify_lancer_playlist
+                    ok = spotify_lancer_playlist(musique_lien)
+                    if ok:
+                        return "C'est parti mylane, je lance votre musique sur Spotify."
+                except: pass
+                return "Je n'ai pas réussi à ouvrir Spotify, mylane."
+            elif "deezer" in musique_lien_lower:
+                try:
+                    loop = asyncio.new_event_loop()
+                    ok = loop.run_until_complete(deezer_lancer_playlist(musique_lien))
+                    loop.close()
+                except: ok = False
+                if ok:
+                    return "C'est parti mylane, je lance votre musique sur Deezer."
+                return "Je n'ai pas réussi à ouvrir Deezer, mylane."
+            else:
+                webbrowser.open(musique_lien, new=2)
+                return "C'est parti mylane, je lance votre lien de musique personnalisé dans le navigateur."
+        else:
+            try:
+                loop = asyncio.new_event_loop()
+                ok = loop.run_until_complete(deezer_lancer_playlist())
+                loop.close()
+            except Exception as e:
+                print(f"[EXECUTER ACTION PC] Erreur lancement Deezer : {e}")
+                ok = False
+            if ok:
+                return "C'est parti mylane, je lance votre playlist sur Deezer."
+            return "Je n'ai pas réussi à ouvrir Deezer, mylane."
 
     # (Bloc YouTube PC supprimé pour éviter les conflits avec la TV)
 
@@ -1025,6 +1381,8 @@ def executer_action_pc(commande):
             return "Son coupe."
 
     if "screenshot" in cmd or "capture" in cmd:
+        if globals().get("ACTIVE_SPEAKER", "mylane") == "guest":
+            return "Accès refusé. La capture d'écran est désactivée en mode invité."
         path = os.path.join(user_profile, "Desktop", "screenshot.png")
         pyautogui.screenshot(path)
         return "Screenshot sauvegarde."
@@ -1700,7 +2058,43 @@ async def resoudre_infos_systeme_localement(texte):
         except Exception:
             return None
 
-    return None
+def nettoyer_accent(texte):
+    import unicodedata
+    return "".join(c for c in unicodedata.normalize('NFD', texte) if unicodedata.category(c) != 'Mn')
+
+def devrait_elevancer_vers_cloud(texte):
+    """Détermine intelligemment si une requête nécessite la puissance de raisonnement ou les outils de recherche du Cloud."""
+    t = nettoyer_accent(texte.lower().strip())
+    
+    # 1. Mots-clés nécessitant une recherche web ou données temps réel
+    mots_recherche = [
+        "actualite", "actu", "news", "meteo", "resultat", "score", "prix", "cours", 
+        "bourse", "aujourd'hui", "maintenant", "recent", "dernier", "2025", "2026", 
+        "qui est", "c'est quoi", "cherche", "recherche", "trouve", "temperature"
+    ]
+    if any(m in t for m in mots_recherche):
+        return True
+        
+    # 2. Mots-clés de programmation, développement ou débogage complexes
+    mots_code = [
+        "code", "script", "fastapi", "developpe", "programmation", "fonction", "classe", 
+        "erreur", "debug", "python", "javascript", "typescript", "html", "css", "git", 
+        "commit", "test", "unitaire", "compile", "regle", "regex", "algorithme"
+    ]
+    if any(m in t for m in mots_code):
+        return True
+        
+    # 3. Mots-clés exigeant explicitement Claude, Gemini ou Grok
+    mots_ia = ["gemini", "claude", "grok", "gpt", "openai", "analyse", "reflechis"]
+    if any(m in t for m in mots_ia):
+        return True
+        
+    # 4. Longueur de la requête : une requête longue et structurée indique un besoin de raisonnement avancé
+    mots = t.split()
+    if len(mots) > 18 or len(texte) > 100:
+        return True
+        
+    return False
 
 async def demander_ia(texte, update_hist=True, skip_local=False):
 
@@ -1708,9 +2102,62 @@ async def demander_ia(texte, update_hist=True, skip_local=False):
     is_thinking = True
     await send_web_state("thinking")
     try:
+        # --- ROUTAGE HYBRIDE INTELLIGENT (LOCAL-FIRST) ---
+        force_local = getattr(builtins, "FORCE_LOCAL_MODE", False)
+        offline = not est_connecte_internet()
+        
+        # Déterminer si on utilise le cortex local par défaut (vitesse) ou si on élève vers le cloud
+        utiliser_local = force_local or offline
+        
+        if utiliser_local:
+            reason = "MODE LOCAL FORCE" if force_local else "CONNEXION OFFLINE"
+            print(f"[ROUTEUR] [LOCAL] Traitement local via Ollama - Raison: {reason}")
+            
+            # Notifier le HUD de la réflexion locale
+            _safe_ws_send(json.dumps({"state": "thinking", "status_text": "reflexion (local)..."}))
+            
+            # Envoyer une carte de notification HUD uniquement si hors-ligne ou forcé pour ne pas polluer l'écran en usage normal
+            if (force_local or offline) and hasattr(builtins, "envoyer_carte_contextuelle"):
+                await builtins.envoyer_carte_contextuelle(
+                    "Traitement Local" if force_local else "Réseau Hors-Ligne",
+                    "Requête traitée en local par mon cortex Ollama." if force_local else "Connexion perdue. Bascule sur mon cortex local Ollama.",
+                    type_carte="info" if force_local else "alert",
+                    icon="⚙" if force_local else "⚠"
+                )
+                
+            rep_ollama = await demander_ollama(texte, update_hist=update_hist)
+            if rep_ollama:
+                return rep_ollama
+                
+            # Si le mode local forcé ou hors-ligne a échoué
+            if force_local or offline:
+                return "Désolé mylane, mon cortex local Ollama n'est pas disponible ou n'est pas lancé actuellement."
+                
+            # Failsafe : Si le local simple a échoué, on bascule silencieusement sur le cloud
+            print("[CERVEAU] Failsafe : Échec d'Ollama local simple, bascule de secours sur le Cloud...")
+            _safe_ws_send(json.dumps({"state": "thinking", "status_text": "reflexion (cloud - secours)..."}))
+        else:
+            print("[ROUTEUR] [CLOUD] Elevation vers le Cloud (Gemini/Claude)...")
+            _safe_ws_send(json.dumps({"state": "thinking", "status_text": "reflexion (cloud)..."}))
+
         # ── RÉSOLUTION LOCALE DÉPORTÉE DANS LES PLUGINS ────────────
 
-        # ── PRIORITÉ 1 — CLAUDE (Anthropic) ─────────────────────────────────
+        # ── PRIORITÉ 1 — GROQ (Llama 3.3) ───────────────────────────────────
+        if groq_client and _quota_mgr.is_available("groq"):
+            print("[CERVEAU] Tentative avec Groq (Llama 3.3 Versatile)...")
+            try:
+                rep_groq = await demander_groq(texte, update_hist=update_hist, skip_local=skip_local)
+                if rep_groq:
+                    return rep_groq
+                print("[CERVEAU] Groq KO (réponse vide). Bascule suivante.")
+            except _QuotaExceededError:
+                print(f"[CERVEAU] Groq quota épuisé — cooldown {_quota_mgr.remaining_cooldown('groq')}s. Bascule.")
+            except Exception as e:
+                print(f"[CERVEAU] Groq erreur ({e}). Bascule suivante.")
+        elif groq_client and not _quota_mgr.is_available("groq"):
+            print(f"[CERVEAU] Groq en cooldown ({_quota_mgr.remaining_cooldown('groq')}s). Bascule directe.")
+
+        # ── PRIORITÉ 2 — CLAUDE (Anthropic) ─────────────────────────────────
         if anthropic_client and _quota_mgr.is_available("claude"):
             print("[CERVEAU] Tentative avec Claude (Anthropic)...")
             try:
@@ -1787,10 +2234,10 @@ async def demander_ia(texte, update_hist=True, skip_local=False):
                         sentence_buffer += chunk_text
                         
                         if not skip_local and '{' not in full_text:
-                            # 1. Découpage sur ponctuation forte (avec espace) ou saut de ligne
-                            if any(p in sentence_buffer for p in ['. ', '! ', '? ', '; ', ': ', '\n']):
+                            # 1. Découpage sur ponctuation forte (suivie d'un espace ou saut de ligne) ou double saut de ligne
+                            if any(re.search(p, sentence_buffer) for p in [r'\. ', r'\.\n', r'\! ', r'\!\n', r'\? ', r'\?\n', r'\; ', r'\;\n', r'\: ', r'\:\n', r'\n\n']):
                                 _derniere_reponse_streamed = True
-                                parts = re.split(r'(\. |\! |\? |\; |\: |\n)', sentence_buffer)
+                                parts = re.split(r'(\.(?: |\n)|\!(?: |\n)|\?(?: |\n)|\;(?: |\n)|\:(?: |\n)|\n\n)', sentence_buffer)
                                 for i in range(0, len(parts)-1, 2):
                                     phrase = parts[i] + parts[i+1]
                                     if phrase.strip():
@@ -1925,7 +2372,7 @@ async def demander_ia(texte, update_hist=True, skip_local=False):
         if groq_client and _quota_mgr.is_available("groq"):
             print("[CERVEAU] Bascule sur Groq (Llama 3.3).")
             try:
-                rep_groq = await demander_groq(texte)
+                rep_groq = await demander_groq(texte, skip_local=skip_local)
                 if rep_groq:
                     return rep_groq
             except _QuotaExceededError:
@@ -2115,7 +2562,8 @@ async def demander_ollama(texte, update_hist=True):
         system_prompt = construire_system_prompt(souvenirs=souvenirs) + "\n\nIMPORTANT: Réponds uniquement avec le texte de la réponse, n'utilise JAMAIS de format JSON."
         messages = [{"role": "system", "content": system_prompt}]
         
-        for h in historique[-30:]:
+        # Optimisation : On limite à 16 entrées (8 échanges complets) pour Ollama afin de rester fluide et rapide
+        for h in historique[-16:]:
             role = "user" if h.role == "user" else "assistant"
             messages.append({"role": role, "content": h.parts[0].text})
         messages.append({"role": "user", "content": texte})
@@ -2128,7 +2576,12 @@ async def demander_ollama(texte, update_hist=True):
                     asyncio.to_thread(
                         requests.post,
                         f"{OLLAMA_URL}/api/chat",
-                        json={"model": model_name, "messages": messages, "stream": False},
+                        json={
+                            "model": model_name,
+                            "messages": messages,
+                            "stream": False,
+                            "keep_alive": -1
+                        },
                         timeout=30
                     ),
                     timeout=35.0
@@ -2157,10 +2610,17 @@ async def demander_ollama(texte, update_hist=True):
         print(f"[ERREUR OLLAMA] {e}")
         return None
 
-async def demander_groq(texte, update_hist=True):
-    """Appelle Groq (Llama 3.3) en fallback gratuit."""
+async def demander_groq(texte, update_hist=True, skip_local=False):
+    """Appelle Groq (Llama 3.3) avec streaming de parole à la volée (vitesse extrême)."""
+    global historique, _derniere_reponse_streamed, phrases_streamed
     if not groq_client:
         return None
+
+    def safe_next(iterator):
+        try:
+            return next(iterator)
+        except StopIteration:
+            return None
 
     try:
         # Recherche de souvenirs
@@ -2174,22 +2634,59 @@ async def demander_groq(texte, update_hist=True):
             
         messages.append({"role": "user", "content": texte})
 
-        completion = await asyncio.to_thread(
+        # Démarrage de la complétion en mode streaming
+        stream = await asyncio.to_thread(
             groq_client.chat.completions.create,
             model="llama-3.3-70b-versatile",
             messages=messages,
             temperature=0.7,
+            stream=True
         )
 
-        rep = completion.choices[0].message.content
+        full_text = ""
+        sentence_buffer = ""
+        iterator = iter(stream)
+
+        while True:
+            chunk = await asyncio.to_thread(safe_next, iterator)
+            if chunk is None:
+                break
+
+            chunk_text = chunk.choices[0].delta.content or ""
+            full_text += chunk_text
+            sentence_buffer += chunk_text
+
+            if not skip_local and '{' not in full_text:
+                # 1. Découpage sur ponctuation forte (suivie d'un espace ou saut de ligne) ou double saut de ligne
+                if any(re.search(p, sentence_buffer) for p in [r'\. ', r'\.\n', r'\! ', r'\!\n', r'\? ', r'\?\n', r'\; ', r'\;\n', r'\: ', r'\:\n', r'\n\n']):
+                    _derniere_reponse_streamed = True
+                    parts = re.split(r'(\.(?: |\n)|\!(?: |\n)|\?(?: |\n)|\;(?: |\n)|\:(?: |\n)|\n\n)', sentence_buffer)
+                    for i in range(0, len(parts)-1, 2):
+                        phrase = parts[i] + parts[i+1]
+                        if phrase.strip():
+                            parler(phrase.strip())
+                            phrases_streamed.append(phrase.strip())
+                    sentence_buffer = parts[-1]
+                # 2. Sécurité de longueur : si la phrase est longue, on coupe à 60 caractères pour lancer la synthèse
+                elif len(sentence_buffer) > 60 and sentence_buffer.endswith(' '):
+                    _derniere_reponse_streamed = True
+                    parler(sentence_buffer.strip())
+                    phrases_streamed.append(sentence_buffer.strip())
+                    sentence_buffer = ""
 
         if update_hist:
             historique.append(types.Content(role="user", parts=[types.Part(text=texte)]))
-            historique.append(types.Content(role="model", parts=[types.Part(text=rep)]))
-            _sauvegarder_echange_conv(texte, rep)
-            ajouter_souvenir(texte, rep)
+            historique.append(types.Content(role="model", parts=[types.Part(text=full_text)]))
+            _sauvegarder_echange_conv(texte, full_text)
+            ajouter_souvenir(texte, full_text)
 
-        return rep
+        # Lire la phrase finale restante
+        if not skip_local and '{' not in full_text and sentence_buffer.strip():
+            _derniere_reponse_streamed = True
+            parler(sentence_buffer.strip())
+            phrases_streamed.append(sentence_buffer.strip())
+
+        return full_text
     except Exception as e:
         if _quota_mgr.is_quota_error(e):
             _quota_mgr.mark_quota_exceeded("groq")
@@ -2560,65 +3057,78 @@ async def resoudre_commandes_locales(texte):
         "met de la musique", "mets de la musique",
         "lance ma playlist", "ma playlist"
     ]):
-        import json as _j
-        musique_lien = None
-        try:
-            _p = os.path.join(os.path.dirname(os.path.abspath(__file__)), "jarvis_config.json")
-            if os.path.exists(_p):
-                with open(_p, "r", encoding="utf-8") as _f:
-                    cfg_temp = _j.load(_f)
-                    musique_lien = cfg_temp.get("musique_lien")
-        except: pass
+        # Extraire la requête spécifique de musique/playlist
+        # Si l'utilisateur a spécifié un nom (ex: "joue ma playlist teenage dirtbag"),
+        # on ne traite pas cela comme le lancement de la playlist par défaut.
+        query_normalized = t
+        for verb in ["joue", "jouer", "mets", "mettre", "lance", "lancer", "écoute", "ecoute", "écouter", "ecouter", "play", "active", "activer", "démarre", "demarre", "démarrer", "demarrer"]:
+            query_normalized = re.sub(rf"\b{verb}\b", "", query_normalized)
+        for article in ["ma", "la", "mon", "le", "un", "une", "des", "du", "de", "de la", "d'", "votre", "notre", "mes", "les", "moi"]:
+            query_normalized = re.sub(rf"\b{article}\b", "", query_normalized)
+        for noun in ["musique", "playlist", "chanson", "piste", "titre", "album", "artiste", "son"]:
+            query_normalized = re.sub(rf"\b{noun}\b", "", query_normalized)
+        
+        specific_query = query_normalized.strip()
+        if not specific_query:
+            import json as _j
+            musique_lien = None
+            try:
+                _p = os.path.join(os.path.dirname(os.path.abspath(__file__)), "jarvis_config.json")
+                if os.path.exists(_p):
+                    with open(_p, "r", encoding="utf-8") as _f:
+                        cfg_temp = _j.load(_f)
+                        musique_lien = cfg_temp.get("musique_lien")
+            except: pass
 
-        if musique_lien:
-            musique_lien_lower = musique_lien.lower()
-            if "youtube.com" in musique_lien_lower or "youtu.be" in musique_lien_lower:
-                webbrowser.open(musique_lien, new=2)
-                time.sleep(5)
-                pyautogui.press('f')
-                return "C'est parti mylane, je lance votre musique sur YouTube."
-            elif "spotify" in musique_lien_lower or musique_lien_lower.startswith("spotify:"):
-                try:
-                    from controller.spotify_controller import spotify_lancer_playlist
-                    ok = spotify_lancer_playlist(musique_lien)
+            if musique_lien:
+                musique_lien_lower = musique_lien.lower()
+                if "youtube.com" in musique_lien_lower or "youtu.be" in musique_lien_lower:
+                    webbrowser.open(musique_lien, new=2)
+                    time.sleep(5)
+                    pyautogui.press('f')
+                    return "C'est parti mylane, je lance votre musique sur YouTube."
+                elif "spotify" in musique_lien_lower or musique_lien_lower.startswith("spotify:"):
+                    try:
+                        from controller.spotify_controller import spotify_lancer_playlist
+                        ok = spotify_lancer_playlist(musique_lien)
+                        if ok:
+                            return "C'est parti mylane, je lance votre musique sur Spotify."
+                    except: pass
+                    return "Je n'ai pas réussi à ouvrir Spotify, mylane."
+                elif "deezer" in musique_lien_lower:
+                    ok = await deezer_lancer_playlist(musique_lien)
                     if ok:
-                        return "C'est parti mylane, je lance votre musique sur Spotify."
-                except: pass
-                return "Je n'ai pas réussi à ouvrir Spotify, mylane."
-            elif "deezer" in musique_lien_lower:
-                ok = await deezer_lancer_playlist(musique_lien)
-                if ok:
-                    return "C'est parti mylane, je lance votre musique sur Deezer."
-                return "Je n'ai pas réussi à ouvrir Deezer, mylane."
+                        return "C'est parti mylane, je lance votre musique sur Deezer."
+                    return "Je n'ai pas réussi à ouvrir Deezer, mylane."
+                else:
+                    # Lien générique
+                    webbrowser.open(musique_lien, new=2)
+                    return "C'est parti mylane, je lance votre lien de musique personnalisé dans le navigateur."
             else:
-                # Lien générique
-                webbrowser.open(musique_lien, new=2)
-                return "C'est parti mylane, je lance votre lien de musique personnalisé dans le navigateur."
-        else:
-            # Fallback par défaut sur Deezer
-            ok = await deezer_lancer_playlist()
-            if ok:
-                return "C'est parti mylane, je lance votre playlist sur Deezer."
-            return "Je n'ai pas réussi à ouvrir Deezer, mylane."
+                # Fallback par défaut sur Deezer
+                ok = await deezer_lancer_playlist()
+                if ok:
+                    return "C'est parti mylane, je lance votre playlist sur Deezer."
+                return "Je n'ai pas réussi à ouvrir Deezer, mylane."
 
     if any(k in t for k in ["ouvre deezer", "lance deezer"]):
         return await deezer_ouvrir()
 
-    if any(k in t for k in ["mets en pause", "stop la musique", "arrête la musique"]):
-        return await deezer_stop()
-    if any(k in t for k in ["lecture", "remets la musique", "reprends la musique"]):
-        return await deezer_lecture_pause()
-    if any(k in t for k in ["suivante", "chanson suivante", "piste suivante"]):
+    if any(k in t for k in ["suivante", "suivant", "chanson suivante", "piste suivante", "morceau suivant", "musique suivante", "musique d'après", "musique d'apres"]):
         return await deezer_suivant()
-    if any(k in t for k in ["précédente", "chanson précédente", "reviens en arrière"]):
+    if any(k in t for k in ["précédente", "précédent", "precedente", "precedent", "chanson précédente", "morceau précédent", "reviens en arrière", "retour en arrière", "musique d'avant"]):
         return await deezer_precedent()
+    if any(k in t for k in ["mets en pause", "stop la musique", "arrête la musique", "arrete la musique", "arrête la playlist", "arrete la playlist", "mets sur pause", "met en pause", "met sur pause", "met pause", "mets pause", "pause"]):
+        return await deezer_stop()
+    if any(k in t for k in ["lecture", "remets la musique", "remet la musique", "reprends la musique", "reprend la musique", "relance la musique", "relance la playlist", "lance la musique", "joue la musique", "remets la playlist", "remet la playlist"]):
+        return await deezer_lecture_pause()
     if any(k in t for k in ["monte le volume", "augmente le son", "plus fort"]):
         return await deezer_volume("monter")
     if any(k in t for k in ["baisse le son", "baisse le volume", "moins fort"]):
         return await deezer_volume("baisser")
 
     # Recherche Deezer générique — en dernier pour ne pas avaler les commandes apps
-    prefixes_recherche = ["joue du ", "joue de la ", "mets du ", "mets de la ", "joue ", "recherche "]
+    prefixes_recherche = ["joue du ", "joue de la ", "mets du ", "mets de la ", "joue ", "recherche ", "mets ", "lance ", "écoute ", "ecoute "]
     for prefix in prefixes_recherche:
         # On évite de chercher sur Deezer si c'est manifestement une recherche de fichier local
         if t.startswith(prefix) and not any(k in t for k in ["dossier", "fichier", "document", "ordinateur", "pc"]):
@@ -2673,12 +3183,16 @@ def est_action_oriented(texte):
     return any(m in t for m in mots_actions)
 
 async def traiter_reponse_ia(texte_utilisateur, mobile_ws=None, from_voice=False):
-    global MODE_IRON_MAN, jarvis_actif, dernier_message, _skip_pc_audio, is_thinking, _derniere_reponse_streamed, phrases_streamed
+    global MODE_IRON_MAN, jarvis_actif, dernier_message, _skip_pc_audio, is_thinking, _derniere_reponse_streamed, phrases_streamed, ACTIVE_SPEAKER
     dernier_message = time.time()
     _derniere_reponse_streamed = False
     phrases_streamed = []
     if from_voice:
         jarvis_actif = True  # Seules les commandes vocales ouvrent/maintiennent la session
+    else:
+        # Saisie clavier/écrite : l'utilisateur physique est toujours détecté comme "mylane"
+        ACTIVE_SPEAKER = "mylane"
+        builtins.ACTIVE_SPEAKER = "mylane"
 
     if traiter_lock.locked():
         parler("Je termine ce que je fais, mylane. Un instant.")
@@ -2798,6 +3312,27 @@ async def traiter_reponse_ia(texte_utilisateur, mobile_ws=None, from_voice=False
                 print(f"[JARVIS] Execution de l'action : {block}")
                 data = json.loads(block)
                 action = data.get("action", "")
+                
+                # Sécurité mode invité : bloquer uniquement les actions définies comme sensibles (fichiers, vision/écrans, Google APIs)
+                restricted_actions = {
+                    # Fichiers
+                    "ouvrir_dossier", "lister_dossier", "trier_par_type", "trier_par_date", 
+                    "trier_complet", "creer_dossier", "renommer_fichier", "deplacer_fichier", 
+                    "chercher_fichier", "ouvrir_element", "analyser_fichier",
+                    # Vision / Screenshots / Autopilot
+                    "voir_ecran", "vision_ecrire", "vision_chercher_sur_site", "vision_navigateur",
+                    "analyse_live", "web_agent_task",
+                    # Google APIs
+                    "open_drive", "search_drive", "create_doc", "write_doc", "create_sheet",
+                    "read_sheet", "read_doc", "upload_file", "share_file", "create_folder", "append_sheet",
+                    "read_emails", "send_email", "reply_email", "read_full_email", "archive_email", "delete_email",
+                    "read_calendar", "create_event", "update_event", "delete_event",
+                    "create_task", "list_tasks", "complete_task", "delete_task"
+                }
+                if globals().get("ACTIVE_SPEAKER", "mylane") == "guest" and action in restricted_actions:
+                    print(f"🔒 [SPEAKER] Action '{action}' bloquée en mode invité.")
+                    parler("Désolé, cette action est restreinte en mode invité. Veuillez vous authentifier.")
+                    continue
 
                 if action == "mode_iron_man":
                     MODE_IRON_MAN = (etat == "on")
@@ -3439,54 +3974,28 @@ async def traiter_reponse_ia(texte_utilisateur, mobile_ws=None, from_voice=False
                     label = data.get("label", "")
                     ok, msg = annuler_alarme(heure, label)
                     parler(msg)
-                elif action == "spotify_ouvrir":
-                    parler("J'ouvre Spotify, mylane.")
-                    res = await spotify_ouvrir()
-                    parler(res)
-                elif action == "spotify_rechercher":
-                    recherche = data.get("recherche", "")
-                    parler(f"Je recherche '{recherche}' sur Spotify, mylane.")
-                    res = await spotify_rechercher(recherche)
-                    parler(res)
-                elif action == "spotify_lecture_pause":
-                    res = await spotify_lecture_pause()
-                    parler(res)
-                elif action == "spotify_stop":
-                    res = await spotify_stop()
-                    parler(res)
-                elif action == "spotify_suivant":
-                    res = await spotify_suivant()
-                    parler(res)
-                elif action == "spotify_precedent":
-                    res = await spotify_precedent()
-                    parler(res)
-                elif action == "spotify_volume":
-                    direction = data.get("direction", "monter")
-                    paliers   = data.get("paliers", 4)
-                    res = await spotify_volume(direction, paliers)
-                    parler(res)
-                elif action == "deezer_ouvrir":
+                elif action in ("spotify_ouvrir", "deezer_ouvrir"):
                     parler("J'ouvre Deezer, mylane.")
                     res = await deezer_ouvrir()
                     parler(res)
-                elif action == "deezer_rechercher":
+                elif action in ("spotify_rechercher", "deezer_rechercher"):
                     recherche = data.get("recherche", "")
                     parler(f"Je recherche '{recherche}' sur Deezer, mylane.")
                     res = await deezer_rechercher(recherche)
                     parler(res)
-                elif action == "deezer_lecture_pause":
+                elif action in ("spotify_lecture_pause", "deezer_lecture_pause"):
                     res = await deezer_lecture_pause()
                     parler(res)
-                elif action == "deezer_stop":
+                elif action in ("spotify_stop", "deezer_stop"):
                     res = await deezer_stop()
                     parler(res)
-                elif action == "deezer_suivant":
+                elif action in ("spotify_suivant", "deezer_suivant"):
                     res = await deezer_suivant()
                     parler(res)
-                elif action == "deezer_precedent":
+                elif action in ("spotify_precedent", "deezer_precedent"):
                     res = await deezer_precedent()
                     parler(res)
-                elif action == "deezer_volume":
+                elif action in ("spotify_volume", "deezer_volume"):
                     direction = data.get("direction", "monter")
                     paliers   = data.get("paliers", 4)
                     res = await deezer_volume(direction, paliers)
@@ -3635,7 +4144,7 @@ def ecouter():
     
     # Seuil d'énergie (ajustable dynamiquement)
     ENERGY_THRESHOLD = 800 
-    SILENCE_LIMIT = 1.0  # s de silence avant de couper
+    SILENCE_LIMIT = 0.7 if VAD_MODEL is not None else 1.0  # s de silence avant de couper
     
     p = pyaudio.PyAudio()
     
@@ -3716,6 +4225,11 @@ def ecouter():
                 time.sleep(0.1)
                 continue
 
+            # Synchronisation du dernier message depuis les modules/plugins
+            if hasattr(builtins, "dernier_message"):
+                dernier_message = builtins.dernier_message
+                delattr(builtins, "dernier_message")
+
             # 1. Gestion du timeout de session
             if jarvis_actif and (time.time() - dernier_message > SESSION_TIMEOUT):
                 print(f"[JARVIS] Timeout session ({SESSION_TIMEOUT}s). Retour en veille.")
@@ -3728,8 +4242,7 @@ def ecouter():
             # 2. Lecture du flux audio
             try:
                 data = stream.read(CHUNK, exception_on_overflow=False)
-                audio_chunk = np.frombuffer(data, dtype=np.int16).astype(np.float64)
-                energy = np.sqrt(np.mean(audio_chunk**2))
+                audio_chunk_int16 = np.frombuffer(data, dtype=np.int16)
             except Exception:
                 continue
 
@@ -3739,7 +4252,19 @@ def ecouter():
                 ecouter._noise_count = 0
 
             # 4. LOGIQUE VAD (Capture de la phrase)
-            if energy > ENERGY_THRESHOLD:
+            is_speech = False
+            if VAD_MODEL is not None:
+                try:
+                    speech_prob = VAD_MODEL(audio_chunk_int16, RATE)
+                    is_speech = speech_prob > 0.45
+                except Exception as ev:
+                    energy = np.sqrt(np.mean(audio_chunk_int16.astype(np.float64)**2))
+                    is_speech = energy > ENERGY_THRESHOLD
+            else:
+                energy = np.sqrt(np.mean(audio_chunk_int16.astype(np.float64)**2))
+                is_speech = energy > ENERGY_THRESHOLD
+
+            if is_speech:
                 if not is_recording:
                     if not get_is_speaking():
                         try: asyncio.run(send_web_state("listening"))
@@ -3768,6 +4293,8 @@ def ecouter():
                 
                 if time.time() - silence_start > SILENCE_LIMIT:
                     is_recording = False
+                    if VAD_MODEL is not None:
+                        VAD_MODEL.reset_states()
                     try: asyncio.run(send_web_state("idle"))
                     except: pass
                     
@@ -3791,6 +4318,34 @@ def ecouter():
                             print(f"[VAD ENTENDU] {texte}")
                             dernier_message = time.time()
                             
+                            # --- BIOMÉTRIE : IDENTIFIER LE LOCUTEUR ---
+                            global ACTIVE_SPEAKER, SPEAKER_ANNOUNCED
+                            if VOICE_BIOMETRICS:
+                                try:
+                                    name, score = VOICE_BIOMETRICS.identify_speaker(raw_audio, RATE)
+                                    voiceprints = VOICE_BIOMETRICS.load_voiceprints()
+                                    if not voiceprints:
+                                        ACTIVE_SPEAKER = "mylane"
+                                        builtins.ACTIVE_SPEAKER = ACTIVE_SPEAKER
+                                        print(f"🎙  [SPEAKER] Aucun profil enregistré. Par défaut : {ACTIVE_SPEAKER}")
+                                    else:
+                                        ACTIVE_SPEAKER = name
+                                        builtins.ACTIVE_SPEAKER = ACTIVE_SPEAKER
+                                        if name != "guest":
+                                            print(f"🎙  [SPEAKER] Utilisateur authentifié : {name} (Similarité: {score:.2f})")
+                                        else:
+                                            print(f"🎙  [SPEAKER] Utilisateur inconnu (max Similarité: {score:.2f}). Mode invité activé.")
+                                            
+                                    # Annonce vocale unique si changement de locuteur dans la session
+                                    if SPEAKER_ANNOUNCED != ACTIVE_SPEAKER:
+                                        SPEAKER_ANNOUNCED = ACTIVE_SPEAKER
+                                        if ACTIVE_SPEAKER == "guest":
+                                            parler("Bonjour, votre voix n'a pas été reconnue. Connexion en mode invité restreint.")
+                                        else:
+                                            parler(f"Bonjour {ACTIVE_SPEAKER.capitalize()}, j'ai reconnu votre voix. Connexion sécurisée établie.")
+                                except Exception as eb:
+                                    print(f"❌  [SPEAKER] Erreur lors de l'identification : {eb}")
+                            
                             if get_is_speaking() and any(w in texte for w in ["tais-toi", "silence", "stop", "chut", "arrête-toi", "arrête toi", "stoppe"]):
                                 STOP_PARLER = True
                                 set_stop_parler(True)
@@ -3806,6 +4361,8 @@ def ecouter():
                                 if commande:
                                     STOP_PARLER = False
                                     set_stop_parler(False)
+
+
                                     # --- TEST CARTES CONTEXTUELLES ---
                                     if "test carte" in commande or "affiche carte" in commande:
                                         loop = asyncio.new_event_loop()
@@ -3820,6 +4377,61 @@ def ecouter():
                                         audio_buffer = []
                                         continue
                                     
+                                    # --- ENREGISTREMENT VOCAL / BIOMÉTRIE ---
+                                    if "enregistre la voix de" in commande or "apprends la voix de" in commande or "enregistre ma voix" in commande:
+                                        prenom = "mylane"
+                                        if "enregistre la voix de" in commande:
+                                            prenom = commande.split("enregistre la voix de")[-1].strip()
+                                        elif "apprends la voix de" in commande:
+                                            prenom = commande.split("apprends la voix de")[-1].strip()
+                                        
+                                        prenom = re.sub(r'[^a-zA-Z0-9_-]', '', prenom).lower()
+                                        if not prenom:
+                                            prenom = "mylane"
+                                            
+                                        parler(f"Très bien. Je vais enregistrer votre voix pour le profil {prenom.capitalize()}. Préparez-vous à parler pendant 5 secondes après le signal...")
+                                        time.sleep(4.5)
+                                        parler("C'est à vous, parlez maintenant.")
+                                        
+                                        enroll_buffer = []
+                                        try:
+                                            if stream.is_active():
+                                                while stream.get_read_available() > 0:
+                                                    stream.read(CHUNK, exception_on_overflow=False)
+                                        except:
+                                            pass
+                                            
+                                        t_end = time.time() + 5.0
+                                        while time.time() < t_end:
+                                            try:
+                                                enroll_data = stream.read(CHUNK, exception_on_overflow=False)
+                                                enroll_buffer.append(enroll_data)
+                                            except:
+                                                pass
+                                                
+                                        parler("Merci, enregistrement terminé. Analyse en cours...")
+                                        raw_enroll_audio = b"".join(enroll_buffer)
+                                        
+                                        if VOICE_BIOMETRICS:
+                                            try:
+                                                emb = VOICE_BIOMETRICS.get_embedding(raw_enroll_audio, RATE)
+                                                if emb is not None:
+                                                    VOICE_BIOMETRICS.save_voiceprint(prenom, emb)
+                                                    print(f"✔  [BIOMETRICS] Empreinte vocale enregistrée pour : {prenom}")
+                                                    parler(f"C'est parfait {prenom.capitalize()}, votre voix a été enregistrée avec succès. Vous êtes désormais reconnu.")
+                                                    ACTIVE_SPEAKER = prenom
+                                                    builtins.ACTIVE_SPEAKER = ACTIVE_SPEAKER
+                                                else:
+                                                    parler("Désolé, je n'ai pas réussi à extraire une empreinte vocale claire. Parlez bien fort et distinctement.")
+                                            except Exception as eb:
+                                                print(f"❌  [BIOMETRICS] Erreur d'analyse : {eb}")
+                                                parler("Une erreur est survenue lors de l'analyse de votre voix.")
+                                        else:
+                                            parler("Le système de biométrie vocale n'est pas initialisé.")
+                                            
+                                        audio_buffer = []
+                                        continue
+
                                     action_pc = executer_action_pc(commande)
                                     if action_pc:
                                         parler(action_pc)
@@ -3895,17 +4507,56 @@ def detecter_microphone() -> int | None:
             p = pyaudio.PyAudio()
             nb = p.get_device_count()
             inputs = []
-            print("[MIC] Périphériques audio détectés :")
+            raw_devices = []
             for i in range(nb):
                 try:
                     info = p.get_device_info_by_index(i)
                     if info.get("maxInputChannels", 0) > 0:
                         nom = info.get("name", f"Périphérique {i}")
                         inputs.append((i, nom))
-                        print(f"      [{i}] {nom}")
+                        
+                        # Normaliser et filtrer les périphériques système/virtuels indésirables
+                        nom_normalise = nom.lower().strip()
+                        exclus = ["mappeur de sons", "capture audio principal", "mixage", "stereo mix", "ivcam", "entrée ligne", "line input", "realtek hd audio mic input"]
+                        if any(x in nom_normalise for x in exclus):
+                            continue
+                            
+                        # Nettoyage cosmétique du nom pour fusionner les doublons physiques
+                        nom_propre = re.sub(r'\d+-\s*', '', nom) # Retirer les préfixes comme "3- " ou "6- "
+                        nom_propre = re.sub(r'sur casque', '', nom_propre, flags=re.IGNORECASE)
+                        nom_propre = nom_propre.replace("Headset Microphone", "Microphone")
+                        # Supprimer les parenthèses vides ou ne contenant que des espaces
+                        nom_propre = re.sub(r'\(\s*\)', '', nom_propre)
+                        nom_propre = re.sub(r'\s+', ' ', nom_propre).strip() # Normaliser les espaces doubles
+                        
+                        # Ignorer si le nom est trop générique ou vide
+                        if nom_propre.lower() in ["microphone", ""]:
+                            continue
+                            
+                        raw_devices.append({"index": i, "clean_name": nom_propre})
                 except Exception:
                     pass
             p.terminate()
+
+            # Déduplication intelligente par longueur décroissante (priorité aux noms complets non tronqués)
+            raw_devices.sort(key=lambda d: len(d["clean_name"]), reverse=True)
+            seen_clean_names = set()
+            filtered_devices = []
+            
+            for dev in raw_devices:
+                name_lower = dev["clean_name"].lower()
+                # Ignorer si c'est un préfixe ou une sous-chaîne d'un nom plus complet déjà enregistré
+                is_truncated_duplicate = any(name_lower in seen or seen.startswith(name_lower) for seen in seen_clean_names)
+                if not is_truncated_duplicate:
+                    seen_clean_names.add(name_lower)
+                    filtered_devices.append(dev)
+            
+            # Réordonner par index croissant pour l'affichage console final
+            filtered_devices.sort(key=lambda d: d["index"])
+            
+            print("[MIC] Périphériques audio détectés (filtrés et nettoyés) :")
+            for dev in filtered_devices:
+                print(f"      [{dev['index']}] {dev['clean_name']}")
 
             if not inputs:
                 print("[MIC] ⚠ Aucun périphérique d'entrée détecté par PyAudio.")
@@ -3996,9 +4647,7 @@ def monitor_claps():
         if mic_idx_clap is not None:
             open_kwargs["input_device_index"] = mic_idx_clap
         stream = p.open(**open_kwargs)
-        print("[CLAP] Détection des applaudissements activée.")
-        
-        print("[CLAP] Détection des doubles applaudissements activée.")
+        print("[CLAP] Détection des applaudissements activée (Double clap = réveiller, Simple clap = couper la parole).")
         
         last_clap_time = 0
         
@@ -4007,8 +4656,8 @@ def monitor_claps():
                 data = stream.read(1024, exception_on_overflow=False)
                 rms  = audioop.rms(data, 2)
                 
-                # ON IGNORE LE CLAP UNIQUEMENT SI LE MODE IRON MAN EST ÉTEINT OU SI JARVIS PARLE
-                if not MODE_IRON_MAN or is_speaking or is_thinking:
+                # Ignorer uniquement si Jarvis réfléchit pour éviter les surcharges
+                if is_thinking:
                     last_clap_time = 0
                     continue
 
@@ -4016,43 +4665,34 @@ def monitor_claps():
                     current_time = time.time()
                     diff = current_time - last_clap_time
                     
+                    # 1. SIMPLE CLAP : Si Jarvis est en train de parler, on l'interrompt immédiatement
+                    if get_is_speaking():
+                        global STOP_PARLER
+                        STOP_PARLER = True
+                        set_stop_parler(True)
+                        speech.vider_files()
+                        print("[CLAP] Parole interrompue via simple clap.")
+                    
+                    # 2. DOUBLE CLAP : Si l'intervalle correspond, on réveille Jarvis
                     if 0.1 < diff < 0.8:
-                        global VIDEO_LANCEE
-                        print(f"\n[CLAP] !!! DOUBLE CLAP DÉTECTÉ !!!")
-                        entity_id = PIECES_LUMIERES.get("salon", "light.salon")
+                        global jarvis_actif, dernier_message
+                        print(f"\n[CLAP] !!! DOUBLE CLAP DÉTECTÉ !!! Réveil de Jarvis")
                         
-                        # On vérifie l'état actuel
-                        etat_actuel = ha_get_etat(entity_id)
+                        jarvis_actif = True
+                        dernier_message = current_time
                         
-                        if etat_actuel != "on":
-                            # ON ALLUME
-                            print(f"[CLAP] Action : ALLUMER")
-                            ha_lumiere(entity_id, "on")
-                            
-                            if not VIDEO_LANCEE:
-                                print(f"[CLAP] Lancement initial de la vidéo...")
-                                webbrowser.open("https://www.youtube.com/watch?v=KU5V5WZVcVE")
-                                VIDEO_LANCEE = True
-                                def seq():
-                                    time.sleep(5)
-                                    pyautogui.press('f')
-                                threading.Thread(target=seq, daemon=True).start()
-                            else:
-                                print(f"[CLAP] Reprise de la vidéo (Play)...")
-                                pyautogui.press('k')
-                        else:
-                            # ON ÉTEINT
-                            print(f"[CLAP] Action : ÉTEINDRE")
-                            ha_lumiere(entity_id, "off")
-                            if VIDEO_LANCEE:
-                                print(f"[CLAP] Mise en pause de la vidéo...")
-                                pyautogui.press('k')
-                            
-                        # Gros debounce après une action réussie
-                        time.sleep(3.0)
-                        last_clap_time = 0 # Reset
+                        # Mettre à jour l'interface Web et WebSocket
+                        _safe_ws_send(json.dumps({"action": "set_state", "state": "listening"}))
+                        _safe_ws_send(json.dumps({"action": "jarvis_text", "text": "Oui mylane, je vous écoute."}))
+                        
+                        # Dire la phrase d'accueil
+                        parler("Oui mylane, je vous écoute.")
+                        
+                        # Debounce pour éviter la boucle de claps
+                        time.sleep(2.0)
+                        last_clap_time = 0
                     else:
-                        # C'est peut-être le premier clap
+                        # Premier clap enregistré
                         last_clap_time = current_time
             except Exception as e:
                 # Si erreur de lecture (ex: micro débranché), on attend et on continue
@@ -4097,14 +4737,19 @@ def verifier_mises_a_jour_loop():
 
 def start_ia():
     threading.Thread(target=monitor_claps, daemon=True).start()
+    
+    # Légère attente pour s'assurer du bon ordonnancement avec les messages du thread claps
+    time.sleep(0.15)
+    nb_conv = len(historique) // 2 if 'historique' in globals() else 0
+    print(f"[CONV] {nb_conv} conversations chargées en mémoire")
+    
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
 
     async def start_ws():
         global WS_LOOP
         WS_LOOP = asyncio.get_running_loop()
-        print(f"[WEB] Serveur WebSocket demarre sur ws://0.0.0.0:8765")
-        print(f"[WEB] Accessible depuis le reseau : ws://{LOCAL_IP}:8765")
+        print("[WEB] Serveur WebSocket de communication démarré.")
         
         # Lancer le monitoring système en arrière-plan
         asyncio.create_task(broadcast_system_stats())
@@ -4123,7 +4768,7 @@ def start_ia():
     # On attend un tout petit peu que le thread WS soit prêt
     time.sleep(1.5)
     # Accueil vocal
-    speech.parler("Bonjour, mylane. Tous mes systèmes sont opérationnels.")
+    speech.parler("Tous mes systèmes sont opérationnels.")
 
     
     # On lance l'écoute (qui est bloquante dans ce thread)
@@ -4156,7 +4801,7 @@ def start_mobile_http_server():
         def log_message(self, format, *args):
             pass  # Silencieux
     server = http.server.HTTPServer(("0.0.0.0", 8080), MobileHandler)
-    print(f"[MOBILE] Serveur HTTP demarre sur http://{LOCAL_IP}:8080")
+    print("[MOBILE] Serveur HTTP mobile démarré.")
     server.serve_forever()
 
 def liberer_port(port):
@@ -4180,19 +4825,36 @@ def liberer_port(port):
         print(f"[DÉMARRAGE] Impossible de libérer le port {port} : {e}")
 
 def main():
-    print()
-    print("=" * 60)
-    print("   J.A.R.V.I.S — Demarrage du systeme")
-    print("=" * 60)
-    print()
-    print("  Backend   : actif (terminal)")
-    print(f"  WebSocket : ws://localhost:8765  (LAN: ws://{LOCAL_IP}:8765)")
-    print(f"  Mobile    : http://{LOCAL_IP}:8080")
-    print()
-    print("  Commandes vocales actives.")
-    print("  Dites 'Jarvis' pour activer la session.")
-    print("=" * 60)
-    print()
+    try:
+        from rich.console import Console
+        from rich.table import Table
+        from rich.panel import Panel
+        console = Console()
+        
+        table = Table(show_header=False, box=None, padding=(0, 2))
+        table.add_row("[cyan]⚙  Backend[/cyan]", "[green]Actif (Terminal)[/green]")
+        table.add_row("[cyan]🌐  WebSocket (Local)[/cyan]", "[green]ws://localhost:8765[/green]")
+        table.add_row("[cyan]🌐  WebSocket (Réseau)[/cyan]", f"[green]ws://{LOCAL_IP}:8765[/green]")
+        table.add_row("[cyan]📱  Interface Mobile[/cyan]", f"[green]http://{LOCAL_IP}:8080[/green]")
+        table.add_row("[cyan]🎙  Commande Vocale[/cyan]", "[yellow]Active (Mot-clé: 'Jarvis')[/yellow]")
+        
+        print()
+        console.print(Panel(
+            table,
+            title="[bold green]✔  STATUT DES SERVICES[/bold green]",
+            border_style="green",
+            expand=False
+        ))
+        print()
+    except Exception:
+        print("  Backend   : actif (terminal)")
+        print(f"  WebSocket : ws://localhost:8765  (LAN: ws://{LOCAL_IP}:8765)")
+        print(f"  Mobile    : http://{LOCAL_IP}:8080")
+        print()
+        print("  Commandes vocales actives.")
+        print("  Dites 'Jarvis' pour activer la session.")
+        print("=" * 60)
+        print()
 
     # Initialisation Système d'Alarmes
     set_parler_callback(parler)
@@ -4203,8 +4865,21 @@ def main():
     # Plus besoin de découverte TV avec le mode ADB Direct
 
     # Liberer les ports si une instance precedente tourne encore
-    liberer_port(8765)
-    liberer_port(8080)
+    # Un seul appel netstat pour les 3 ports (évite 3x ~1.5s de latence)
+    _ports_a_liberer = [8765, 8080, 5173]
+    try:
+        _result = subprocess.run(["netstat", "-ano"], capture_output=True)
+        _stdout = _result.stdout.decode(errors='ignore')
+        for _line in _stdout.splitlines():
+            for _port in _ports_a_liberer:
+                if f":{_port}" in _line and ("LISTENING" in _line or "ÉCOUTE" in _line):
+                    _parts = _line.strip().split()
+                    _pid = _parts[-1]
+                    if _pid.isdigit() and int(_pid) != os.getpid():
+                        subprocess.run(["taskkill", "/F", "/PID", _pid], capture_output=True)
+                        print(f"[DÉMARRAGE] Port {_port} libéré (PID {_pid} terminé).")
+    except Exception as _e:
+        print(f"[DÉMARRAGE] Impossible de libérer les ports : {_e}")
 
     # Lancer le serveur Frontend
     frontend_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "frontend")
@@ -4216,11 +4891,13 @@ def main():
         import socket
         debut = time.time()
         while time.time() - debut < timeout:
-            try:
-                with socket.create_connection(("127.0.0.1", port), timeout=0.3):
-                    return True
-            except (ConnectionRefusedError, OSError):
-                time.sleep(0.2)
+            for host in ("localhost", "127.0.0.1", "::1"):
+                try:
+                    with socket.create_connection((host, port), timeout=0.3):
+                        return True
+                except (ConnectionRefusedError, OSError):
+                    pass
+            time.sleep(0.2)
         return False
 
     def _servir_dist_python(port=5173):
@@ -4239,18 +4916,32 @@ def main():
         # Tentative 1 : Vite (npm run dev)
         try:
             print("[JARVIS] Tentative de lancement Vite (npm run dev)...")
-            frontend_process = subprocess.Popen(
-                ["npm", "run", "dev"], cwd=frontend_dir, shell=True,
-                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
-            )
-            vite_ok = _port_ecoute(5173, timeout=5.0)
+            log_path = os.path.join(frontend_dir, "vite_output.log")
+            with open(log_path, "w", encoding="utf-8") as f_log:
+                frontend_process = subprocess.Popen(
+                    ["npm", "run", "dev"], cwd=frontend_dir, shell=True,
+                    stdout=f_log, stderr=f_log
+                )
+            # Timeout augmenté légèrement à 6.0s au cas où le système ralentit
+            vite_ok = _port_ecoute(5173, timeout=6.0)
             if vite_ok:
-                print("[JARVIS] Vite demarre avec succes sur localhost:5173")
+                print("[JARVIS] Interface locale (Vite) initialisée.")
             else:
                 print("[JARVIS] Vite n'a pas demarre (npm/vite absent ou erreur).")
                 if frontend_process:
                     frontend_process.terminate()
                     frontend_process = None
+                # Afficher le contenu des logs en cas d'échec
+                try:
+                    if os.path.exists(log_path):
+                        with open(log_path, "r", encoding="utf-8") as f_log:
+                            logs = f_log.read().strip()
+                            if logs:
+                                print("[JARVIS] --- LOGS VITE ---")
+                                print(logs)
+                                print("[JARVIS] -----------------")
+                except Exception:
+                    pass
         except Exception as e:
             print(f"[JARVIS] Impossible de lancer Vite : {e}")
             frontend_process = None
@@ -4907,7 +5598,12 @@ async def broadcast_system_stats():
             pass
         await asyncio.sleep(2)
 
-CLIENT_LOCATION = {"lat": 45.2917, "lon": 4.1722, "city": "Monistrol-sur-Loire"} 
+_location_cfg = _charger_config()
+CLIENT_LOCATION = {
+    "lat": _location_cfg.get("latitude", 45.2917),
+    "lon": _location_cfg.get("longitude", 4.1722),
+    "city": "Monistrol-sur-Loire"
+} 
 
 async def update_client_city():
     global CLIENT_LOCATION
@@ -4923,6 +5619,41 @@ async def update_client_city():
     except Exception as e:
         print(f"[METEO] Erreur reverse geocoding : {e}")
 
+async def get_weather_fallback_wttr(city_name):
+    try:
+        url = f"https://wttr.in/{requests.utils.quote(city_name)}?format=j1"
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+        }
+        resp = await asyncio.to_thread(requests.get, url, headers=headers, timeout=10)
+        if resp.status_code == 200:
+            data = resp.json()
+            curr = data.get("current_condition", [{}])[0]
+            day = data.get("weather", [{}])[0]
+            
+            desc = curr.get("weatherDesc", [{}])[0].get("value", "Inconnu")
+            translations = {
+                "sunny": "Ensoleillé", "clear": "Clair", "partly cloudy": "Partiellement nuageux",
+                "cloudy": "Nuageux", "overcast": "Couvert", "mist": "Brume", "fog": "Brouillard",
+                "patchy rain possible": "Possibilité de pluie", "patchy snow possible": "Possibilité de neige",
+                "heavy rain": "Forte pluie", "light rain": "Pluie faible", "thunderstorm": "Orage"
+            }
+            desc_fr = translations.get(desc.lower(), desc)
+            
+            return {
+                "city": city_name,
+                "temp": float(curr.get("temp_C", 0)),
+                "apparent": float(curr.get("FeelsLikeC", 0)),
+                "humidity": float(curr.get("humidity", 0)),
+                "wind": float(curr.get("windspeedKmph", 0)),
+                "desc": desc_fr,
+                "max": float(day.get("maxtempC", 0)),
+                "min": float(day.get("mintempC", 0))
+            }
+    except Exception as e:
+        print(f"[METEO] Échec du repli wttr.in pour {city_name} : {e}")
+    return None
+
 async def get_raw_weather(lat, lon, city_name):
     try:
         # print(f"[METEO] Recuperation pour {city_name} ({lat}, {lon})...")
@@ -4933,7 +5664,10 @@ async def get_raw_weather(lat, lon, city_name):
             "daily": "temperature_2m_max,temperature_2m_min",
             "timezone": "auto", "forecast_days": 1
         }
-        resp = await asyncio.to_thread(requests.get, url, params=params, timeout=15)
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+        }
+        resp = await asyncio.to_thread(requests.get, url, params=params, headers=headers, timeout=5)
         if resp.status_code == 200:
             data = resp.json()
             cur = data["current"]
@@ -4949,8 +5683,13 @@ async def get_raw_weather(lat, lon, city_name):
                 "max": day["temperature_2m_max"][0],
                 "min": day["temperature_2m_min"][0]
             }
-    except Exception as e:
-        print(f"[METEO] Erreur fetch pour {city_name} : {e}")
+    except Exception:
+        # Open-Meteo indisponible (SSL/timeout) → repli silencieux sur wttr.in
+        wttr_weather = await get_weather_fallback_wttr(city_name)
+        if wttr_weather:
+            return wttr_weather
+        # Les deux sources ont échoué — on loggue une seule fois
+        print(f"[METEO] ⚠ Météo indisponible pour {city_name} (Open-Meteo + wttr.in KO).")
     return None
 
 async def broadcast_weather_stats_once():
@@ -5052,10 +5791,27 @@ async def get_media_info_deezer_api():
     return None
 
 async def get_media_info():
-    """Récupère les infos média (Priorité API Deezer, Fallback Windows)."""
+    """Récupère les infos média (Priorité UIA local, Fallback API Deezer, Fallback Windows)."""
+    # 1. Tenter par UIA local (instantané et n'a pas besoin de réseau)
+    try:
+        info_local = await asyncio.to_thread(deezer_obtenir_titre_encours)
+        if info_local:
+            return {
+                "title": info_local["title"].upper(),
+                "artist": info_local["artist"].upper(),
+                "status": "Playing",
+                "position": "00:00",
+                "duration": "00:00",
+                "percent": 0
+            }
+    except Exception as uia_err:
+        pass
+
+    # 2. Fallback sur l'API Deezer en ligne
     info = await get_media_info_deezer_api()
     if info:
         return info
+
 
     import ctypes
     try:

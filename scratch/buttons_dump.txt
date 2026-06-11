@@ -1,0 +1,335 @@
+Main control: Name='Dirty Diana (2012 Remaster) - Michael Jackson - Deezer', Type='DocumentControl'
+
+- [DocumentControl] Name: 'Dirty Diana (2012 Remaster) - Michael Jackson - Deezer' | ID: '1445219160' | Size: 1920x1000
+  - [GroupControl] Name: '' | ID: '' | Size: 1912x2490
+    - [GroupControl] Name: '' | ID: 'dzr-app' | Size: 1912x2490
+      - [GroupControl] Name: '' | ID: 'page_loader' | Size: 1912x4
+      - [GroupControl] Name: '' | ID: 'page_topbar' | Size: 1640x80
+        - [GroupControl] Name: '' | ID: '' | Size: 375x49
+          - [GroupControl] Name: '' | ID: 'popover-trigger-\:rh\:' | Size: 375x49
+            - [GroupControl] Name: '' | ID: '' | Size: 375x49
+              - [GroupControl] Name: '' | ID: '' | Size: 24x49
+                - [ButtonControl] Name: 'Rechercher' | ID: '' | Size: 48x49
+              - [EditControl] Name: 'Rechercher' | ID: 'topbar-search' | Size: 375x49
+              - [GroupControl] Name: '' | ID: '' | Size: 24x49
+        - [ButtonControl] Name: 'Notifications' | ID: 'popover-trigger-\:rj\:' | Size: 32x33
+          - [ImageControl] Name: '' | ID: '' | Size: 24x25
+          - [GroupControl] Name: 'topbar-notification-counter' | ID: '' | Size: 24x25
+            - [TextControl] Name: '2' | ID: '' | Size: 8x13
+        - [ButtonControl] Name: 'Neyor' | ID: 'popover-trigger-\:rl\:' | Size: 32x33
+          - [ImageControl] Name: 'Neyor' | ID: '' | Size: 10x17
+      - [GroupControl] Name: '' | ID: '' | Size: 272x1000
+        - [GroupControl] Name: '' | ID: '' | Size: 272x1000
+          - [GroupControl] Name: '' | ID: '' | Size: 52x24
+            - [ButtonControl] Name: 'Précédent' | ID: '' | Size: 24x24
+            - [ButtonControl] Name: 'Avancer' | ID: '' | Size: 24x24
+          - [HyperlinkControl] Name: '' | ID: '' | Size: 127x32
+            - [ImageControl] Name: '' | ID: '' | Size: 127x20
+          - [HyperlinkControl] Name: 'Accueil' | ID: '' | Size: 255x40
+            - [ImageControl] Name: '' | ID: '' | Size: 24x24
+            - [TextControl] Name: 'Accueil' | ID: '' | Size: 66x24
+          - [HyperlinkControl] Name: 'Explorer' | ID: '' | Size: 255x40
+            - [ImageControl] Name: '' | ID: '' | Size: 24x24
+            - [TextControl] Name: 'Explorer' | ID: '' | Size: 74x24
+          - [HyperlinkControl] Name: 'Bibliothèque' | ID: '' | Size: 255x40
+            - [ImageControl] Name: '' | ID: '' | Size: 24x24
+            - [TextControl] Name: 'Bibliothèque' | ID: '' | Size: 112x24
+          - [HyperlinkControl] Name: 'Téléchargements' | ID: '' | Size: 255x40
+            - [ImageControl] Name: '' | ID: '' | Size: 24x24
+            - [TextControl] Name: 'Téléchargements' | ID: '' | Size: 154x24
+          - [GroupControl] Name: '' | ID: '' | Size: 271x619
+            - [GroupControl] Name: '' | ID: '' | Size: 263x40
+              - [TextControl] Name: 'Raccourcis' | ID: '' | Size: 99x24
+              - [ButtonControl] Name: 'Fold' | ID: '' | Size: 32x32
+            - [TextControl] Name: '' | ID: '' | Size: 175x100
+              - [TextControl] Name: 'Ajoute ta musique favorite, tes artistes et fonctionnalités dans ta barre latérale pour les retrouver facilement' | ID: '' | Size: 151x97
+            - [ButtonControl] Name: 'Fermer' | ID: '' | Size: 32x32
+            - [GroupControl] Name: '' | ID: '' | Size: 247x64
+              - [ImageControl] Name: '' | ID: '' | Size: 24x24
+              - [TextControl] Name: '' | ID: '' | Size: 62x22
+                - [TextControl] Name: 'Épingler' | ID: '' | Size: 62x21
+            - [GroupControl] Name: '' | ID: '' | Size: 263x40
+              - [HyperlinkControl] Name: 'Playlists' | ID: '' | Size: 75x24
+              - [ButtonControl] Name: 'Créer une playlist' | ID: '' | Size: 32x32
+            - [GroupControl] Name: '' | ID: '' | Size: 247x64
+              - [GroupControl] Name: '' | ID: '' | Size: 48x48
+                - [ImageControl] Name: '' | ID: '' | Size: 24x24
+              - [DataItemControl] Name: 'Coups de cœur' | ID: '' | Size: 175x24
+                - [GroupControl] Name: '' | ID: '' | Size: 175x24
+                  - [TextControl] Name: '' | ID: '' | Size: 117x24
+                    - [TextControl] Name: 'Coups de cœur' | ID: '' | Size: 117x20
+            - [GroupControl] Name: '' | ID: '' | Size: 247x64
+              - [GroupControl] Name: '' | ID: '' | Size: 48x48
+                - [ImageControl] Name: '𖣥. Pour obtenir les descriptions d'image manquantes, ouvrez le menu contextuel.' | ID: '' | Size: 46x46
+              - [DataItemControl] Name: '𖣥 par Neyor' | ID: '' | Size: 175x44
+                - [GroupControl] Name: '' | ID: '' | Size: 175x24
+                  - [TextControl] Name: '' | ID: '' | Size: 19x24
+                    - [TextControl] Name: '𖣥' | ID: '' | Size: 19x20
+                - [GroupControl] Name: '' | ID: '' | Size: 175x20
+                  - [TextControl] Name: '' | ID: '' | Size: 66x20
+                    - [TextControl] Name: 'par Neyor' | ID: '' | Size: 66x17
+            - [GroupControl] Name: '' | ID: '' | Size: 247x64
+              - [GroupControl] Name: '' | ID: '' | Size: 48x48
+                - [ImageControl] Name: 'Werenoi' | ID: '' | Size: 46x46
+              - [DataItemControl] Name: 'Werenoi par Neyor' | ID: '' | Size: 175x44
+                - [GroupControl] Name: '' | ID: '' | Size: 175x24
+                  - [TextControl] Name: '' | ID: '' | Size: 62x24
+                    - [TextControl] Name: 'Werenoi' | ID: '' | Size: 62x20
+                - [GroupControl] Name: '' | ID: '' | Size: 175x20
+                  - [TextControl] Name: '' | ID: '' | Size: 66x20
+                    - [TextControl] Name: 'par Neyor' | ID: '' | Size: 66x17
+            - [GroupControl] Name: '' | ID: '' | Size: 247x64
+              - [GroupControl] Name: '' | ID: '' | Size: 48x48
+                - [ImageControl] Name: 'teenage dirtbag' | ID: '' | Size: 46x46
+              - [DataItemControl] Name: 'teenage dirtbag par clara astier' | ID: '' | Size: 175x44
+                - [GroupControl] Name: '' | ID: '' | Size: 175x24
+                  - [TextControl] Name: '' | ID: '' | Size: 122x24
+                    - [TextControl] Name: 'teenage dirtbag' | ID: '' | Size: 122x20
+                - [GroupControl] Name: '' | ID: '' | Size: 175x20
+                  - [TextControl] Name: '' | ID: '' | Size: 99x20
+                    - [TextControl] Name: 'par clara astier' | ID: '' | Size: 99x17
+            - [GroupControl] Name: '' | ID: '' | Size: 247x64
+              - [GroupControl] Name: '' | ID: '' | Size: 48x48
+                - [ImageControl] Name: '🏍️🏍️' | ID: '' | Size: 46x46
+              - [DataItemControl] Name: '🏍️🏍️ par Neyor' | ID: '' | Size: 175x44
+                - [GroupControl] Name: '' | ID: '' | Size: 175x24
+                  - [TextControl] Name: '' | ID: '' | Size: 44x24
+                    - [TextControl] Name: '🏍️🏍️' | ID: '' | Size: 44x20
+                - [GroupControl] Name: '' | ID: '' | Size: 175x20
+                  - [TextControl] Name: '' | ID: '' | Size: 66x20
+                    - [TextControl] Name: 'par Neyor' | ID: '' | Size: 66x17
+            - [GroupControl] Name: '' | ID: '' | Size: 247x64
+      - [GroupControl] Name: '' | ID: 'page_content' | Size: 1640x2330
+        - [GroupControl] Name: '' | ID: 'page_naboo_album' | Size: 1640x2330
+          - [GroupControl] Name: '' | ID: '' | Size: 1452x1492
+            - [GroupControl] Name: '' | ID: '' | Size: 320x320
+              - [ImageControl] Name: 'Invincible' | ID: '' | Size: 318x318
+            - [TextControl] Name: 'Invincible' | ID: '' | Size: 1052x65
+            - [ListControl] Name: '' | ID: '' | Size: 24x29
+              - [ListItemControl] Name: '' | ID: '' | Size: 24x29
+                - [HyperlinkControl] Name: '' | ID: '' | Size: 24x25
+                  - [GroupControl] Name: '' | ID: '' | Size: 24x25
+                    - [ImageControl] Name: 'Michael Jackson' | ID: '' | Size: 22x23
+            - [GroupControl] Name: '' | ID: '' | Size: 126x22
+              - [HyperlinkControl] Name: 'Michael Jackson' | ID: '' | Size: 126x21
+            - [ListControl] Name: '' | ID: '' | Size: 1052x22
+              - [ListItemControl] Name: '' | ID: '' | Size: 61x22
+                - [TextControl] Name: '16 titres' | ID: '' | Size: 61x21
+              - [ListItemControl] Name: '' | ID: '' | Size: 124x22
+                - [GroupControl] Name: '' | ID: '' | Size: 6x22
+                  - [TextControl] Name: '|' | ID: '' | Size: 6x21
+                - [TextControl] Name: '1 h 16 minutes' | ID: '' | Size: 109x21
+              - [ListItemControl] Name: '' | ID: '' | Size: 102x22
+                - [GroupControl] Name: '' | ID: '' | Size: 6x22
+                  - [TextControl] Name: '|' | ID: '' | Size: 6x21
+                - [TextControl] Name: '29/10/2001' | ID: '' | Size: 87x21
+              - [ListItemControl] Name: '' | ID: '' | Size: 105x22
+                - [GroupControl] Name: '' | ID: '' | Size: 6x22
+                  - [TextControl] Name: '|' | ID: '' | Size: 6x21
+                - [TextControl] Name: '80 200 fans' | ID: '' | Size: 90x21
+            - [GroupControl] Name: '' | ID: '' | Size: 1404x48
+              - [GroupControl] Name: '' | ID: '' | Size: 256x48
+                - [GroupControl] Name: '' | ID: '' | Size: 48x48
+                  - [ButtonControl] Name: 'Écouter' | ID: '' | Size: 48x48
+                - [GroupControl] Name: '' | ID: '' | Size: 48x48
+                  - [ButtonControl] Name: 'Ajouter' | ID: '' | Size: 48x48
+                - [GroupControl] Name: '' | ID: '' | Size: 48x48
+                  - [MenuItemControl] Name: 'Partager' | ID: '' | Size: 48x48
+                - [GroupControl] Name: '' | ID: '' | Size: 48x48
+                  - [ButtonControl] Name: 'Télécharger' | ID: '' | Size: 48x48
+                - [GroupControl] Name: '' | ID: '' | Size: 48x48
+                  - [ButtonControl] Name: 'Afficher le menu' | ID: 'popover-trigger-\:r1c5\:' | Size: 48x48
+            - [TableControl] Name: '' | ID: '' | Size: 1404x944
+              - [GroupControl] Name: '' | ID: '' | Size: 1404x48
+                - [HeaderControl] Name: 'TITRE' | ID: '' | Size: 1172x21
+                - [HeaderControl] Name: '' | ID: '' | Size: 40x25
+                  - [ImageControl] Name: '' | ID: '' | Size: 24x25
+                - [HeaderControl] Name: 'POP.' | ID: '' | Size: 40x21
+                - [HeaderControl] Name: '' | ID: '' | Size: 40x25
+                  - [TextControl] Name: '' | ID: '' | Size: 20x21
+                    - [CheckBoxControl] Name: '' | ID: '' | Size: 1x1
+              - [GroupControl] Name: '' | ID: '' | Size: 1404x896
+                - [CustomControl] Name: 'Écouter Unbreakable par Michael Jackson 1. Unbreakable Écouter avec les paroles Ajouter aux Coups de cœur Afficher le menu 06:26 Popularité : 6 / 10' | ID: '' | Size: 1404x56
+                  - [DataItemControl] Name: 'Écouter Unbreakable par Michael Jackson 1. Unbreakable Écouter avec les paroles Ajouter aux Coups de cœur Afficher le menu' | ID: '' | Size: 1172x40
+                    - [GroupControl] Name: '' | ID: '' | Size: 40x40
+                      - [GroupControl] Name: '' | ID: '' | Size: 40x40
+                      - [GroupControl] Name: '' | ID: '' | Size: 40x40
+                        - [ButtonControl] Name: 'Écouter Unbreakable par Michael Jackson' | ID: '' | Size: 32x32
+                          - [ImageControl] Name: '' | ID: '' | Size: 24x24
+                    - [GroupControl] Name: '' | ID: '' | Size: 98x20
+                      - [TextControl] Name: '1. Unbreakable' | ID: '' | Size: 98x18
+                    - [ButtonControl] Name: 'Écouter avec les paroles' | ID: '' | Size: 32x32
+                    - [ButtonControl] Name: 'Ajouter aux Coups de cœur' | ID: '' | Size: 32x32
+                    - [ButtonControl] Name: 'Afficher le menu' | ID: 'popover-trigger-\:r1c7\:' | Size: 32x32
+                  - [DataItemControl] Name: '06:26' | ID: '' | Size: 40x20
+                  - [DataItemControl] Name: 'Popularité : 6 / 10' | ID: '' | Size: 40x26
+                    - [GroupControl] Name: 'Popularité : 6 / 10' | ID: '' | Size: 28x24
+                  - [DataItemControl] Name: '' | ID: '' | Size: 40x24
+                    - [TextControl] Name: '' | ID: '' | Size: 20x20
+                      - [CheckBoxControl] Name: '' | ID: '' | Size: 1x2
+                - [CustomControl] Name: 'Écouter Heartbreaker par Michael Jackson 2. Heartbreaker Écouter avec les paroles Ajouter aux Coups de cœur Afficher le menu 05:10 Popularité : 6 / 10' | ID: '' | Size: 1404x56
+                  - [DataItemControl] Name: 'Écouter Heartbreaker par Michael Jackson 2. Heartbreaker Écouter avec les paroles Ajouter aux Coups de cœur Afficher le menu' | ID: '' | Size: 1172x40
+                    - [GroupControl] Name: '' | ID: '' | Size: 40x40
+                      - [GroupControl] Name: '' | ID: '' | Size: 40x40
+                      - [GroupControl] Name: '' | ID: '' | Size: 40x40
+                        - [ButtonControl] Name: 'Écouter Heartbreaker par Michael Jackson' | ID: '' | Size: 32x32
+                          - [ImageControl] Name: '' | ID: '' | Size: 24x24
+                    - [GroupControl] Name: '' | ID: '' | Size: 104x20
+                      - [TextControl] Name: '2. Heartbreaker' | ID: '' | Size: 104x18
+                    - [ButtonControl] Name: 'Écouter avec les paroles' | ID: '' | Size: 32x32
+                    - [ButtonControl] Name: 'Ajouter aux Coups de cœur' | ID: '' | Size: 32x32
+                    - [ButtonControl] Name: 'Afficher le menu' | ID: 'popover-trigger-\:r1c9\:' | Size: 32x32
+                  - [DataItemControl] Name: '05:10' | ID: '' | Size: 40x20
+                  - [DataItemControl] Name: 'Popularité : 6 / 10' | ID: '' | Size: 40x26
+                    - [GroupControl] Name: 'Popularité : 6 / 10' | ID: '' | Size: 28x24
+                  - [DataItemControl] Name: '' | ID: '' | Size: 40x24
+                    - [TextControl] Name: '' | ID: '' | Size: 20x20
+                      - [CheckBoxControl] Name: '' | ID: '' | Size: 1x2
+                - [CustomControl] Name: 'Écouter Invincible par Michael Jackson 3. Invincible Écouter avec les paroles Ajouter aux Coups de cœur Afficher le menu 04:45 Popularité : 5 / 10' | ID: '' | Size: 1404x56
+                  - [DataItemControl] Name: 'Écouter Invincible par Michael Jackson 3. Invincible Écouter avec les paroles Ajouter aux Coups de cœur Afficher le menu' | ID: '' | Size: 1172x40
+                    - [GroupControl] Name: '' | ID: '' | Size: 40x40
+                      - [GroupControl] Name: '' | ID: '' | Size: 40x40
+                      - [GroupControl] Name: '' | ID: '' | Size: 40x40
+                        - [ButtonControl] Name: 'Écouter Invincible par Michael Jackson' | ID: '' | Size: 32x32
+                          - [ImageControl] Name: '' | ID: '' | Size: 24x24
+                    - [GroupControl] Name: '' | ID: '' | Size: 79x20
+                      - [TextControl] Name: '3. Invincible' | ID: '' | Size: 79x18
+                    - [ButtonControl] Name: 'Écouter avec les paroles' | ID: '' | Size: 32x32
+                    - [ButtonControl] Name: 'Ajouter aux Coups de cœur' | ID: '' | Size: 32x32
+                    - [ButtonControl] Name: 'Afficher le menu' | ID: 'popover-trigger-\:r1cb\:' | Size: 32x32
+                  - [DataItemControl] Name: '04:45' | ID: '' | Size: 40x20
+                  - [DataItemControl] Name: 'Popularité : 5 / 10' | ID: '' | Size: 40x26
+                    - [GroupControl] Name: 'Popularité : 5 / 10' | ID: '' | Size: 28x24
+                  - [DataItemControl] Name: '' | ID: '' | Size: 40x24
+                    - [TextControl] Name: '' | ID: '' | Size: 20x20
+                      - [CheckBoxControl] Name: '' | ID: '' | Size: 1x2
+                - [CustomControl] Name: 'Écouter Break of Dawn par Michael Jackson 4. Break of Dawn Écouter avec les paroles Ajouter aux Coups de cœur Afficher le menu 05:32 Popularité : 7 / 10' | ID: '' | Size: 1404x56
+                  - [DataItemControl] Name: 'Écouter Break of Dawn par Michael Jackson 4. Break of Dawn Écouter avec les paroles Ajouter aux Coups de cœur Afficher le menu' | ID: '' | Size: 1172x40
+                    - [GroupControl] Name: '' | ID: '' | Size: 40x40
+                      - [GroupControl] Name: '' | ID: '' | Size: 40x40
+                      - [GroupControl] Name: '' | ID: '' | Size: 40x40
+                        - [ButtonControl] Name: 'Écouter Break of Dawn par Michael Jackson' | ID: '' | Size: 32x32
+                          - [ImageControl] Name: '' | ID: '' | Size: 24x24
+                    - [GroupControl] Name: '' | ID: '' | Size: 113x20
+                      - [TextControl] Name: '4. Break of Dawn' | ID: '' | Size: 113x18
+                    - [ButtonControl] Name: 'Écouter avec les paroles' | ID: '' | Size: 32x32
+                    - [ButtonControl] Name: 'Ajouter aux Coups de cœur' | ID: '' | Size: 32x32
+                    - [ButtonControl] Name: 'Afficher le menu' | ID: 'popover-trigger-\:r1cd\:' | Size: 32x32
+                  - [DataItemControl] Name: '05:32' | ID: '' | Size: 40x20
+                  - [DataItemControl] Name: 'Popularité : 7 / 10' | ID: '' | Size: 40x26
+                    - [GroupControl] Name: 'Popularité : 7 / 10' | ID: '' | Size: 28x24
+                  - [DataItemControl] Name: '' | ID: '' | Size: 40x24
+                    - [TextControl] Name: '' | ID: '' | Size: 20x20
+                      - [CheckBoxControl] Name: '' | ID: '' | Size: 1x2
+                - [CustomControl] Name: 'Écouter Heaven Can Wait par Michael Jackson 5. Heaven Can Wait Écouter avec les paroles Ajouter aux Coups de cœur Afficher le menu 04:49 Popularité : 9 / 10' | ID: '' | Size: 1404x56
+                  - [DataItemControl] Name: 'Écouter Heaven Can Wait par Michael Jackson 5. Heaven Can Wait Écouter avec les paroles Ajouter aux Coups de cœur Afficher le menu' | ID: '' | Size: 1172x40
+                    - [GroupControl] Name: '' | ID: '' | Size: 40x40
+                      - [GroupControl] Name: '' | ID: '' | Size: 40x40
+                      - [GroupControl] Name: '' | ID: '' | Size: 40x40
+                        - [ButtonControl] Name: 'Écouter Heaven Can Wait par Michael Jackson' | ID: '' | Size: 32x32
+                          - [ImageControl] Name: '' | ID: '' | Size: 24x24
+                    - [GroupControl] Name: '' | ID: '' | Size: 129x20
+                      - [TextControl] Name: '5. Heaven Can Wait' | ID: '' | Size: 129x18
+                    - [ButtonControl] Name: 'Écouter avec les paroles' | ID: '' | Size: 32x32
+                    - [ButtonControl] Name: 'Ajouter aux Coups de cœur' | ID: '' | Size: 32x32
+                    - [ButtonControl] Name: 'Afficher le menu' | ID: 'popover-trigger-\:r1cf\:' | Size: 32x32
+                  - [DataItemControl] Name: '04:49' | ID: '' | Size: 40x20
+                  - [DataItemControl] Name: 'Popularité : 9 / 10' | ID: '' | Size: 40x26
+                    - [GroupControl] Name: 'Popularité : 9 / 10' | ID: '' | Size: 28x24
+                  - [DataItemControl] Name: '' | ID: '' | Size: 40x24
+                    - [TextControl] Name: '' | ID: '' | Size: 20x20
+                      - [CheckBoxControl] Name: '' | ID: '' | Size: 1x2
+                - [CustomControl] Name: 'Écouter You Rock My World par Michael Jackson 6. You Rock My World Écouter avec les paroles Ajouter aux Coups de cœur Afficher le menu 05:09 Popularité : 8 / 10' | ID: '' | Size: 1404x56
+                  - [DataItemControl] Name: 'Écouter You Rock My World par Michael Jackson 6. You Rock My World Écouter avec les paroles Ajouter aux Coups de cœur Afficher le menu' | ID: '' | Size: 1172x40
+                    - [GroupControl] Name: '' | ID: '' | Size: 40x40
+                      - [GroupControl] Name: '' | ID: '' | Size: 40x40
+                      - [GroupControl] Name: '' | ID: '' | Size: 40x40
+                        - [ButtonControl] Name: 'Écouter You Rock My World par Michael Jackson' | ID: '' | Size: 32x32
+                          - [ImageControl] Name: '' | ID: '' | Size: 24x24
+                    - [GroupControl] Name: '' | ID: '' | Size: 144x20
+                      - [TextControl] Name: '6. You Rock My World' | ID: '' | Size: 144x18
+                    - [ButtonControl] Name: 'Écouter avec les paroles' | ID: '' | Size: 32x32
+                    - [ButtonControl] Name: 'Ajouter aux Coups de cœur' | ID: '' | Size: 32x32
+                    - [ButtonControl] Name: 'Afficher le menu' | ID: 'popover-trigger-\:r1ch\:' | Size: 32x32
+                  - [DataItemControl] Name: '05:09' | ID: '' | Size: 40x20
+                  - [DataItemControl] Name: 'Popularité : 8 / 10' | ID: '' | Size: 40x26
+                    - [GroupControl] Name: 'Popularité : 8 / 10' | ID: '' | Size: 28x24
+                  - [DataItemControl] Name: '' | ID: '' | Size: 40x24
+                    - [TextControl] Name: '' | ID: '' | Size: 20x20
+                      - [CheckBoxControl] Name: '' | ID: '' | Size: 1x2
+                - [CustomControl] Name: 'Écouter Butterflies par Michael Jackson 7. Butterflies Écouter avec les paroles Ajouter aux Coups de cœur Afficher le menu 04:39 Popularité : 7 / 10' | ID: '' | Size: 1404x56
+                  - [DataItemControl] Name: 'Écouter Butterflies par Michael Jackson 7. Butterflies Écouter avec les paroles Ajouter aux Coups de cœur Afficher le menu' | ID: '' | Size: 1172x40
+                    - [GroupControl] Name: '' | ID: '' | Size: 40x40
+                      - [GroupControl] Name: '' | ID: '' | Size: 40x40
+                      - [GroupControl] Name: '' | ID: '' | Size: 40x40
+                        - [ButtonControl] Name: 'Écouter Butterflies par Michael Jackson' | ID: '' | Size: 32x32
+                          - [ImageControl] Name: '' | ID: '' | Size: 24x24
+                    - [GroupControl] Name: '' | ID: '' | Size: 83x20
+                      - [TextControl] Name: '7. Butterflies' | ID: '' | Size: 83x18
+                    - [ButtonControl] Name: 'Écouter avec les paroles' | ID: '' | Size: 32x32
+                    - [ButtonControl] Name: 'Ajouter aux Coups de cœur' | ID: '' | Size: 32x32
+                    - [ButtonControl] Name: 'Afficher le menu' | ID: 'popover-trigger-\:r1cj\:' | Size: 32x32
+                  - [DataItemControl] Name: '04:39' | ID: '' | Size: 40x20
+                  - [DataItemControl] Name: 'Popularité : 7 / 10' | ID: '' | Size: 40x26
+                    - [GroupControl] Name: 'Popularité : 7 / 10' | ID: '' | Size: 28x24
+                  - [DataItemControl] Name: '' | ID: '' | Size: 40x24
+                    - [TextControl] Name: '' | ID: '' | Size: 20x20
+                      - [CheckBoxControl] Name: '' | ID: '' | Size: 1x2
+                - [CustomControl] Name: 'Écouter Speechless par Michael Jackson 8. Speechless Écouter avec les paroles Ajouter aux Coups de cœur Afficher le menu 03:18 Popularité : 6 / 10' | ID: '' | Size: 1404x56
+                  - [DataItemControl] Name: 'Écouter Speechless par Michael Jackson 8. Speechless Écouter avec les paroles Ajouter aux Coups de cœur Afficher le menu' | ID: '' | Size: 1172x40
+                    - [GroupControl] Name: '' | ID: '' | Size: 40x40
+                      - [GroupControl] Name: '' | ID: '' | Size: 40x40
+                      - [GroupControl] Name: '' | ID: '' | Size: 40x40
+                        - [ButtonControl] Name: 'Écouter Speechless par Michael Jackson' | ID: '' | Size: 32x32
+                          - [ImageControl] Name: '' | ID: '' | Size: 24x24
+                    - [GroupControl] Name: '' | ID: '' | Size: 93x20
+                      - [TextControl] Name: '8. Speechless' | ID: '' | Size: 93x18
+                    - [ButtonControl] Name: 'Écouter avec les paroles' | ID: '' | Size: 32x32
+                    - [ButtonControl] Name: 'Ajouter aux Coups de cœur' | ID: '' | Size: 32x32
+                    - [ButtonControl] Name: 'Afficher le menu' | ID: 'popover-trigger-\:r1cl\:' | Size: 32x32
+                  - [DataItemControl] Name: '03:18' | ID: '' | Size: 40x20
+                  - [DataItemControl] Name: 'Popularité : 6 / 10' | ID: '' | Size: 40x26
+                    - [GroupControl] Name: 'Popularité : 6 / 10' | ID: '' | Size: 28x24
+                  - [DataItemControl] Name: '' | ID: '' | Size: 40x24
+                    - [TextControl] Name: '' | ID: '' | Size: 20x20
+                      - [CheckBoxControl] Name: '' | ID: '' | Size: 1x2
+      - [GroupControl] Name: '' | ID: 'page_player' | Size: 1912x80
+        - [GroupControl] Name: '' | ID: '' | Size: 1912x80
+          - [GroupControl] Name: '' | ID: '' | Size: 48x49
+            - [ImageControl] Name: 'Dirty Diana (2012 Remaster)' | ID: '' | Size: 46x47
+          - [GroupControl] Name: '' | ID: '' | Size: 213x25
+            - [TextControl] Name: '' | ID: '' | Size: 213x25
+              - [HyperlinkControl] Name: 'Dirty Diana (2012 Remaster)' | ID: '' | Size: 213x21
+          - [GroupControl] Name: '' | ID: '' | Size: 213x21
+            - [TextControl] Name: '' | ID: '' | Size: 110x21
+              - [HyperlinkControl] Name: 'Michael Jackson' | ID: '' | Size: 110x18
+          - [GroupControl] Name: '' | ID: '' | Size: 69x33
+            - [ButtonControl] Name: 'Ajouter aux Coups de cœur' | ID: '' | Size: 33x33
+              - [ImageControl] Name: '' | ID: '' | Size: 25x25
+            - [GroupControl] Name: '' | ID: '' | Size: 33x33
+              - [ButtonControl] Name: 'Open context menu' | ID: 'popover-trigger-\:r1f\:' | Size: 33x33
+          - [GroupControl] Name: '' | ID: '' | Size: 590x33
+            - [GroupControl] Name: '' | ID: '' | Size: 193x33
+              - [ButtonControl] Name: 'Activer le mode aléatoire' | ID: '' | Size: 33x33
+              - [GroupControl] Name: '' | ID: '' | Size: 33x33
+                - [ButtonControl] Name: 'Précédent' | ID: 'popover-trigger-\:r1h\:' | Size: 33x33
+              - [ButtonControl] Name: 'Écouter' | ID: '' | Size: 33x33
+                - [ImageControl] Name: '' | ID: '' | Size: 25x25
+              - [GroupControl] Name: '' | ID: '' | Size: 33x33
+                - [ButtonControl] Name: 'Suivant' | ID: 'popover-trigger-\:r1j\:' | Size: 33x33
+              - [ButtonControl] Name: 'Réécouter ce titre' | ID: '' | Size: 33x33
+          - [GroupControl] Name: '' | ID: '' | Size: 590x21
+            - [TextControl] Name: '' | ID: '' | Size: 33x17
+              - [TextControl] Name: '01:30' | ID: '' | Size: 33x16
+            - [GroupControl] Name: '' | ID: '' | Size: 494x3
+              - [GroupControl] Name: '' | ID: '' | Size: 494x3
+              - [GroupControl] Name: '' | ID: '' | Size: 160x3
+              - [SliderControl] Name: '' | ID: '' | Size: 506x13
+            - [GroupControl] Name: '' | ID: '' | Size: 51x17
+              - [TextControl] Name: '' | ID: '' | Size: 35x17
+                - [TextControl] Name: '04:40' | ID: '' | Size: 35x16
+          - [GroupControl] Name: '' | ID: '' | Size: 621x33
+            - [ButtonControl] Name: 'Afficher les paroles' | ID: '' | Size: 33x33
+            - [ButtonControl] Name: 'open queuelist' | ID: '' | Size: 33x33
+            - [ButtonControl] Name: 'volume button' | ID: 'popover-trigger-\:r17\:' | Size: 33x33
+            - [ButtonControl] Name: 'Audio' | ID: 'popover-trigger-\:r19\:' | Size: 33x33

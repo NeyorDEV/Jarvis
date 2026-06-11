@@ -1,5 +1,5 @@
 @echo off
-TITLE J.A.R.V.I.S - www.techenclair.fr
+TITLE J.A.R.V.I.S - Neyor
 COLOR 0B
 cd /d "%~dp0"
 ".\venv\Scripts\python.exe" "main2.py"

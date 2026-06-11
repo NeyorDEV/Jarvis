@@ -1,118 +1,113 @@
 """
-JARVIS — TTS local via F5-TTS (clone de voix, GPU CUDA)
+JARVIS — TTS local via Kokoro-82M (ONNX, ultra-rapide)
 
-Charge le modèle une seule fois au démarrage, génère ensuite
-chaque phrase en ~4s sur RTX 4070 Super.
-
-IMPORTANT :
-- Ne pas appeler torch.cuda avant d'importer F5TTS → ACCESS_VIOLATION.
-- Ne pas laisser ref_text="" → F5-TTS appelle torchcodec (DLLs manquantes sur Windows).
-  Solution : fournir ref_text depuis jarvis_voice.txt (ou texte par défaut).
-- Fichier référence : jarvis_voice.wav (24kHz mono, converti depuis MP3 via ffmpeg)
+Charge le modèle Kokoro-82M au démarrage et génère la voix en français
+en moins de 100ms sur GPU (ou ~1s sur CPU) en remplacement de l'ancien F5-TTS.
 """
 
 import os
 import time
 import soundfile as sf
+import onnxruntime as ort
+from kokoro_onnx import Kokoro
 
 # ── Chemins ───────────────────────────────────────────────────────────────────
-_BASE_DIR    = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-VOICE_SAMPLE = os.path.join(_BASE_DIR, "jarvis_voice.wav")   # WAV 24kHz mono
-VOICE_TEXT   = os.path.join(_BASE_DIR, "jarvis_voice.txt")   # Transcription du sample
-
-# Texte par défaut si jarvis_voice.txt est absent
-_DEFAULT_REF_TEXT = "Bien sûr Monsieur. Je suis prêt à vous assister en toutes circonstances."
+_BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_KOKORO_DIR = os.path.join(_BASE_DIR, "core", "kokoro")
+MODEL_PATH = os.path.join(_KOKORO_DIR, "kokoro-v1.0.onnx")
+VOICES_PATH = os.path.join(_KOKORO_DIR, "voices-v1.0.bin")
 
 # ── Modèle (chargé une seule fois) ───────────────────────────────────────────
-_model = None
+_kokoro_pipeline = None
 _ready = False
-_ref_text_cache: str | None = None
 
 
-def _charger_ref_text() -> str:
-    """Charge la transcription du sample depuis jarvis_voice.txt (ou texte par défaut)."""
-    global _ref_text_cache
-    if _ref_text_cache is not None:
-        return _ref_text_cache
-    if os.path.exists(VOICE_TEXT):
-        with open(VOICE_TEXT, "r", encoding="utf-8") as f:
-            _ref_text_cache = f.read().strip()
-            print(f"[TTS LOCAL] ref_text chargé depuis {VOICE_TEXT}")
-    else:
-        _ref_text_cache = _DEFAULT_REF_TEXT
-        print(f"[TTS LOCAL] jarvis_voice.txt absent — ref_text par défaut utilisé")
-    return _ref_text_cache
-
-
-def init_tts():
-    """Charge F5-TTS en VRAM. Appelé une fois au démarrage de JARVIS."""
-    global _model, _ready
+def init_tts() -> bool:
+    """Charge le modèle Kokoro-82M ONNX. Appelé au démarrage de JARVIS."""
+    global _kokoro_pipeline, _ready
 
     if _ready:
         return True
 
+    if not os.path.exists(MODEL_PATH) or not os.path.exists(VOICES_PATH):
+        print(f"❌ [🗣 Kokoro-TTS] Fichiers du modèle introuvables dans {_KOKORO_DIR}")
+        return False
+
     try:
-        print("[TTS LOCAL] Chargement F5-TTS sur GPU...")
-        from f5_tts.api import F5TTS
+        print("⚡ [🗣 Kokoro-TTS] Initialisation du moteur vocal (ONNX Runtime)...")
+        
+        # Ajout manuel des répertoires DLL pour Windows (CUDA + cuDNN)
+        if os.name == 'nt':
+            cuda_bin = r"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.9\bin"
+            cudnn_bin = r"C:\Program Files\NVIDIA\CUDNN\v9.23\bin\12.9\x64"
+            if os.path.exists(cuda_bin):
+                os.add_dll_directory(cuda_bin)
+                os.environ["PATH"] = cuda_bin + os.pathsep + os.environ["PATH"]
+            if os.path.exists(cudnn_bin):
+                os.add_dll_directory(cudnn_bin)
+                os.environ["PATH"] = cudnn_bin + os.pathsep + os.environ["PATH"]
 
-        # NE PAS appeler torch.cuda.is_available() avant F5TTS : provoque un ACCESS_VIOLATION.
-        # On tente directement CUDA, fallback CPU si erreur.
+        # Tentative d'utilisation de CUDA si supporté, sinon fallback CPU automatique
+        providers = ["CUDAExecutionProvider", "CPUExecutionProvider"]
+        
+        # Désactiver les avertissements globaux d'ONNX Runtime (warnings de recopie mémoire ou d'opérateurs)
         try:
-            _model = F5TTS(device="cuda")
-            print("[TTS LOCAL] Device : cuda (RTX 4070 Super)")
-        except Exception:
-            _model = F5TTS(device="cpu")
-            print("[TTS LOCAL] Device : cpu (CUDA indisponible)")
-
-        _charger_ref_text()  # Précharge le texte de référence
+            ort.set_default_logger_severity(3) # 3 = Error
+        except:
+            pass
+        
+        so = ort.SessionOptions()
+        so.log_severity_level = 3 # 3 = Severe / Error only
+        
+        session = ort.InferenceSession(MODEL_PATH, providers=providers, sess_options=so)
+        print(f"✔ [🗣 Kokoro-TTS] Moteur activé sur : {session.get_providers()}")
+        
+        _kokoro_pipeline = Kokoro.from_session(session, VOICES_PATH)
         _ready = True
-        print("[TTS LOCAL] F5-TTS prêt.")
+        print("✔ [🗣 Kokoro-TTS] Synthèse vocale locale opérationnelle.")
         return True
 
     except Exception as e:
-        print(f"[TTS LOCAL] Erreur chargement : {e}")
+        print(f"❌ [🗣 Kokoro-TTS] Échec du chargement : {e}")
         _ready = False
         return False
 
 
 def generer_audio(texte: str, output_path: str) -> bool:
     """
-    Génère un fichier WAV à output_path à partir du texte,
-    en clonant la voix de jarvis_voice.wav.
-    Retourne True si succès.
-
-    NOTE : ref_text est fourni explicitement pour éviter la transcription
-    automatique via torchcodec (DLLs absentes sous Windows).
+    Génère un fichier WAV à output_path à partir du texte en français,
+    en utilisant la voix féminine française ff_siwis.
     """
-    global _model, _ready
+    global _kokoro_pipeline, _ready
 
     if not _ready:
         if not init_tts():
             return False
 
-    if not os.path.exists(VOICE_SAMPLE):
-        print(f"[TTS LOCAL] Sample introuvable : {VOICE_SAMPLE}")
+    if not texte or not texte.strip():
         return False
 
     try:
         t0 = time.monotonic()
-        ref_text = _charger_ref_text()
-
-        wav, sr, _ = _model.infer(
-            ref_file=VOICE_SAMPLE,
-            ref_text=ref_text,    # Fourni explicitement : évite torchcodec (transcription auto)
-            gen_text=texte,
-            target_rms=0.1,
-            cross_fade_duration=0.15,
+        
+        # Nettoyage minimal du texte pour la phonémisation
+        texte_propre = texte.replace("**", "").replace("*", "").replace("`", "").strip()
+        
+        # Synthèse via Kokoro
+        # ff_siwis = French Female voice (seule voix française native de Kokoro v1.0)
+        samples, sample_rate = _kokoro_pipeline.create(
+            texte_propre,
+            voice="ff_siwis",
             speed=1.0,
-            fix_duration=None,
-            remove_silence=True,
+            lang="fr-fr"
         )
-
-        sf.write(output_path, wav, sr)
-        print(f"[TTS LOCAL] Genere en {time.monotonic()-t0:.2f}s -> {output_path}")
+        
+        # Sauvegarde au format WAV
+        sf.write(output_path, samples, sample_rate)
+        
+        print(f"✔ [🗣 Kokoro-TTS] Parole générée en {time.monotonic()-t0:.2f}s")
         return True
 
     except Exception as e:
-        print(f"[TTS LOCAL] Erreur génération : {e}")
+        print(f"❌ [🗣 Kokoro-TTS] Erreur de génération vocale : {e}")
         return False

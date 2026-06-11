@@ -34,3 +34,7 @@ frontend/.vite/
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# ONNX models
+*.onnx
+core/kokoro/kokoro-v1.0.onnx

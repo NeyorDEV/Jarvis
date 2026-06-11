@@ -36,8 +36,27 @@ async def resoudre_apps_localement(texte):
                 if success: return f"J'ai lancé {data['label']} pour vous, mylane."
                 return f"Je n'ai pas pu localiser {data['label']} sur votre système."
 
-    # 3. MUSIQUE DYNAMIQUE (Depuis Paramètres ou "mets de la musique")
-    if "musique" in t and any(k in t for k in ["mets", "joue", "lance", "écoute", "ecoute", "play", "active", "démarre", "demarre"]):
+    if any(m in t for m in ["musique", "playlist"]) and any(k in t for k in ["mets", "joue", "lance", "écoute", "ecoute", "play", "active", "démarre", "demarre"]):
+        if any(w in t for w in ["remets", "remet", "reprends", "reprend", "relance", "suivant", "précédent", "precedent"]):
+            return None
+            
+        # Extraire la requête spécifique de musique/playlist
+        # Si l'utilisateur a spécifié un nom (ex: "joue ma playlist teenage dirtbag"),
+        # on renvoie None pour laisser l'orchestrateur principal gérer la recherche sur Deezer.
+        query_normalized = t
+        for verb in ["joue", "jouer", "mets", "mettre", "lance", "lancer", "écoute", "ecoute", "écouter", "ecouter", "play", "active", "activer", "démarre", "demarre", "démarrer", "demarrer"]:
+            query_normalized = re.sub(rf"\b{verb}\b", "", query_normalized)
+        for article in ["ma", "la", "mon", "le", "un", "une", "des", "du", "de", "de la", "d'", "votre", "notre", "mes", "les", "moi"]:
+            query_normalized = re.sub(rf"\b{article}\b", "", query_normalized)
+        for noun in ["musique", "playlist", "chanson", "piste", "titre", "album", "artiste", "son"]:
+            query_normalized = re.sub(rf"\b{noun}\b", "", query_normalized)
+        
+        specific_query = query_normalized.strip()
+        if specific_query:
+            # Il y a un nom de playlist ou d'artiste spécifique, on délègue à la recherche Deezer
+            print(f"[RESOLVER] Requête spécifique détectée : '{specific_query}'. Délégation à la recherche.")
+            return None
+
         import webbrowser
         try:
             import pyautogui
@@ -63,16 +82,24 @@ async def resoudre_apps_localement(texte):
         elif lien_perso:
             webbrowser.open(lien_perso, new=2)
             return f"C'est parti {user_n}, je lance votre musique personnalisée."
-        elif "deezer" in t:
-            try:
-                subprocess.Popen(["explorer", "deezer:"], shell=False)
-                return f"C'est parti {user_n}, j'ouvre votre musique sur Deezer."
-            except: pass
-        else:
+        elif "spotify" in t:
             try:
                 subprocess.Popen(["explorer", "spotify:"], shell=False)
                 return f"C'est parti {user_n}, je lance votre playlist sur Spotify."
             except: pass
+        else:
+            # Par défaut, on lance la playlist sur Deezer
+            try:
+                from controller.deezer_controller import deezer_lancer_playlist
+                asyncio.create_task(deezer_lancer_playlist())
+                return f"C'est parti {user_n}, je lance votre playlist sur Deezer."
+            except Exception as e:
+                print(f"[RESOLVER] Échec import/lancement Deezer : {e}")
+                try:
+                    subprocess.Popen(["explorer", "deezer:"], shell=False)
+                    return f"C'est parti {user_n}, j'ouvre votre musique sur Deezer."
+                except:
+                    pass
 
     # 4. ACTIONS SYSTÈME RAPIDES
     if any(k in t for k in ["explorateur", "mes dossiers", "mes fichiers"]):

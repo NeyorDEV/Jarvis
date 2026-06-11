@@ -2,7 +2,6 @@
 #  ha_config.py — Configuration Home Assistant & Météo
 #  Personnalisez CE fichier selon votre installation domotique
 #  Ne touchez pas main2.py pour la domotique, tout est ici.
-#  Site : www.techenclair.fr
 # ============================================================
 
 import os
@@ -258,11 +257,16 @@ def ha_verrou(entity_id, etat="lock"):
 #  Utilisent Open-Meteo (gratuit) + Home Assistant en fallback.
 # ════════════════════════════════════════════════════════════════
 
+OPEN_METEO_HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+}
+
 def geocoder_ville(ville):
     try:
         r = requests.get(
             "https://geocoding-api.open-meteo.com/v1/search",
             params={"name": ville, "count": 1, "language": "fr", "format": "json"},
+            headers=OPEN_METEO_HEADERS,
             timeout=5
         )
         data = r.json()
@@ -272,6 +276,27 @@ def geocoder_ville(ville):
     except Exception as e:
         print(f"[METEO] Erreur geocoding : {e}")
     return None, None, ville, ""
+
+def get_meteo_fallback_wttr_sync(city_name):
+    try:
+        url = f"https://wttr.in/{requests.utils.quote(city_name)}?format=j1"
+        resp = requests.get(url, headers=OPEN_METEO_HEADERS, timeout=10)
+        if resp.status_code == 200:
+            data = resp.json()
+            curr = data.get("current_condition", [{}])[0]
+            desc = curr.get("weatherDesc", [{}])[0].get("value", "Inconnu")
+            translations = {
+                "sunny": "ciel degage", "clear": "ciel degage", "partly cloudy": "partiellement nuageux",
+                "cloudy": "nuageux", "overcast": "couvert", "mist": "brouillard", "fog": "brouillard",
+                "patchy rain possible": "pluie faible", "patchy snow possible": "neige faible",
+                "heavy rain": "pluie forte", "light rain": "pluie faible", "thunderstorm": "orage"
+            }
+            desc_fr = translations.get(desc.lower(), desc.lower())
+            temp = round(float(curr.get("temp_C", 0)))
+            return f"À {city_name}, il fait {temp} degrés et le ciel est {desc_fr}. C'est tout."
+    except:
+        pass
+    return None
 
 def get_meteo_actuelle(ville=None):
     try:
@@ -291,7 +316,8 @@ def get_meteo_actuelle(ville=None):
                 "forecast_days"  : 3,
                 "wind_speed_unit": "kmh",
             },
-            timeout=8
+            headers=OPEN_METEO_HEADERS,
+            timeout=5
         )
         data = r.json()
         cur  = data["current"]
@@ -299,14 +325,17 @@ def get_meteo_actuelle(ville=None):
         desc = CODES_METEO.get(code, "conditions inconnues")
         temp = round(float(cur.get("temperature_2m", 0)))
         return f"À {nom_affiche}, il fait {temp} degrés et le ciel est {desc}. C'est tout."
-    except Exception as e:
-        print(f"[METEO] Erreur : {e}")
+    except Exception:
+        # Repli silencieux sur wttr.in si Open-Meteo est KO
+        wttr_res = get_meteo_fallback_wttr_sync(nom_ville)
+        if wttr_res:
+            return wttr_res
         return "Je n'arrive pas à récupérer la météo pour le moment."
 
 def get_meteo_ha():
     """Lit la météo depuis Home Assistant. Fallback quand Gemini est KO."""
     try:
-        r    = requests.get(f"{HA_URL}/api/states/weather.forecast_amilly", headers=HA_HEADERS, timeout=5)
+        r = requests.get(f"{HA_URL}/api/states/weather.forecast_amilly", headers=HA_HEADERS, timeout=5)
         data = r.json()
         etat  = data.get("state", "inconnu")
         attrs = data.get("attributes", {})
@@ -355,6 +384,7 @@ def get_alertes_meteo(ville=None):
                 "daily"   : "weathercode,precipitation_sum,wind_speed_10m_max",
                 "timezone": "Europe/Paris", "forecast_days": 3,
             },
+            headers=OPEN_METEO_HEADERS,
             timeout=8
         )
         data    = r.json()
@@ -406,7 +436,8 @@ def _charger_custom_ha_entities():
                 for x in custom_capteurs:
                     PIECES_CAPTEURS[x["name"].lower()] = x["entity_id"]
                     
-                print(f"[HA CONFIG] Loaded custom entities: {len(custom_lights)} lights, {len(custom_prises)} plugs, {len(custom_capteurs)} sensors.")
+                # print(f"[HA CONFIG] Loaded custom entities: {len(custom_lights)} lights, {len(custom_prises)} plugs, {len(custom_capteurs)} sensors.")
+                pass
     except Exception as e:
         print(f"[HA CONFIG] Error loading custom entities: {e}")
 

@@ -279,44 +279,44 @@ export function createOrb(canvas: HTMLCanvasElement): Orb {
     // ── Per-state targets ───────────────────────────────────────────────────
     if (demoActive) {
       if (demoBigBang) {
-        targetRadius = 25; targetSpeed = 1.0; targetBright = 1.0; targetSize = 0.75;
+        targetRadius = 22.5; targetSpeed = 1.0; targetBright = 1.0; targetSize = 0.75;
         targetLineAmount = 1.0; targetElectronRate = 0.04;
         targetVortex = 0.5; targetBreathAmp = 1.2;
       } else if (demoVortex) {
-        targetRadius = 24; targetSpeed = 0.9; targetBright = 1.0; targetSize = 0.65;
+        targetRadius = 21.6; targetSpeed = 0.9; targetBright = 1.0; targetSize = 0.65;
         targetLineAmount = 1.0; targetElectronRate = 0.04;
         targetVortex = 4.5; targetBreathAmp = 1.0;
       } else if (demoPulse) {
-        targetRadius = 22; targetSpeed = 0.7; targetBright = 0.95; targetSize = 0.55;
+        targetRadius = 19.8; targetSpeed = 0.7; targetBright = 0.95; targetSize = 0.55;
         targetLineAmount = 0.9; targetElectronRate = 0.03;
         targetVortex = 2.0; targetBreathAmp = 1.2;
       } else {
-        targetRadius = 8; targetSpeed = 0.5; targetBright = 0.85; targetSize = 0.5;
+        targetRadius = 7.2; targetSpeed = 0.5; targetBright = 0.85; targetSize = 0.5;
         targetLineAmount = 0.7; targetElectronRate = 0.015;
         targetVortex = 1.0; targetBreathAmp = 0.5;
       }
     } else {
       switch (state) {
         case "idle":
-          targetRadius = 15; targetSpeed = 0.2; targetBright = 0.55; targetSize = 0.35;
+          targetRadius = 13.5; targetSpeed = 0.2; targetBright = 0.55; targetSize = 0.35;
           targetLineAmount = 0.15; targetElectronRate = 0;
           targetVortex = 0; targetBreathAmp = 0;
           break;
 
         case "listening":
-          targetRadius = 13; targetSpeed = 0.3; targetBright = 0.7; targetSize = 0.42;
+          targetRadius = 11.7; targetSpeed = 0.3; targetBright = 0.7; targetSize = 0.42;
           targetLineAmount = 0.4; targetElectronRate = 0;
           targetVortex = 0; targetBreathAmp = 0;
           break;
 
         case "thinking":
-          targetRadius = 9; targetSpeed = 0.5; targetBright = 0.8; targetSize = 0.32;
+          targetRadius = 8.1; targetSpeed = 0.5; targetBright = 0.8; targetSize = 0.32;
           targetLineAmount = 1.0; targetElectronRate = 0.015;
           targetVortex = 0; targetBreathAmp = 0;
           break;
 
         case "speaking":
-          targetRadius = 12; targetSpeed = 0.45; targetBright = 0.85; targetSize = 0.48;
+          targetRadius = 10.8; targetSpeed = 0.45; targetBright = 0.85; targetSize = 0.48;
           targetLineAmount = 0.8; targetElectronRate = 0.02;
           targetVortex = 0.3; targetBreathAmp = 1.2;
           break;

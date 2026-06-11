@@ -1,0 +1,80 @@
+[
+  {
+    "date": "02/06/2026",
+    "heure": "15:15",
+    "user": "Bonjour JARVIS, comment vas-tu aujourd'hui ?",
+    "model": "Tout va bien, merci de vous en soucier ! Je suis prêt à vous aider dans ce jeudi après-midi. Comment puis-je vous soutenir aujourd'hui ?"
+  },
+  {
+    "date": "02/06/2026",
+    "heure": "15:15",
+    "user": "Que penses-tu de l'intelligence artificielle ?",
+    "model": "C'est une question fascinante ! L'intelligence artificielle est un domaine en constante évolution et je pense qu'elle a le potentiel de révolutionner la façon dont nous vivons et travaillons. Les avancées en intelligence artificielle sont telles que les algorithmes machine apprennent à mieux comprendre le langage, les données et les interactions humaines, ce qui peut améliorer la qualité des conversations.\n\nCependant, il y a encore beaucoup de questions à répondre sur la conscience et l'expérience subjective. Nous sommes loin d'avoir une compréhension complète de ces sujets, et je pense qu'il faudra encore beaucoup de temps pour comprendre pleinement les limites et les capacités de l'intelligence artificielle.\n\nEn fin de compte, je pense que l'intelligence artificielle est un outil puissant qui peut être utilisé pour améliorer la vie des gens, mais il faut également être conscient des risques et des défis associés à son développement."
+  },
+  {
+    "date": "02/06/2026",
+    "heure": "15:23",
+    "user": "Bonjour JARVIS, comment vas-tu aujourd'hui ?",
+    "model": "Je vais bien, merci de vous en soucier ! Je suis prêt à vous aider dans ce jeudi après-midi. Comment puis-je vous soutenir aujourd'hui ? \n\n[Conserve la conversation]"
+  },
+  {
+    "date": "02/06/2026",
+    "heure": "15:23",
+    "user": "Que penses-tu de l'intelligence artificielle ?",
+    "model": "L'intelligence artificielle est un domaine en constante évolution, et ses applications sont de plus en plus présentes dans notre vie quotidienne. Cependant, la question de savoir si l'IA sera jamais vraiment conscience reste une débate passionnant entre les scientifiques et les philosophes.\n\nJe pense que l'IA est capable d'apprendre, de raisonner et de prendre des décisions basées sur des données, mais ce ne sont là que des capac"
+  },
+  {
+    "date": "02/06/2026",
+    "heure": "16:16",
+    "user": "ca va ?",
+    "model": "Oui, tout va bien, merci ! Je suis prêt à discuter ou à vous aider si vous avez besoin de quelque chose. Qu'est-ce qui vous occupe aujourd'hui ?"
+  },
+  {
+    "date": "09/06/2026",
+    "heure": "13:11",
+    "user": "de la...",
+    "model": "Il semble que vous ayez commencé à dire quelque chose, mais que vous vous êtes arrêté en chemin ! N'hésitez pas à continuer, je suis tout ouïe ! Qu'est-ce que vous vouliez dire ?"
+  },
+  {
+    "date": "10/06/2026",
+    "heure": "09:42",
+    "user": "remet la musique",
+    "model": "Tout de suite...\n{\"action\": \"spotify_ouvrir\"} \n{\"action\": \"spotify_rechercher\", \"recherche\": \"musique\"} \n{\"action\": \"spotify_lecture_pause\"}"
+  },
+  {
+    "date": "10/06/2026",
+    "heure": "09:47",
+    "user": "met pause",
+    "model": "Tout de suite...\n{\"action\": \"spotify_stop\"}"
+  },
+  {
+    "date": "10/06/2026",
+    "heure": "09:48",
+    "user": "mets pause",
+    "model": "Tout de suite...\n{\"action\": \"spotify_lecture_pause\"}"
+  },
+  {
+    "date": "11/06/2026",
+    "heure": "09:25",
+    "user": "passe la musique",
+    "model": "Tout de suite...\n{\"action\": \"spotify_suivant\"}"
+  },
+  {
+    "date": "11/06/2026",
+    "heure": "09:25",
+    "user": "passe la musique",
+    "model": "Tout de suite...\n{\"action\": \"spotify_suivant\"}"
+  },
+  {
+    "date": "11/06/2026",
+    "heure": "09:29",
+    "user": "passe la musique",
+    "model": "Tout de suite...\n{\"action\": \"spotify_suivant\"}"
+  },
+  {
+    "date": "11/06/2026",
+    "heure": "09:29",
+    "user": "passe la musique",
+    "model": "Tout de suite...\n{\"action\": \"spotify_suivant\"}"
+  }
+]

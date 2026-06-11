@@ -12,6 +12,7 @@ import { injectVisionButton, captureFrame } from "./screen_capture";
 import { initJarvisGlobe } from "./globe";
 import { initWidgets, updateWeatherUI, updateMusicUI } from "./widgets";
 import { cardManager } from "./cards";
+import { initHoloClock } from "./holo_clock";
 import { initHandTracking, toggleHandTracking, toggleArMirror } from "./hand_tracking";
 import { activerHolo, desactiverHolo } from "./hologramme";
 import { SpatialFileExplorer } from "./spatial_explorer";
@@ -121,6 +122,7 @@ const HELP_COMMANDS = [
 
 // ── Orb ───────────────────────────────────────────────────────────────────────
 const orb = createOrb(canvas);
+initHoloClock();
 
 // Load and apply the saved color theme
 const savedTheme = localStorage.getItem("jarvis-orb-theme") || "cyan";
@@ -183,6 +185,8 @@ function setConnected(ok: boolean): void {
   muteButtonEl.disabled = !ok;
   if (micBtnEl) micBtnEl.disabled = !ok;
 }
+
+
 
 // ── Virtual Cursor for Dynamic HUD Automation ──────────────────────────────────
 let virtualCursorHideTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -394,8 +398,86 @@ function connect(): void {
         icon?: string;
         weather?: any;
         weather_type?: string;
+        status_text?: string;
         data?: Record<string, any>;
       };
+
+
+
+      // ── OS Autopilot & Virtual Cursor ──
+      if (data.action === "draw_virtual_cursor" && (data as any).x !== undefined && (data as any).y !== undefined) {
+        const cursor = document.getElementById("virtual-cursor");
+        if (cursor) {
+          const wasHidden = cursor.style.display === "none";
+          const animDuration = data.duration || 0.8;
+          
+          // Injecter la durée de transition dynamique
+          cursor.style.transition = `left ${animDuration}s cubic-bezier(0.25, 0.8, 0.25, 1), top ${animDuration}s cubic-bezier(0.25, 0.8, 0.25, 1), transform 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275)`;
+          
+          if (wasHidden) {
+            // Positionner initialement au centre pour un premier déplacement fluide
+            cursor.style.left = "50%";
+            cursor.style.top = "50%";
+            cursor.style.display = "block";
+            
+            // Attendre deux ticks du moteur de rendu pour appliquer le display: block
+            requestAnimationFrame(() => {
+              requestAnimationFrame(() => {
+                cursor.style.left = `${(data as any).x}%`;
+                cursor.style.top = `${(data as any).y}%`;
+              });
+            });
+          } else {
+            cursor.style.left = `${(data as any).x}%`;
+            cursor.style.top = `${(data as any).y}%`;
+          }
+          
+          const duration = animDuration * 1000;
+          
+          // Nettoyer les anciens timeouts de clic et de masquage
+          if ((cursor as any).vcClickTimeout) clearTimeout((cursor as any).vcClickTimeout);
+          if ((cursor as any).vcHideTimeout) clearTimeout((cursor as any).vcHideTimeout);
+          
+          (cursor as any).vcClickTimeout = setTimeout(() => {
+            cursor.classList.add("clicking");
+            
+            const wave = document.createElement("div");
+            wave.className = "vc-click-wave";
+            cursor.appendChild(wave);
+            
+            setTimeout(() => {
+              cursor.classList.remove("clicking");
+              wave.remove();
+            }, 600);
+          }, duration);
+          
+          // Masquer le curseur après 3 secondes d'inactivité
+          (cursor as any).vcHideTimeout = setTimeout(() => {
+            cursor.style.display = "none";
+          }, duration + 3000);
+        }
+        return;
+      }
+
+      if (data.action === "os_agent_status") {
+        const banner = document.getElementById("os-autopilot-banner");
+        const logEl = document.getElementById("os-autopilot-log");
+        if (banner && logEl) {
+          if ((data as any).active) {
+            banner.style.display = "flex";
+            logEl.textContent = (data as any).log || "[JARVIS OS AUTOPILOT] ACTIF";
+          } else {
+            banner.style.display = "none";
+            // Cacher le curseur virtuel quand l'autopilote est terminé
+            const cursor = document.getElementById("virtual-cursor");
+            if (cursor) {
+              if ((cursor as any).vcHideTimeout) clearTimeout((cursor as any).vcHideTimeout);
+              cursor.style.display = "none";
+            }
+          }
+        }
+        return;
+      }
 
       if (data.action === "request_screen_capture") {
         const frame = await captureFrame();
@@ -652,14 +734,18 @@ function connect(): void {
         const ramVal = document.getElementById("ram-value");
         const cpuHud = document.getElementById("cpu-hud");
         const ramHud = document.getElementById("ram-hud");
+        const cpuBar = document.getElementById("cpu-bar-fill") as HTMLDivElement | null;
+        const ramBar = document.getElementById("ram-bar-fill") as HTMLDivElement | null;
 
         if (cpuVal && typeof data.cpu === "number") {
           cpuVal.textContent = `${Math.round(data.cpu)}%`;
           cpuHud?.classList.toggle("stat-critical", data.cpu > 90);
+          if (cpuBar) cpuBar.style.width = `${Math.min(100, data.cpu)}%`;
         }
         if (ramVal && typeof data.ram === "number") {
           ramVal.textContent = `${Math.round(data.ram)}%`;
           ramHud?.classList.toggle("stat-critical", data.ram > 90);
+          if (ramBar) ramBar.style.width = `${Math.min(100, data.ram)}%`;
         }
         return;
       }
@@ -704,6 +790,9 @@ function connect(): void {
 
       if (data.state) {
         applyState(data.state as OrbState);
+        if (data.status_text && statusEl) {
+          statusEl.textContent = data.status_text;
+        }
       }
       if (typeof data.volume === "number") {
         orb.setVolume(data.volume);
@@ -1595,7 +1684,7 @@ if (gesturesToggleBtn) {
     gesturesToggleBtn.disabled = false;
     gesturesToggleBtn.setAttribute("aria-pressed", active.toString());
     gesturesToggleBtn.textContent = active ? "AR ACTIF" : "MODE AR";
-    gesturesToggleBtn.classList.toggle("active", active);
+    gesturesToggleBtn.classList.toggle("ar-active", active);
   });
 }
 
@@ -1692,3 +1781,262 @@ function makeDraggable(el: HTMLElement): void {
   const el = document.getElementById(id);
   if (el) makeDraggable(el);
 });
+
+// ── Carousel Controls for Button Bar (3D Dial / Cover Flow) ───────────────────
+const track = document.getElementById("carousel-track");
+const getCarouselButtons = () => Array.from(track ? track.getElementsByTagName("button") : []);
+
+let activeIndex = 0;
+
+function interpolate(val: number, keyframes: [number, number][]) {
+  if (val <= keyframes[0][0]) return keyframes[0][1];
+  if (val >= keyframes[keyframes.length - 1][0]) return keyframes[keyframes.length - 1][1];
+  for (let i = 0; i < keyframes.length - 1; i++) {
+    const k1 = keyframes[i];
+    const k2 = keyframes[i+1];
+    if (val >= k1[0] && val <= k2[0]) {
+      const pct = (val - k1[0]) / (k2[0] - k1[0]);
+      return k1[1] + pct * (k2[1] - k1[1]);
+    }
+  }
+  return keyframes[0][1];
+}
+
+const scaleKeyframes: [number, number][] = [
+  [-3, 0.5],
+  [-2, 0.65],
+  [-1, 0.85],
+  [0, 1.16],
+  [1, 0.85],
+  [2, 0.65],
+  [3, 0.5]
+];
+
+const opacityKeyframes: [number, number][] = [
+  [-3, 0],
+  [-2, 0.5],
+  [-1, 0.8],
+  [0, 1],
+  [1, 0.8],
+  [2, 0.5],
+  [3, 0]
+];
+
+const txKeyframes: [number, number][] = [
+  [-3, -281],
+  [-2, -207.5],
+  [-1, -116.5],
+  [0, 0],
+  [1, 116.5],
+  [2, 207.5],
+  [3, 281]
+];
+
+function renderCarousel(progress = 0) {
+  const buttons = getCarouselButtons();
+  const len = buttons.length;
+  if (len === 0) return;
+
+  buttons.forEach((btn, idx) => {
+    // 1. Calculate the base circular slot
+    const diff = (idx - activeIndex + len) % len;
+    let slot = diff;
+    if (slot > Math.floor(len / 2)) {
+      slot -= len;
+    }
+
+    // 2. Adjust slot by drag progress
+    let currentSlot = slot + progress;
+
+    // Wrap currentSlot to the range [-len/2, len/2] for infinite circular scrolling
+    const halfLen = len / 2;
+    while (currentSlot < -halfLen) {
+      currentSlot += len;
+    }
+    while (currentSlot > halfLen) {
+      currentSlot -= len;
+    }
+
+    // 3. Interpolate styles
+    const scale = interpolate(currentSlot, scaleKeyframes);
+    const opacity = interpolate(currentSlot, opacityKeyframes);
+    const offset = interpolate(currentSlot, txKeyframes);
+    const tx = -50 + offset;
+
+    // Z-index based on rounded slot
+    const roundedSlot = Math.round(currentSlot);
+    let zIndex = 1;
+    if (roundedSlot === 0) zIndex = 10;
+    else if (Math.abs(roundedSlot) === 1) zIndex = 5;
+    else if (Math.abs(roundedSlot) === 2) zIndex = 3;
+
+    // Apply class names for CSS specific overrides (colors, etc.)
+    btn.classList.remove("active", "prev", "next", "prev2", "next2", "hidden");
+    
+    if (roundedSlot === 0) {
+      btn.classList.add("active");
+      btn.setAttribute("aria-hidden", "false");
+    } else if (roundedSlot === -1) {
+      btn.classList.add("prev");
+      btn.setAttribute("aria-hidden", "false");
+    } else if (roundedSlot === -2) {
+      btn.classList.add("prev2");
+      btn.setAttribute("aria-hidden", "false");
+    } else if (roundedSlot === 1) {
+      btn.classList.add("next");
+      btn.setAttribute("aria-hidden", "false");
+    } else if (roundedSlot === 2) {
+      btn.classList.add("next2");
+      btn.setAttribute("aria-hidden", "false");
+    } else {
+      btn.classList.add("hidden");
+      btn.setAttribute("aria-hidden", "true");
+    }
+
+    // Direct inline styles for fluid transition
+    btn.style.transform = `translate(${tx}%, -50%) scale(${scale})`;
+    btn.style.opacity = opacity.toString();
+    btn.style.zIndex = zIndex.toString();
+    btn.style.pointerEvents = Math.abs(currentSlot) > 2.2 ? "none" : "auto";
+  });
+
+  // Update dots active class
+  const dots = document.querySelectorAll(".carousel-dot");
+  dots.forEach((dot, idx) => {
+    dot.classList.toggle("active", idx === activeIndex);
+  });
+}
+
+function updateCarousel() {
+  renderCarousel(0);
+}
+
+const indicatorsContainer = document.querySelector(".carousel-indicators");
+
+function createIndicators() {
+  if (!indicatorsContainer) return;
+  indicatorsContainer.innerHTML = "";
+  const buttons = getCarouselButtons();
+  buttons.forEach((_, idx) => {
+    const dot = document.createElement("span");
+    dot.className = `carousel-dot${idx === activeIndex ? " active" : ""}`;
+    dot.setAttribute("data-page", idx.toString());
+    dot.addEventListener("click", () => {
+      activeIndex = idx;
+      updateCarousel();
+    });
+    indicatorsContainer.appendChild(dot);
+  });
+}
+
+const controlBar = document.getElementById("hud-control-bar");
+let isPointerDown = false;
+let startX = 0;
+let wasDragging = false;
+
+if (controlBar && track) {
+  // Prevent native browser drag-and-drop and text selection on the carousel
+  controlBar.addEventListener("dragstart", (e) => e.preventDefault());
+  controlBar.addEventListener("selectstart", (e) => e.preventDefault());
+
+  // 1. Capture click events in capture phase to prevent click action when dragging
+  controlBar.addEventListener("click", (e) => {
+    if (wasDragging) {
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
+
+    const btn = (e.target as HTMLElement).closest("button");
+    if (!btn) return;
+
+    const buttons = getCarouselButtons();
+    const idx = buttons.indexOf(btn);
+    if (idx !== -1 && idx !== activeIndex) {
+      activeIndex = idx;
+      updateCarousel();
+    }
+  }, true); // Use capture phase!
+
+  // 2. Pointer down listener (on controlBar)
+  controlBar.addEventListener("pointerdown", (e) => {
+    if (e.button !== 0) return; // Only trigger for primary click / touch
+    isPointerDown = true;
+    startX = e.clientX;
+    wasDragging = false;
+  });
+
+  // 3. Pointer move listener (on document to avoid setPointerCapture issues blocking clicks)
+  document.addEventListener("pointermove", (e) => {
+    if (!isPointerDown) return;
+    const dx = e.clientX - startX;
+    if (Math.abs(dx) > 8) {
+      if (!wasDragging) {
+        wasDragging = true;
+        // Disable transitions on buttons during drag for instant responsiveness
+        const buttons = getCarouselButtons();
+        buttons.forEach(btn => btn.style.transition = "none");
+      }
+    }
+    if (wasDragging) {
+      const progress = dx / 150; // swipe factor based on 150px spacing
+      renderCarousel(progress);
+    }
+  });
+
+  // 4. Pointer up listener (on document)
+  document.addEventListener("pointerup", (e) => {
+    if (!isPointerDown) return;
+    isPointerDown = false;
+
+    // Re-enable CSS transitions on buttons for smooth snapback
+    const buttons = getCarouselButtons();
+    buttons.forEach(btn => btn.style.transition = "");
+
+    const dx = e.clientX - startX;
+    const len = buttons.length;
+
+    if (len > 0 && wasDragging) {
+      const progress = dx / 150;
+      const offset = Math.round(-progress);
+      activeIndex = (activeIndex + offset) % len;
+      if (activeIndex < 0) activeIndex += len;
+    }
+
+    updateCarousel();
+
+    if (wasDragging) {
+      // Delay resetting wasDragging slightly to ensure click event is blocked
+      setTimeout(() => {
+        wasDragging = false;
+      }, 50);
+    }
+  });
+
+  // 5. Pointer cancel listener (on document)
+  document.addEventListener("pointercancel", () => {
+    isPointerDown = false;
+    const buttons = getCarouselButtons();
+    buttons.forEach(btn => btn.style.transition = "");
+    updateCarousel();
+    wasDragging = false;
+  });
+
+  // 6. Scroll wheel listener (on controlBar)
+  controlBar.addEventListener("wheel", (e) => {
+    e.preventDefault();
+    const buttons = getCarouselButtons();
+    const len = buttons.length;
+    if (len === 0) return;
+    if (e.deltaY > 0) {
+      activeIndex = (activeIndex + 1) % len;
+    } else {
+      activeIndex = (activeIndex - 1 + len) % len;
+    }
+    updateCarousel();
+  }, { passive: false });
+}
+
+// Initialize
+createIndicators();
+updateCarousel();

@@ -5,6 +5,9 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>J.A.R.V.I.S</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <!-- ══ TIMER OVERLAY — Iron Man Style ═══════════════════════════════ -->
@@ -176,48 +179,29 @@
     <!-- Bottom status bar -->
     <div id="boot-statusbar">
       <span id="boot-status-text">DÉMARRAGE EN COURS...</span>
-      <span id="boot-statusbar-right">www.techenclair.fr</span>
+      <span id="boot-statusbar-right">NeyorDEV</span>
     </div>
   </div>
 
     <canvas id="orb-canvas"></canvas>
 
-  <!-- ══ ORB CLOCK HUD — Iron Man Style ══════════════════════════════════ -->
   <div id="orb-clock-hud">
-    <div class="hud-corner hud-tl"></div>
-    <div class="hud-corner hud-tr"></div>
-    <div class="hud-corner hud-bl"></div>
-    <div class="hud-corner hud-br"></div>
-    <div class="hud-prefix">◈ LOCAL_TIME</div>
-    <div style="display: flex; align-items: center; justify-content: center; gap: 25px;">
-      <div id="cpu-hud" class="stat-hud">
-        <span class="stat-label">CPU</span>
-        <span id="cpu-value" class="stat-value">--%</span>
-      </div>
-      <div id="orb-time-display">--:--:--</div>
-      <div id="ram-hud" class="stat-hud">
-        <span class="stat-label">RAM</span>
-        <span id="ram-value" class="stat-value">--%</span>
-      </div>
-    </div>
-    <div class="hud-labels">
-      <span class="hud-lbl">SYS_CLOCK</span>
-      <span id="orb-date-display">--/--/----</span>
-      <span class="hud-lbl">ONLINE</span>
-    </div>
+    <div id="holo-clock-canvas-wrap"></div>
   </div>
 
   <!-- ══ BOUTON MIC & STOP ═══════════════════════════════════════════ -->
   <div class="bottom-controls-container">
-    <button id="mic-btn" aria-label="Activer le microphone" title="Cliquez pour parler à JARVIS">
-      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <rect x="9" y="2" width="6" height="12" rx="3" fill="currentColor"/>
-        <path d="M5 11a7 7 0 0 0 14 0" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/>
-        <line x1="12" y1="18" x2="12" y2="22" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-        <line x1="9" y1="22" x2="15" y2="22" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-      </svg>
-    </button>
-    <button id="mute-button" aria-label="Stopper JARVIS" title="Cliquez pour stopper JARVIS" aria-pressed="false">&#9632;</button>
+    <div class="mic-stop-panel">
+      <button id="mic-btn" aria-label="Activer le microphone" title="Cliquez pour parler à JARVIS">
+        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="9" y="2" width="6" height="12" rx="3" fill="currentColor"/>
+          <path d="M5 11a7 7 0 0 0 14 0" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/>
+          <line x1="12" y1="18" x2="12" y2="22" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          <line x1="9" y1="22" x2="15" y2="22" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      </button>
+      <button id="mute-button" aria-label="Stopper JARVIS" title="Cliquez pour stopper JARVIS" aria-pressed="false">&#9632;</button>
+    </div>
   </div>
 
   <div id="status-text"></div>
@@ -231,17 +215,27 @@
     <span id="connection-label">reconnexion</span>
   </div>
   <button id="fullscreen-btn" title="Plein écran">&#x26F6;</button>
-  <button id="gpu-button" aria-pressed="true">GPU BOOST</button>
-  <button id="gestures-toggle" aria-pressed="false">MODE AR</button>
-  <button id="gestures-mirror" class="active" title="Inverser la caméra en mode AR">AR MIROIR</button>
-  <button id="subtitle-toggle" aria-pressed="true">HUD TEXT</button>
+
+  <!-- ══ HUD CONTROL BAR — Glassmorphism Carousel (Placed below Clock) ══════════════════ -->
+  <div id="hud-control-bar" class="carousel-container">
+    <div class="carousel-viewport">
+      <div class="carousel-track" id="carousel-track">
+        <button id="gpu-button" aria-pressed="true">GPU BOOST</button>
+        <button id="holo-button" aria-pressed="false">HOLO</button>
+        <button id="subtitle-toggle" aria-pressed="true">HUD TEXT</button>
+        <button id="gestures-toggle" aria-pressed="false">MODE AR</button>
+        <button id="settings-button" aria-pressed="false">PARAMS</button>
+      </div>
+    </div>
+    <div class="carousel-indicators"></div>
+  </div>
+
   <button id="keyboard-toggle" aria-pressed="false">CLAVIER</button>
-  <button id="settings-button" aria-pressed="false">PARAMS</button>
-  <button id="holo-button" aria-pressed="false">HOLO</button>
+  <button id="gestures-mirror" class="active" title="Inverser la caméra en mode AR">AR MIROIR</button>
+
   <div id="update-banner">SYSTEM_UPDATE_AVAILABLE</div>
 
-  <div id="assistant-label">J.A.R.V.I.S <span style="font-size:10px;opacity:0.5;margin-left:10px;font-weight:normal;">by
-      www.techenclair.fr</span></div>
+  <div id="assistant-label">J.A.R.V.I.S <span style="font-size:10px;opacity:0.5;margin-left:10px;font-weight:normal;">by Neyor</span></div>
 
   <div id="keyboard-hud"
     style="display:none;position:fixed;bottom:220px;left:50%;transform:translateX(-50%);z-index:10005;width:85%;max-width:600px;pointer-events:auto;">
@@ -382,8 +376,7 @@
       style="position:absolute;top:14px;left:20px;z-index:20;color:rgba(0,229,255,.7);font-family:'Courier New',monospace;font-size:11px;letter-spacing:2px;text-transform:uppercase;pointer-events:none;line-height:1.8;">
       <div style="font-size:20px;font-weight:bold;letter-spacing:5px;margin-bottom:5px;">J.A.R.V.I.S</div>
       <div style="font-size:10px;letter-spacing:3px;opacity:0.7;margin-bottom:10px;">SYSTÈME DE NAVIGATION</div>
-      <div style="font-size:9px;letter-spacing:1px;opacity:0.5;">by www.techenclair.fr</div>
-      <div style="font-size:9px;letter-spacing:1px;opacity:0.5;">TIKTOK : TECHENCLAIR</div>
+      <div style="font-size:9px;letter-spacing:1px;opacity:0.5;">by Neyor</div>
     </div>
     <div
       style="position:absolute;top:14px;right:20px;text-align:right;z-index:20;color:rgba(0,229,255,.7);font-family:'Courier New',monospace;font-size:11px;letter-spacing:2px;text-transform:uppercase;pointer-events:none;line-height:1.8;">
@@ -682,6 +675,37 @@
 
       <button class="settings-btn primary" id="settings-save-btn">SAUVEGARDER & APPLIQUER</button>
 
+    </div>
+  </div>
+
+  <!-- ══ OS AUTOPILOT BANNER & VIRTUAL CURSOR ════════════════════════ -->
+  <div id="os-autopilot-banner" style="display:none;position:fixed;top:0;left:0;width:100%;height:35px;z-index:99999;background:rgba(5,5,8,0.92);border-bottom:1px solid #00e5ff;backdrop-filter:blur(10px);box-shadow:0 5px 20px rgba(0,229,255,0.2);align-items:center;justify-content:center;font-family:'Courier New',monospace;color:#00e5ff;font-size:12px;letter-spacing:2px;">
+    <div style="width:10px;height:10px;border-radius:50%;background:#00e5ff;box-shadow:0 0 10px #00e5ff;margin-right:15px;animation:vc-blink 1s infinite;"></div>
+    <span id="os-autopilot-log">[JARVIS OS AUTOPILOT] EN ATTENTE...</span>
+  </div>
+  <div id="virtual-cursor" style="display:none;position:fixed;top:0;left:0;width:30px;height:30px;z-index:100000;pointer-events:none;transform:translate(-50%, -50%);">
+    <div class="vc-ring-outer" style="position:absolute;inset:0;border:2px solid #00e5ff;border-radius:50%;box-shadow:0 0 10px #00e5ff;animation:vc-spin 4s linear infinite;"></div>
+    <div class="vc-ring-inner" style="position:absolute;inset:6px;border:1px dashed #00e5ff;border-radius:50%;animation:vc-spin-reverse 3s linear infinite;"></div>
+    <div class="vc-dot" style="position:absolute;top:50%;left:50%;width:6px;height:6px;background:#00e5ff;border-radius:50%;transform:translate(-50%, -50%);box-shadow:0 0 8px #00e5ff;"></div>
+  </div>
+
+  <!-- ══ SYS STATS HUD — bottom right ══ -->
+  <div id="sys-stats-hud">
+    <div class="sys-stat-row" id="cpu-hud">
+      <span class="sys-stat-icon">⬡</span>
+      <span class="sys-stat-label">CPU</span>
+      <div class="sys-stat-bar-wrap">
+        <div class="sys-stat-bar-fill" id="cpu-bar-fill"></div>
+      </div>
+      <span id="cpu-value" class="sys-stat-value">--%</span>
+    </div>
+    <div class="sys-stat-row" id="ram-hud">
+      <span class="sys-stat-icon">◈</span>
+      <span class="sys-stat-label">RAM</span>
+      <div class="sys-stat-bar-wrap">
+        <div class="sys-stat-bar-fill" id="ram-bar-fill"></div>
+      </div>
+      <span id="ram-value" class="sys-stat-value">--%</span>
     </div>
   </div>
 

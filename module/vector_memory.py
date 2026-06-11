@@ -3,6 +3,19 @@ import time
 import chromadb
 from chromadb.utils import embedding_functions
 
+# Ajout manuel des répertoires DLL pour Windows (CUDA + cuDNN)
+if os.name == 'nt':
+    cuda_bin = r"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.9\bin"
+    cudnn_bin = r"C:\Program Files\NVIDIA\CUDNN\v9.23\bin\12.9\x64"
+    if os.path.exists(cuda_bin):
+        try: os.add_dll_directory(cuda_bin)
+        except: pass
+        os.environ["PATH"] = cuda_bin + os.pathsep + os.environ["PATH"]
+    if os.path.exists(cudnn_bin):
+        try: os.add_dll_directory(cudnn_bin)
+        except: pass
+        os.environ["PATH"] = cudnn_bin + os.pathsep + os.environ["PATH"]
+
 # Chemin vers la DB vectorielle
 CHROMA_PATH = os.path.join(os.path.dirname(__file__), "chroma_db")
 
@@ -10,6 +23,19 @@ CHROMA_PATH = os.path.join(os.path.dirname(__file__), "chroma_db")
 _client = None
 _collection = None
 on_souvenir_added = []
+
+# Monkey-patch de la fonction d'embedding par défaut de ChromaDB pour exclure TensorRT et éviter les warnings
+def _patched_default_call(self, input):
+    from chromadb.utils.embedding_functions.onnx_mini_lm_l6_v2 import ONNXMiniLM_L6_V2
+    import onnxruntime as ort
+    try:
+        ort.set_default_logger_severity(3) # 3 = Error
+    except:
+        pass
+    # Utiliser uniquement CUDA et CPU pour éviter les avertissements et crashs TensorRT
+    return ONNXMiniLM_L6_V2(preferred_providers=["CUDAExecutionProvider", "CPUExecutionProvider"])(input)
+
+embedding_functions.DefaultEmbeddingFunction.__call__ = _patched_default_call
 
 def _get_collection():
     """Initialise le client ChromaDB et retourne la collection d'historique."""
@@ -21,8 +47,7 @@ def _get_collection():
             
             _client = chromadb.PersistentClient(path=CHROMA_PATH)
             
-            # Utilisation de la fonction d'embedding par défaut de Chroma
-            # Elle télécharge automatiquement un modèle léger (all-MiniLM-L6-v2) au premier appel
+            # Utilisation de la fonction d'embedding par défaut (qui utilise désormais notre patch)
             emb_fn = embedding_functions.DefaultEmbeddingFunction()
             
             _collection = _client.get_or_create_collection(

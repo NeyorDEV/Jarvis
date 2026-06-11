@@ -716,21 +716,20 @@ export class CortexMap {
     this.tooltip = document.createElement('div');
     this.tooltip.id = 'holo-cortex-tooltip';
     this.tooltip.style.position = 'fixed';
-    this.tooltip.style.background = 'rgba(0, 10, 20, 0.85)';
-    this.tooltip.style.border = '1px solid rgba(0, 229, 255, 0.5)';
-    this.tooltip.style.borderRadius = '3px';
-    this.tooltip.style.color = '#00e5ff';
-    this.tooltip.style.padding = '8px 12px';
-    this.tooltip.style.fontFamily = "'Courier New', monospace";
-    this.tooltip.style.fontSize = '10px';
-    this.tooltip.style.letterSpacing = '1px';
-    this.tooltip.style.zIndex = '120';
+    this.tooltip.style.background = 'rgba(6, 12, 22, 0.96)';
+    this.tooltip.style.borderRadius = '8px';
+    this.tooltip.style.padding = '16px 22px';
+    this.tooltip.style.fontFamily = 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, sans-serif';
+    this.tooltip.style.zIndex = '99999';
     this.tooltip.style.pointerEvents = 'none';
     this.tooltip.style.display = 'none';
-    this.tooltip.style.backdropFilter = 'blur(6px)';
-    this.tooltip.style.boxShadow = '0 0 15px rgba(0, 229, 255, 0.3)';
-    this.tooltip.style.maxWidth = '250px';
-    document.body.appendChild(this.tooltip);
+    this.tooltip.style.backdropFilter = 'blur(16px)';
+    this.tooltip.style.maxWidth = '500px'; // Plus large pour contenir de longs paragraphes
+    this.tooltip.style.transition = 'opacity 0.15s ease, transform 0.15s ease';
+    
+    // Attacher à #holo-overlay pour faire partie de son contexte d'empilement
+    const container = document.getElementById('holo-overlay') || document.body;
+    container.appendChild(this.tooltip);
   }
 
   private _removeTooltip() {
@@ -813,23 +812,71 @@ export class CortexMap {
         node.hovered = true;
         this.hoveredNode = node;
 
-        // Positionner et remplir le tooltip
+        // Positionner et remplir le tooltip au-dessus de la sphère (projection 3D → 2D)
         if (this.tooltip) {
-          const typeStr = node.data.type === 'vector' ? 'CONVERSATION' : 'FAIT LOCAL';
-          const contentSummary = node.data.user.length > 80 
-            ? node.data.user.substring(0, 80) + '...'
-            : node.data.user;
+          const typeStr = node.data.type === 'vector' ? 'CONVERSATION' : 'FAIT';
+          const accentColor = node.data.type === 'vector' ? '#00e5ff' : '#ff00a0';
+          const shadowColor = node.data.type === 'vector' ? 'rgba(0, 229, 255, 0.3)' : 'rgba(255, 0, 160, 0.3)';
+
+          // Mettre à jour dynamiquement la bordure et l'ombre en fonction du type de nœud
+          this.tooltip.style.border = `1.5px solid ${accentColor}`;
+          this.tooltip.style.boxShadow = `0 12px 40px rgba(0, 0, 0, 0.6), 0 0 20px ${shadowColor}`;
+
+          // Formater le titre pour qu'il soit plus propre et esthétique
+          let titre = node.data.id;
+          if (titre.startsWith('kv_')) {
+            const cleanKey = titre.substring(3).replace(/[_-]/g, ' ');
+            titre = cleanKey.charAt(0).toUpperCase() + cleanKey.slice(1);
+          } else if (titre.startsWith('msg_')) {
+            const num = titre.substring(4);
+            titre = `Discussion n° ${num}`;
+          }
+
+          // Plus de troncature du tout ! On affiche l'intégralité du texte
+          const userPreview = node.data.user;
+          const assistantPreview = node.data.assistant || '';
 
           this.tooltip.innerHTML = `
-            <div style="font-weight:bold;margin-bottom:5px;border-bottom:1px solid rgba(0,229,255,0.3);padding-bottom:3px;color:${node.data.type === 'vector' ? '#00e5ff' : '#ff00a0'}">
-              ▣ COGNITIVE_NODE [${typeStr}]
+            <div style="font-family: 'Courier New', monospace; font-size: 11.5px; font-weight: bold; letter-spacing: 2px; opacity: 0.7; margin-bottom: 8px; color: ${accentColor}; text-transform: uppercase;">
+              ▣ ${typeStr} &nbsp;·&nbsp; ${node.data.timestamp}
             </div>
-            <div><strong>REQ:</strong> ${contentSummary}</div>
-            <div style="margin-top:5px;opacity:0.6;font-size:8px;">DATE: ${node.data.timestamp}</div>
+            <div style="font-family: 'Courier New', monospace; font-weight: bold; font-size: 15px; color: #ffffff; margin-bottom: 12px; letter-spacing: 0.5px; border-bottom: 1.5px solid rgba(255, 255, 255, 0.15); padding-bottom: 8px; word-break: break-all;">
+              ${titre}
+            </div>
+            <div style="font-size: 14.5px; font-weight: 500; color: #e0faff; line-height: 1.6; margin-bottom: 8px; word-break: break-word;">
+              ${userPreview}
+            </div>
+            ${assistantPreview ? `
+              <div style="font-size: 14px; font-weight: 400; color: #ffe8d4; line-height: 1.6; margin-top: 10px; padding-top: 10px; border-top: 1px dashed rgba(255,255,255,0.12); word-break: break-word; display: flex; gap: 8px;">
+                <span style="color: #ff8a1a; flex-shrink: 0; font-weight: bold; font-size: 15px;">→</span>
+                <span>${assistantPreview}</span>
+              </div>
+            ` : ''}
           `;
-          this.tooltip.style.left = `${e.clientX + 15}px`;
-          this.tooltip.style.top = `${e.clientY + 15}px`;
-          this.tooltip.style.display = 'block';
+
+          // Projeter la position 3D de la sphère en coordonnées écran de manière synchrone et ultra-robuste
+          this.group.updateMatrixWorld(true);
+          const worldPos = new THREE.Vector3();
+          node.mesh.getWorldPosition(worldPos);
+          
+          const projected = worldPos.project(this.camera);
+
+          // Masquer si derrière la caméra
+          if (projected.z > 1 || projected.z < -1) {
+            this.tooltip.style.display = 'none';
+          } else {
+            const screenX = (projected.x + 1) / 2 * rect.width + rect.left;
+            const screenY = -(projected.y - 1) / 2 * rect.height + rect.top;
+
+            this.tooltip.style.display = 'block';
+            
+            // Calcul immédiat pour éviter tout flickering ou race conditions asynchrones
+            const tw = this.tooltip.offsetWidth;
+            const th = this.tooltip.offsetHeight;
+            
+            this.tooltip.style.left = `${Math.max(8, Math.min(window.innerWidth - tw - 8, screenX - tw / 2))}px`;
+            this.tooltip.style.top  = `${Math.max(8, screenY - th - 22)}px`;
+          }
         }
       }
     } else {
@@ -954,7 +1001,14 @@ export class CortexMap {
     const assistantTitleEl = document.getElementById('cp-assistant-title');
 
     if (panel && idEl && timeEl && typeEl && userEl && assistantEl && assistantTitleEl) {
-      idEl.innerText = node.data.id;
+      let cleanId = node.data.id;
+      if (cleanId.startsWith('kv_')) {
+        const cleanKey = cleanId.substring(3).replace(/[_-]/g, ' ');
+        cleanId = cleanKey.charAt(0).toUpperCase() + cleanKey.slice(1);
+      } else if (cleanId.startsWith('msg_')) {
+        cleanId = `Discussion n° ${cleanId.substring(4)}`;
+      }
+      idEl.innerText = cleanId;
       timeEl.innerText = node.data.timestamp;
       typeEl.innerText = node.data.type === 'vector' ? 'VECTOR_MEMORY (ChromaDB)' : 'FACTUAL_MEMORY (jarvis_memoire.json)';
       

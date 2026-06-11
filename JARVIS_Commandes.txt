@@ -175,7 +175,7 @@
   - *Persistance inter-pages* -> L'autopilote survit aux rechargements de page (soumission de formulaires) grâce à un stockage local temporaire persistant.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  🤖 AUTOPILOTE IA VISUEL UNIVERSEL (visual_web_agent.py)
+  AUTOPILOTE IA VISUEL UNIVERSEL (visual_web_agent.py)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
   Système autonome qui ouvre Opera GX en visible et accomplit n'importe
@@ -197,15 +197,30 @@
   - "Ferme le navigateur" / "Stop le navigateur" / "Stop l'autopilote" / "Ferme Opera"
     → Ferme Opera GX proprement et arrête l'agent
 
-[ Fonctionnement Technique ]
-  - Navigateur : Opera GX en mode VISIBLE (par-dessus le HUD)
-  - Vision : Screenshot à chaque étape → Gemini Vision localise les éléments
-  - Popups/Cookies : Détection et fermeture automatique
-  - Boucle max 18 étapes → vérification visuelle finale → résumé vocal
-  - Le navigateur reste ouvert après la tâche pour que tu puisses interagir
-
 [ Fichier ]
   n:\JARVIS\module\visual_web_agent.py
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  AUTOPILOTE OS & RPA SYSTÈME (os_autopilot_agent.py)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  Système d'automatisation et de RPA natif qui traduit des consignes en langage
+  naturel en une séquence d'actions physiques et système sous Windows.
+  Flux : Planification LLM → Focus Fenêtre (win32) → Saisie/Action (pyautogui) → Clavier/Souris
+
+[ Exemples de commandes ]
+  - "Jarvis, lance l'autopilote OS : ouvre l'invite de commandes (cmd), tape la commande 'ipconfig' et valide."
+    → Ouvre une nouvelle console CMD isolée, déplace le curseur virtuel, saisit la commande et l'exécute.
+  - "Jarvis, lance l'autopilote OS : ouvre la calculatrice, tape '1250 * 4 =' pour effectuer le calcul et attends 2 secondes."
+    → Ouvre la calculatrice, la force au premier plan via un clic physique de secours, et saisit le calcul.
+  - "Jarvis, lance l'autopilote OS : ouvre le bloc-notes, écris 'Bonjour Mylane...' et sauvegarde le fichier sur le bureau."
+    → Lance Notepad, prépare une page blanche (ctrl+n), saisit le texte AZERTY, et sauvegarde sur le Bureau.
+  - "Jarvis, lance l'autopilote OS : ouvre l'explorateur de fichiers sur le dossier 'Téléchargements' et attends 2 secondes."
+    → Lance directement le dossier Téléchargements sous Windows et y positionne le curseur virtuel.
+
+[ Fichiers ]
+  - Agent : n:\JARVIS\module\os_autopilot_agent.py
+  - Déclencheur : n:\JARVIS\plugins\os_autopilot_resolver.py
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   DOMOTIQUE & MAISON CONNECTÉE (Home Assistant)

@@ -85,7 +85,7 @@ def _charger_historique_recent():
             date_str = f"[{e.get('date','?')} {e.get('heure','?')}] "
             hist.append(types.Content(role="user",  parts=[types.Part(text=date_str + e["user"])]))
             hist.append(types.Content(role="model", parts=[types.Part(text=e["model"])]))
-        print(f"[CONV] {len(recents)} echanges passes rechargees en memoire.")
+        # print(f"[CONV] {len(recents)} echanges passes rechargees en memoire.")
         return hist
     except Exception as e:
         print(f"[CONV] Erreur chargement historique: {e}")
