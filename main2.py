@@ -181,7 +181,7 @@ try:
         Align.center(banner),
         border_style="cyan",
         title="[bold red]SYSTEM INITIALIZATION[/bold red]",
-        subtitle="[bold cyan]v5.5[/bold cyan]",
+        subtitle="[bold cyan]v7.5[/bold cyan]",
         expand=False,
         padding=(1, 6)
     ))
@@ -437,7 +437,7 @@ except ImportError:
 FORCE_BROWSER_MODE = False
 
 # --- CONFIGURATION VERSION & MAJ ---
-CURRENT_VERSION = "5.5"
+CURRENT_VERSION = "7.5"
 UPDATE_JSON_URL = "https://www.techenclair.fr/updates/jarvis_update.json"
 DERNIERE_MAJ_INFO = None  # Stocke l'info si une MAJ est détectée
 
