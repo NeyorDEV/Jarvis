@@ -151,7 +151,7 @@ class SpeakerBiometrics:
                         pass
         return voiceprints
         
-    def identify_speaker(self, raw_audio_bytes, sample_rate=16000, threshold=0.65):
+    def identify_speaker(self, raw_audio_bytes, sample_rate=16000, threshold=0.60):
         emb = self.get_embedding(raw_audio_bytes, sample_rate)
         if emb is None:
             return "guest", 0.0

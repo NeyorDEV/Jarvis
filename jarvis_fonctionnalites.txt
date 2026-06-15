@@ -1,0 +1,102 @@
+================================================================================
+           J.A.R.V.I.S — INVENTAIRE CONCIS DES FONCTIONNALITÉS CODÉES
+================================================================================
+Ce document présente un descriptif rapide et synthétique de chaque fonctionnalité
+programmée dans le système J.A.R.V.I.S.
+
+================================================================================
+1. PIPELINE AUDIO & BIOMÉTRIE (main2.py, core/)
+================================================================================
+* Détection de parole (VAD) : Utilise Silero VAD (ONNX) avec repli sur l'énergie RMS.
+* Biométrie vocale (GMM) : Identifie l'utilisateur via sa voix et restreint l'accès aux invités.
+* Détection de claps : Coupe la parole de JARVIS sur un simple clap, et le réveille sur un double clap.
+* Réduction de feedback (Barge-in) : Purge le son des haut-parleurs sous 1800 RMS pendant que JARVIS parle.
+* Interruption vocale ("Stop") : Arrêt instantané tolérant aux déformations (stop, top, hop, coupe, etc.).
+* Synthèse vocale (TTS) hybride : edge-tts en ligne avec buffer de lecture pygame, et TTS Kokoro-82M ONNX local.
+
+================================================================================
+2. COMPOSANTS HUD & INTERFACES 3D (frontend/src/)
+================================================================================
+* Arc Reactor 3D : Orbe central en Three.js réactif aux états d'écoute, de calcul et de parole.
+* Widgets d'information : Calendrier interactif, prévisions météo en direct et lecteur de musique (Deezer).
+* Cartes contextuelles (Cards HUD) : Notifications néon avec barre de progression de fermeture animée.
+* Visualiseur de fréquence : Barre de spectre audio dynamique en bas de l'écran.
+
+================================================================================
+3. GLOBE TERRESTRE 3D (frontend/src/globe.ts, plugins/globe_resolver.py)
+================================================================================
+* Earth 3D : Modélisation Three.js réaliste de la Terre avec textures jour/nuit, nuages et scanlines.
+* Pilotage vocal : Commandes de zoom spatial ("rapproche/éloigne") et vols vers une ville avec géocodage.
+* Transition intelligente : Bascule automatique du globe vers la carte 2D si la caméra approche trop.
+
+================================================================================
+4. MODE HOLOGRAMME & SUIVI GESTUEL AR (frontend/src/hologramme.js)
+================================================================================
+* Tracking MediaPipe : Capture webcam en direct pour dessiner le squelette 3D de vos mains.
+* Clics virtuels : Pincement de doigts pour cliquer à distance sur l'interface.
+* Manipulation 3D : Lancer, tourner, déformer ou compresser des formes 3D wireframe par gestes.
+* Jeu spatial (Ball Game) : Jeu de balle physique avec multiplicateur de score et rebond sur la paume.
+
+================================================================================
+5. CARTOGRAPHIE 3D DOMOTIQUE (frontend/src/domotic_map.ts, module/ha_config.py)
+================================================================================
+* Maison 3D : Modélisation à niveaux (pièces transparentes extrudées) de votre habitat.
+* État en direct : Nœuds connectés réagissant en temps réel à l'état de vos lumières/prises dans Home Assistant.
+* Commutations directes : Clic sur un composant 3D pour commuter l'appareil correspondant dans la maison.
+
+================================================================================
+6. CORTEX NEURONAL 3D - HISTORIQUE DE MÉMOIRE (frontend/src/cortex_map.ts)
+================================================================================
+* Constellation synaptique : Graphe 3D de votre mémoire à long terme (conversations ChromaDB et clés locales).
+* Panneau de gestion : Clic sur un neurone pour écouter, corriger ou supprimer définitivement un souvenir.
+
+================================================================================
+7. EXPLORATEUR DE FICHIERS SPATIAL 3D (frontend/src/spatial_explorer.ts)
+================================================================================
+* Arborescence spatialisée : Rendu 3D des dossiers locaux (tores) et fichiers (octaèdres).
+* Panneaux d'aperçu : Survoler un fichier affiche ses métadonnées, les premières lignes de code ou une image.
+
+================================================================================
+8. EXTENSION CHROME D'AUTOMATISATION WEB (chrome_extension/)
+================================================================================
+* Pilotage à distance : Socket locale reliant JARVIS au navigateur pour exécuter des scénarios web.
+* Curseur virtuel néon : Pointeur physique fluide qui se déplace sur la page pour simuler les clics.
+* Bannière de statut : Bandeau affiché sur le navigateur résumant l'action en cours.
+
+================================================================================
+9. APPLICATION MOBILE (mobile/)
+================================================================================
+* Interface mobile : Orbe 3D réactif et commandes d'action optimisés pour smartphone.
+* Synthèse et reconnaissance vocales locales : Utilise la Web Speech API pour le contrôle à distance.
+
+================================================================================
+10. ROUTAGE HYBRIDE MULTI-CERVEAU & SÉCURITÉ (main2.py, core/brain.py)
+================================================================================
+* IA hybride : Résolution locale (Ollama) si hors-ligne, sinon routeur Cloud intelligent (Groq / Claude / Gemini).
+* Mises à jour automatiques : Vérification périodique (toutes les 4 heures) des nouvelles versions disponibles du système.
+* Auto-évolution : Pipeline de modification de son propre code avec tests unitaires automatiques et rollback.
+* Protection invité : Blocage d'accès aux fichiers, emails et commandes système pour les voix non reconnues.
+
+================================================================================
+11. ASSISTANTS PRATIQUES & VIE QUOTIDIENNE (plugins/, module/)
+================================================================================
+* Recettes de cuisine : Génération adaptative selon le nombre de personnes et affichage/lecture du processus.
+* Système d'alarmes : Alarmes persistantes (`alarmes.json`) en arrière-plan à heure fixe ou relative.
+* Listes locales : Création et lecture hors-ligne de listes de courses, notes et todos (`jarvis_listes.json`).
+* Générateur d'images : Génération d'illustrations via Pollinations.ai converties en base64 pour le HUD.
+
+================================================================================
+12. NAVIGATEUR VISUEL & AUTOPILOTE OS (module/)
+================================================================================
+* Autopilote Windows : Traduction de requêtes en actions système (clavier, clics, lancements) via PyAutoGUI.
+* Saisie et dossiers sécurisés : Presse-papiers AZERTY anti-conflit et détection des créations de fichiers.
+* Agent web visuel (Opera GX) : Lance Opera avec vos cookies et sessions et navigue par analyse de screenshots (Gemini Vision).
+
+================================================================================
+13. INTÉGRATIONS SERVICES CLOUD & WEB (module/)
+================================================================================
+* Google Services : Lecture et écriture autonomes sur Gmail, Calendar, Drive, Docs, Sheets et Tasks.
+* Chromecast & TV (ADB) : Allumage TV (WoL), contrôle du volume, Youtube Cast et lancement d'applications.
+* Musique (Deezer/Spotify) : Commandes multimédias Windows et récupération du titre en cours.
+* Sports & Météo : Résultats/classements de football en direct (TheSportsDB) et météo (Open-Meteo/wttr.in).
+================================================================================

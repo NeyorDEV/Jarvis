@@ -1,0 +1,298 @@
+/* ══════════════════════════════════════════════════════
+   Home Assistant Tabs & Hints
+   ══════════════════════════════════════════════════════ */
+.ha-tabs {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.ha-tab-btn {
+  flex: 1;
+  background: rgba(0, 229, 255, 0.05);
+  border: 1px solid rgba(0, 229, 255, 0.2);
+  color: rgba(0, 229, 255, 0.6);
+  padding: 8px 12px;
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  border-radius: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.ha-tab-btn:hover {
+  background: rgba(0, 229, 255, 0.12);
+  color: #00e5ff;
+  border-color: rgba(0, 229, 255, 0.5);
+}
+
+.ha-tab-btn.active {
+  background: rgba(0, 229, 255, 0.2);
+  color: #00e5ff;
+  border-color: #00e5ff;
+  box-shadow: 0 0 10px rgba(0, 229, 255, 0.3);
+  font-weight: bold;
+}
+
+.ha-hint {
+  font-size: 11px;
+  color: rgba(0, 229, 255, 0.55);
+  margin-top: 8px;
+  letter-spacing: 1px;
+}
+
+.ha-hint em {
+  color: #00e5ff;
+  font-style: normal;
+  text-shadow: 0 0 5px rgba(0, 229, 255, 0.5);
+}
+
+.settings-apps-list {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(0, 229, 255, 0.1);
+  padding: 10px;
+  max-height: 150px;
+  overflow-y: auto;
+  margin-bottom: 15px;
+}
+
+.settings-app-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px;
+  border-bottom: 1px solid rgba(0, 229, 255, 0.1);
+  font-size: 12px;
+}
+
+.settings-app-item:last-child {
+  border-bottom: none;
+}
+
+.settings-app-remove {
+  cursor: pointer;
+  color: #ff3366;
+  font-weight: bold;
+}
+
+.settings-app-form {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 15px;
+}
+
+.settings-app-form input {
+  flex: 1;
+}
+
+.settings-btn {
+  background: rgba(0, 229, 255, 0.1);
+  border: 1px solid rgba(0, 229, 255, 0.3);
+  color: #00e5ff;
+  padding: 10px 20px;
+  font-family: 'Courier New', monospace;
+  font-size: 14px;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  transition: all 0.3s ease;
+}
+
+.settings-btn:hover {
+  background: rgba(0, 229, 255, 0.3);
+  box-shadow: 0 0 15px rgba(0, 229, 255, 0.4);
+}
+
+.settings-btn.primary {
+  width: 100%;
+  background: rgba(0, 229, 255, 0.2);
+  border-color: #00e5ff;
+  font-weight: bold;
+}
+
+.settings-btn.primary:hover {
+  background: rgba(0, 229, 255, 0.4);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   RECIPE MODAL — Iron Man Style
+   ═══════════════════════════════════════════════════════════════════════════ */
+.recipe-modal {
+  position: absolute;
+  top: 15%;
+  left: 30%;
+  width: 500px;
+  background: rgba(0, 8, 20, 0.85);
+  border: 1px solid rgba(0, 229, 255, 0.4);
+  box-shadow: 0 0 30px rgba(0, 229, 255, 0.2), inset 0 0 20px rgba(0, 229, 255, 0.1);
+  border-radius: 8px;
+  font-family: 'Courier New', monospace;
+  color: #00e5ff;
+  backdrop-filter: blur(12px);
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  transition: opacity 0.4s ease, transform 0.4s ease;
+}
+
+.recipe-modal.hidden {
+  opacity: 0;
+  pointer-events: none;
+  transform: scale(0.95);
+}
+
+.recipe-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 15px;
+  background: rgba(0, 229, 255, 0.1);
+  border-bottom: 1px solid rgba(0, 229, 255, 0.3);
+  cursor: grab;
+  border-radius: 8px 8px 0 0;
+}
+
+.recipe-header:active {
+  cursor: grabbing;
+}
+
+.recipe-drag-handle {
+  width: 20px;
+  height: 20px;
+  opacity: 0.7;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.recipe-title {
+  font-weight: bold;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  font-size: 14px;
+  flex: 1;
+  text-align: center;
+  text-shadow: 0 0 8px rgba(0, 229, 255, 0.5);
+}
+
+.close-recipe {
+  background: transparent;
+  border: none;
+  color: #00e5ff;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s;
+  padding: 0 5px;
+}
+
+.close-recipe:hover {
+  color: #ff3366;
+  text-shadow: 0 0 10px #ff3366;
+}
+
+.recipe-content {
+  padding: 20px;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+/* Custom scrollbar for recipe content */
+.recipe-content::-webkit-scrollbar {
+  width: 6px;
+}
+.recipe-content::-webkit-scrollbar-track {
+  background: rgba(0, 8, 20, 0.5);
+}
+.recipe-content::-webkit-scrollbar-thumb {
+  background: rgba(0, 229, 255, 0.3);
+  border-radius: 3px;
+}
+.recipe-content::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 229, 255, 0.6);
+}
+
+.recipe-content h3 {
+  font-size: 12px;
+  letter-spacing: 3px;
+  margin-top: 0;
+  margin-bottom: 15px;
+  color: rgba(0, 229, 255, 0.7);
+  border-bottom: 1px dashed rgba(0, 229, 255, 0.3);
+  padding-bottom: 5px;
+}
+
+.recipe-ingredients {
+  margin-bottom: 25px;
+}
+
+.recipe-ingredients ul {
+  list-style: none;
+  padding-left: 0;
+  margin: 0;
+}
+
+.recipe-ingredients li {
+  margin-bottom: 8px;
+  padding-left: 15px;
+  position: relative;
+  font-size: 13px;
+}
+
+.recipe-ingredients li::before {
+  content: '✦';
+  position: absolute;
+  left: 0;
+  color: rgba(0, 229, 255, 0.5);
+  font-size: 10px;
+  top: 2px;
+}
+
+.recipe-instructions ol {
+  padding-left: 20px;
+  margin: 0;
+}
+
+.recipe-instructions li {
+  margin-bottom: 12px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: rgba(0, 229, 255, 0.9);
+}
+
+/* ── VISION BUTTON — Status colors ─────────────────────────────────────────────────────────────────────────────── */
+#vision-button.vision-active {
+  color: rgba(0, 255, 136, 0.85) !important;
+  border-color: rgba(0, 255, 136, 0.25) !important;
+  background: rgba(0, 255, 136, 0.08) !important;
+  box-shadow: 0 0 10px rgba(0, 255, 136, 0.12) !important;
+}
+
+#vision-button.vision-active.active {
+  color: #00ff88 !important;
+  border-color: #00ff88 !important;
+  background: rgba(0, 255, 136, 0.18) !important;
+  box-shadow: 0 0 20px rgba(0, 255, 136, 0.45) !important;
+  text-shadow: 0 0 5px rgba(0, 255, 136, 0.6);
+}
+
+#vision-button.vision-error {
+  color: rgba(255, 68, 68, 0.85) !important;
+  border-color: rgba(255, 68, 68, 0.25) !important;
+  background: rgba(255, 68, 68, 0.08) !important;
+  box-shadow: 0 0 10px rgba(255, 68, 68, 0.12) !important;
+}
+
+#vision-button.vision-error.active {
+  color: #ff4444 !important;
+  border-color: #ff4444 !important;
+  background: rgba(255, 68, 68, 0.18) !important;
+  box-shadow: 0 0 20px rgba(255, 68, 68, 0.45) !important;
+  text-shadow: 0 0 5px rgba(255, 68, 68, 0.6);
+}

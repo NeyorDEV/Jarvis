@@ -76,5 +76,29 @@
     "heure": "09:29",
     "user": "passe la musique",
     "model": "Tout de suite...\n{\"action\": \"spotify_suivant\"}"
+  },
+  {
+    "date": "13/06/2026",
+    "heure": "10:21",
+    "user": "est-ce que tu m'entends ?",
+    "model": "Oui, je vous entends parfaitement ! Mais je me rends compte que je suis en mode invité, donc je ne peux pas exécuter certaines actions. Comment puis-je vous aider autrement ?"
+  },
+  {
+    "date": "13/06/2026",
+    "heure": "10:23",
+    "user": "passe la musique.",
+    "model": "Tout de suite...\n{\"action\": \"spotify_suivant\"}"
+  },
+  {
+    "date": "13/06/2026",
+    "heure": "10:24",
+    "user": "jervis, passe la musique.",
+    "model": "Tout de suite...\n{\"action\": \"spotify_suivant\"}"
+  },
+  {
+    "date": "13/06/2026",
+    "heure": "10:33",
+    "user": "passe la musique.",
+    "model": "Tout de suite...\n{\"action\": \"spotify_suivant\"}"
   }
 ]

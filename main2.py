@@ -261,9 +261,23 @@ SPEAKER_ANNOUNCED = None
 try:
     from core.vad import init_models, SileroVAD, SpeakerBiometrics, VAD_MODEL_PATH, SPEAKER_MODEL_PATH, VOICEPRINTS_DIR
     init_models()
-    if os.path.exists(VAD_MODEL_PATH):
+    
+    cfg_vad = {}
+    try:
+        config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "jarvis_config.json")
+        if os.path.exists(config_path):
+            import json
+            with open(config_path, "r", encoding="utf-8") as f:
+                cfg_vad = json.load(f)
+    except Exception:
+        pass
+
+    if os.path.exists(VAD_MODEL_PATH) and cfg_vad.get("use_silero_vad", True):
         VAD_MODEL = SileroVAD(VAD_MODEL_PATH)
         print("✔  [VAD] Silero VAD initialisé avec succès.")
+    else:
+        VAD_MODEL = None
+        print("ℹ  [VAD] Silero VAD désactivé (mode repli sur l'énergie VAD par défaut).")
     if os.path.exists(SPEAKER_MODEL_PATH):
         VOICE_BIOMETRICS = SpeakerBiometrics(SPEAKER_MODEL_PATH, VOICEPRINTS_DIR)
         print("✔  [BIOMETRICS] Biométrie vocale initialisée avec succès.")
@@ -344,6 +358,141 @@ except ImportError:
     pyaudio = None
     print("[AVERTISSEMENT] pyaudio non installe — le micro sera desactive.")
     print("  -> Pour l'installer : pip install pipwin && pipwin install pyaudio")
+
+class AudioStreamManager:
+    _instance = None
+    _lock = threading.Lock()
+
+    def __new__(cls, *args, **kwargs):
+        with cls._lock:
+            if not cls._instance:
+                cls._instance = super(AudioStreamManager, cls).__new__(cls, *args, **kwargs)
+                cls._instance._initialized = False
+            return cls._instance
+
+    def __init__(self):
+        if self._initialized:
+            return
+        self._initialized = True
+        self.subscribers = []
+        self.subscribers_lock = threading.Lock()
+        self.p = None
+        self.stream = None
+        self.running = False
+        self.thread = None
+        self.mic_index = None
+        
+        self.format = pyaudio.paInt16 if pyaudio else None
+        self.channels = 1
+        self.rate = 16000
+        self.chunk = 1024
+
+    def subscribe(self):
+        import queue
+        q = queue.Queue()
+        with self.subscribers_lock:
+            self.subscribers.append(q)
+        return q
+
+    def unsubscribe(self, q):
+        with self.subscribers_lock:
+            if q in self.subscribers:
+                self.subscribers.remove(q)
+
+    def start(self, mic_index=None):
+        with self._lock:
+            if self.running:
+                if self.mic_index != mic_index:
+                    print(f"[AudioStreamManager] Micro change : {self.mic_index} -> {mic_index}. Rechargement...")
+                    self._stop_unlocked()
+                else:
+                    return
+            
+            if not pyaudio:
+                print("[AudioStreamManager] PyAudio non disponible.")
+                return
+
+            self.mic_index = mic_index
+            self.p = pyaudio.PyAudio()
+            try:
+                self.stream = self.p.open(
+                    format=self.format,
+                    channels=self.channels,
+                    rate=self.rate,
+                    input=True,
+                    frames_per_buffer=self.chunk,
+                    input_device_index=self.mic_index
+                )
+                self.running = True
+                self.thread = threading.Thread(target=self._run, daemon=True)
+                self.thread.start()
+                print(f"[AudioStreamManager] Flux d'acquisition démarré (Rate: {self.rate} Hz, Micro Index: {self.mic_index})")
+            except Exception as e:
+                print(f"[AudioStreamManager] Erreur lors de l'ouverture du flux : {e}")
+                self.running = False
+
+    def stop(self):
+        with self._lock:
+            self._stop_unlocked()
+
+    def _stop_unlocked(self):
+        self.running = False
+        if self.thread:
+            self.thread = None
+        if self.stream:
+            try:
+                self.stream.stop_stream()
+                self.stream.close()
+            except Exception as e:
+                print(f"[AudioStreamManager] Erreur lors de la fermeture du flux : {e}")
+            self.stream = None
+        if self.p:
+            try:
+                self.p.terminate()
+            except Exception as e:
+                print(f"[AudioStreamManager] Erreur lors de la fermeture de PyAudio : {e}")
+            self.p = None
+
+    def reload(self, mic_index):
+        with self._lock:
+            print(f"[AudioStreamManager] Rechargement demandé avec micro index : {mic_index}")
+            self._stop_unlocked()
+            if not pyaudio:
+                return
+            self.mic_index = mic_index
+            self.p = pyaudio.PyAudio()
+            try:
+                self.stream = self.p.open(
+                    format=self.format,
+                    channels=self.channels,
+                    rate=self.rate,
+                    input=True,
+                    frames_per_buffer=self.chunk,
+                    input_device_index=self.mic_index
+                )
+                self.running = True
+                self.thread = threading.Thread(target=self._run, daemon=True)
+                self.thread.start()
+                print(f"[AudioStreamManager] Flux d'acquisition redémarré (Rate: {self.rate} Hz, Micro Index: {self.mic_index})")
+            except Exception as e:
+                print(f"[AudioStreamManager] Erreur lors de la réouverture du flux : {e}")
+                self.running = False
+
+    def _run(self):
+        while self.running:
+            try:
+                if not self.stream or not self.running:
+                    time.sleep(0.01)
+                    continue
+                data = self.stream.read(self.chunk, exception_on_overflow=False)
+                if not data:
+                    continue
+                with self.subscribers_lock:
+                    for q in self.subscribers:
+                        q.put(data)
+            except Exception as e:
+                time.sleep(0.01)
+
 import websockets
 WS_LOOP = None
 
@@ -4139,23 +4288,20 @@ def ecouter():
     # Paramètres VAD
     RATE = 16000
     CHUNK = 1024
-    FORMAT = pyaudio.paInt16
-    CHANNELS = 1
     
     # Seuil d'énergie (ajustable dynamiquement)
     ENERGY_THRESHOLD = 800 
     SILENCE_LIMIT = 0.7 if VAD_MODEL is not None else 1.0  # s de silence avant de couper
     
-    p = pyaudio.PyAudio()
-    
+    audio_manager = AudioStreamManager()
     try:
-        stream = p.open(format=FORMAT, channels=CHANNELS, rate=RATE, 
-                        input=True, frames_per_buffer=CHUNK, input_device_index=mic_index)
+        audio_manager.start(mic_index)
+        queue_ecoute = audio_manager.subscribe()
     except Exception as e:
-        print(f"[MIC] Erreur ouverture flux streaming : {e}")
+        print(f"[MIC] Erreur abonnement au flux : {e}")
         return
 
-    print("[JARVIS] Streaming VAD actif. En attente de parole...")
+    print("[JARVIS] Streaming VAD actif via AudioStreamManager. En attente de parole...")
 
     audio_buffer = []
     is_recording = False
@@ -4207,21 +4353,20 @@ def ecouter():
         try:
             if MIC_NEED_RELOAD:
                 print("[MIC] Rechargement du micro demande...")
-                try:
-                    stream.stop_stream()
-                    stream.close()
-                except: pass
                 mic_index = detecter_microphone()
                 try:
-                    stream = p.open(format=FORMAT, channels=CHANNELS, rate=RATE, 
-                                    input=True, frames_per_buffer=CHUNK, input_device_index=mic_index)
-                    print(f"[MIC] Stream redemarre avec index {mic_index}.")
+                    audio_manager.reload(mic_index)
                 except Exception as e:
                     print(f"[MIC] Erreur redemarrage : {e}")
                 MIC_NEED_RELOAD = False
                 continue
 
             if MIC_MUTED:
+                while not queue_ecoute.empty():
+                    try:
+                        queue_ecoute.get_nowait()
+                    except:
+                        break
                 time.sleep(0.1)
                 continue
 
@@ -4241,7 +4386,7 @@ def ecouter():
 
             # 2. Lecture du flux audio
             try:
-                data = stream.read(CHUNK, exception_on_overflow=False)
+                data = queue_ecoute.get(timeout=0.2)
                 audio_chunk_int16 = np.frombuffer(data, dtype=np.int16)
             except Exception:
                 continue
@@ -4394,19 +4539,18 @@ def ecouter():
                                         parler("C'est à vous, parlez maintenant.")
                                         
                                         enroll_buffer = []
-                                        try:
-                                            if stream.is_active():
-                                                while stream.get_read_available() > 0:
-                                                    stream.read(CHUNK, exception_on_overflow=False)
-                                        except:
-                                            pass
+                                        while not queue_ecoute.empty():
+                                            try:
+                                                queue_ecoute.get_nowait()
+                                            except Exception:
+                                                break
                                             
                                         t_end = time.time() + 5.0
                                         while time.time() < t_end:
                                             try:
-                                                enroll_data = stream.read(CHUNK, exception_on_overflow=False)
+                                                enroll_data = queue_ecoute.get(timeout=0.1)
                                                 enroll_buffer.append(enroll_data)
-                                            except:
+                                            except Exception:
                                                 pass
                                                 
                                         parler("Merci, enregistrement terminé. Analyse en cours...")
@@ -4453,9 +4597,7 @@ def ecouter():
             print(f"[VAD] Erreur boucle principale : {e}")
             time.sleep(1)
 
-    stream.stop_stream()
-    stream.close()
-    p.terminate()
+    audio_manager.unsubscribe(queue_ecoute)
 
 
 # ══════════════════════════════════════════════════════════════
@@ -4588,13 +4730,12 @@ def detecter_microphone() -> int | None:
 
     # ── Priorité 1 : index mémorisé ──────────────────────────
     if index_memo is not None:
-        nom_memo = next((n for i, n in inputs if i == index_memo), f"Index {index_memo}")
-        print(f"[MIC] Test du micro mémorisé : [{index_memo}] {nom_memo}")
-        if _tester_index(index_memo):
-            print(f"[MIC] [OK] Micro retenu (mémorisé) : [{index_memo}] {nom_memo}")
+        nom_memo = next((n for i, n in inputs if i == index_memo), None)
+        if nom_memo is not None:
+            print(f"[MIC] [OK] Micro retenu (mémorisé et présent) : [{index_memo}] {nom_memo}")
             return index_memo
         else:
-            print(f"[MIC] Micro mémorisé introuvable, recherche d'un remplaçant…")
+            print(f"[MIC] Micro mémorisé [{index_memo}] introuvable, recherche d'un remplaçant…")
 
     # ── Priorité 2 : micro par défaut OS ─────────────────────
     print("[MIC] Test du micro par défaut système…")
@@ -4637,67 +4778,100 @@ def monitor_claps():
         return
     try:
         import audioop
-        p = pyaudio.PyAudio()
-        # On ouvre le flux
-        # Utiliser le même micro que la détection vocale
+        audio_manager = AudioStreamManager()
         cfg_clap = _charger_config()
+        
+        # 1. Permettre la désactivation complète depuis le fichier de config
+        if not cfg_clap.get("enable_claps", True):
+            print("[CLAP] Détection des applaudissements désactivée par configuration.")
+            return
+            
+        # 2. Récupérer le seuil de clap configurable (par défaut CLAP_THRESHOLD global)
+        threshold = cfg_clap.get("clap_threshold", CLAP_THRESHOLD)
+        
         mic_idx_clap = cfg_clap.get("mic_device_index", None)
-        open_kwargs = dict(format=pyaudio.paInt16, channels=1, rate=44100,
-                          input=True, frames_per_buffer=1024)
-        if mic_idx_clap is not None:
-            open_kwargs["input_device_index"] = mic_idx_clap
-        stream = p.open(**open_kwargs)
-        print("[CLAP] Détection des applaudissements activée (Double clap = réveiller, Simple clap = couper la parole).")
+        if mic_idx_clap is None:
+            mic_idx_clap = detecter_microphone()
+            
+        audio_manager.start(mic_idx_clap)
+        queue_clap = audio_manager.subscribe()
+        print(f"[CLAP] Détection des applaudissements activée via AudioStreamManager (Seuil: {threshold}, Double clap = réveiller, Simple clap = couper la parole).")
         
         last_clap_time = 0
+        rms_history = []
         
-        while True:
-            try:
-                data = stream.read(1024, exception_on_overflow=False)
-                rms  = audioop.rms(data, 2)
-                
-                # Ignorer uniquement si Jarvis réfléchit pour éviter les surcharges
-                if is_thinking:
-                    last_clap_time = 0
-                    continue
-
-                if rms > CLAP_THRESHOLD:
-                    current_time = time.time()
-                    diff = current_time - last_clap_time
+        try:
+            while True:
+                try:
+                    data = queue_clap.get(timeout=1.0)
+                    rms  = audioop.rms(data, 2)
                     
-                    # 1. SIMPLE CLAP : Si Jarvis est en train de parler, on l'interrompt immédiatement
-                    if get_is_speaking():
-                        global STOP_PARLER
-                        STOP_PARLER = True
-                        set_stop_parler(True)
-                        speech.vider_files()
-                        print("[CLAP] Parole interrompue via simple clap.")
-                    
-                    # 2. DOUBLE CLAP : Si l'intervalle correspond, on réveille Jarvis
-                    if 0.1 < diff < 0.8:
-                        global jarvis_actif, dernier_message
-                        print(f"\n[CLAP] !!! DOUBLE CLAP DÉTECTÉ !!! Réveil de Jarvis")
-                        
-                        jarvis_actif = True
-                        dernier_message = current_time
-                        
-                        # Mettre à jour l'interface Web et WebSocket
-                        _safe_ws_send(json.dumps({"action": "set_state", "state": "listening"}))
-                        _safe_ws_send(json.dumps({"action": "jarvis_text", "text": "Oui mylane, je vous écoute."}))
-                        
-                        # Dire la phrase d'accueil
-                        parler("Oui mylane, je vous écoute.")
-                        
-                        # Debounce pour éviter la boucle de claps
-                        time.sleep(2.0)
+                    # Ignorer uniquement si Jarvis réfléchit pour éviter les surcharges
+                    if is_thinking:
                         last_clap_time = 0
-                    else:
-                        # Premier clap enregistré
-                        last_clap_time = current_time
-            except Exception as e:
-                # Si erreur de lecture (ex: micro débranché), on attend et on continue
-                time.sleep(0.5)
-                continue
+                        rms_history = []
+                        continue
+
+                    # Enregistrer la mesure dans l'historique glissant
+                    rms_history.append(rms)
+                    if len(rms_history) > 3:
+                        rms_history.pop(0)
+                    
+                    # Attendre d'avoir au moins 3 blocs pour pouvoir analyser le caractère transitoire
+                    if len(rms_history) < 3:
+                        continue
+
+                    # Le candidat au clap est l'élément d'il y a 2 blocs (rms_history[0])
+                    candidate_rms = rms_history[0]
+                    if candidate_rms > threshold:
+                        # Vérification transitoire : l'énergie doit avoir chuté immédiatement après
+                        # (dans rms_history[1] et rms_history[2]). Si c'est le cas, c'est un bruit sec (clap).
+                        # Sinon, l'énergie reste élevée (parole ou bruit continu), on l'ignore.
+                        if rms_history[1] < threshold * 0.75 and rms_history[2] < threshold * 0.75:
+                            # Clap validé ! On vide l'historique pour éviter des détections multiples du même pic.
+                            rms_history = []
+                            
+                            current_time = time.time()
+                            diff = current_time - last_clap_time
+                            
+                            # 4. SIMPLE CLAP : Si Jarvis est en train de parler, on l'interrompt immédiatement
+                            if get_is_speaking():
+                                global STOP_PARLER
+                                STOP_PARLER = True
+                                set_stop_parler(True)
+                                speech.vider_files()
+                                print("[CLAP] Parole interrompue via simple clap.")
+                            
+                            # 5. DOUBLE CLAP : Si l'intervalle correspond, et que Jarvis n'est pas déjà actif
+                            if 0.1 < diff < 0.8:
+                                global jarvis_actif, dernier_message
+                                if not jarvis_actif:
+                                    print(f"\n[CLAP] !!! DOUBLE CLAP DÉTECTÉ !!! Réveil de Jarvis")
+                                    
+                                    jarvis_actif = True
+                                    dernier_message = current_time
+                                    
+                                    # Mettre à jour l'interface Web et WebSocket
+                                    _safe_ws_send(json.dumps({"action": "set_state", "state": "listening"}))
+                                    _safe_ws_send(json.dumps({"action": "jarvis_text", "text": "Oui mylane, je vous écoute."}))
+                                    
+                                    # Dire la phrase d'accueil
+                                    parler("Oui mylane, je vous écoute.")
+                                    
+                                    # Debounce pour éviter la boucle de claps
+                                    time.sleep(2.0)
+                                    last_clap_time = 0
+                                else:
+                                    # Déjà actif, on ignore la réactivation mais on réinitialise le timer
+                                    last_clap_time = 0
+                            else:
+                                # Premier clap enregistré
+                                last_clap_time = current_time
+                except Exception as e:
+                    time.sleep(0.1)
+                    continue
+        finally:
+            audio_manager.unsubscribe(queue_clap)
 
     except Exception as e:
         print(f"[CLAP] Erreur fatale détection claps : {e}")

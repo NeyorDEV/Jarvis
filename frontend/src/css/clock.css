@@ -1,0 +1,117 @@
+/* ══════════════════════════════════════════════════════
+   ORB CLOCK HUD — Iron Man Style
+   ══════════════════════════════════════════════════════ */
+#orb-clock-hud {
+  position: fixed;
+  top: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 60;
+  pointer-events: none;
+  text-align: center;
+  padding: 10px 32px 8px;
+  min-width: 260px;
+  background: rgba(0, 229, 255, 0.03);
+  border: 1px solid rgba(0, 229, 255, 0.18);
+  border-radius: 3px;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow:
+    0 0 25px rgba(0, 229, 255, 0.07),
+    inset 0 0 15px rgba(0, 229, 255, 0.04);
+  overflow: hidden;
+}
+
+/* Scan line sweep */
+#orb-clock-hud::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: -10%;
+  width: 100%;
+  height: 3px;
+  background: linear-gradient(90deg, transparent 0%, rgba(0, 229, 255, 0.55) 50%, transparent 100%);
+  animation: hud-scan 3.5s linear infinite;
+}
+
+@keyframes hud-scan {
+  0%   { top: -5%; }
+  100% { top: 110%; }
+}
+
+/* Corner brackets */
+.hud-corner {
+  position: absolute;
+  width: 9px;
+  height: 9px;
+}
+
+.hud-tl { top: 4px;    left: 4px;    border-top:    1.5px solid #00e5ff; border-left:   1.5px solid #00e5ff; }
+.hud-tr { top: 4px;    right: 4px;   border-top:    1.5px solid #00e5ff; border-right:  1.5px solid #00e5ff; }
+.hud-bl { bottom: 4px; left: 4px;    border-bottom: 1.5px solid #00e5ff; border-left:   1.5px solid #00e5ff; }
+.hud-br { bottom: 4px; right: 4px;   border-bottom: 1.5px solid #00e5ff; border-right:  1.5px solid #00e5ff; }
+
+/* Top prefix label */
+.hud-prefix {
+  font-family: 'Courier New', monospace;
+  font-size: 9px;
+  letter-spacing: 3px;
+  color: rgba(0, 229, 255, 0.45);
+  text-transform: uppercase;
+  margin-bottom: 3px;
+}
+
+/* Main time digits */
+#orb-time-display {
+  font-family: 'Courier New', monospace;
+  font-size: 42px;
+  font-weight: 900;
+  color: #00e5ff;
+  letter-spacing: 7px;
+  line-height: 1;
+  text-shadow:
+    0 0 12px rgba(0, 229, 255, 0.85),
+    0 0 28px rgba(0, 229, 255, 0.45),
+    0 0 55px rgba(0, 229, 255, 0.18);
+  animation: hud-glow 2.4s ease-in-out infinite;
+}
+
+@keyframes hud-glow {
+  0%, 100% {
+    text-shadow:
+      0 0 12px rgba(0, 229, 255, 0.85),
+      0 0 28px rgba(0, 229, 255, 0.45),
+      0 0 55px rgba(0, 229, 255, 0.18);
+  }
+  50% {
+    text-shadow:
+      0 0 16px rgba(0, 229, 255, 1),
+      0 0 36px rgba(0, 229, 255, 0.65),
+      0 0 70px rgba(0, 229, 255, 0.28);
+  }
+}
+
+/* Bottom info row */
+.hud-labels {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 5px;
+  gap: 12px;
+}
+
+.hud-lbl {
+  font-family: 'Courier New', monospace;
+  font-size: 8px;
+  letter-spacing: 2px;
+  color: rgba(0, 229, 255, 0.35);
+  text-transform: uppercase;
+}
+
+#orb-date-display {
+  font-family: 'Courier New', monospace;
+  font-size: 10px;
+  letter-spacing: 2px;
+  color: rgba(0, 229, 255, 0.55);
+  text-transform: uppercase;
+}

@@ -1,0 +1,638 @@
+/* ══════════════════════════════════════════════════════════════════════════════
+   HUD REDESIGN 2.0 — Glassmorphism Premium Controls
+   Override section — appended to end of style.css
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+/* ── Keyframes ─────────────────────────────────────────────────────────────── */
+@keyframes hud20-pulse-border {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(0, 229, 255, 0), 0 0 18px rgba(0, 229, 255, 0.25); }
+  50%       { box-shadow: 0 0 0 4px rgba(0, 229, 255, 0.18), 0 0 32px rgba(0, 229, 255, 0.55); }
+}
+
+@keyframes hud20-stop-pulse {
+  0%, 100% { box-shadow: 0 0 10px rgba(255, 80, 60, 0.3); }
+  50%       { box-shadow: 0 0 22px rgba(255, 80, 60, 0.65), 0 0 6px rgba(255, 140, 0, 0.4); }
+}
+
+@keyframes hud20-bar-fadein {
+  from { opacity: 0; transform: translateX(-50%) translateY(12px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+@keyframes hud20-panel-fadein {
+  from { opacity: 0; transform: translateX(-50%) translateY(14px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+@keyframes hud20-update-slide {
+  from { opacity: 0; transform: translateX(-50%) translateY(-8px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   1. HUD CONTROL BAR — Bottom-left glassmorphism bar
+   ══════════════════════════════════════════════════════════════════════════════ */
+#hud-control-bar.carousel-container {
+  position: fixed;
+  bottom: 5px; /* placed at the bottom, lowered */
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 500;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  touch-action: none;
+  padding: 0;
+  width: 380px;
+  height: 50px; /* reduced height */
+  box-sizing: border-box;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  overflow: visible;
+  animation: hud20-bar-fadein 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+.carousel-viewport {
+  width: 100%;
+  height: 50px;
+  position: relative;
+  overflow: visible;
+}
+
+.carousel-track {
+  width: 100%;
+  height: 100%;
+  position: relative;
+}
+
+/* Hide legacy separator */
+.hud-bar-sep {
+  display: none !important;
+}
+
+/* Base style for ALL buttons inside the bar */
+#gpu-button,
+#subtitle-toggle,
+#settings-button,
+#gestures-toggle,
+#holo-button,
+#vision-button {
+  position: absolute !important;
+  top: 50% !important;
+  left: 50% !important;
+  
+  width: 125px !important;
+  height: 34px !important;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  border: 1px solid rgba(0, 229, 255, 0.25);
+  background: rgba(0, 229, 255, 0.08);
+  color: rgba(0, 229, 255, 0.85);
+  font-family: 'Courier New', monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  cursor: pointer;
+  box-shadow: 0 0 10px rgba(0, 229, 255, 0.12);
+  white-space: nowrap;
+  transition: all 0.45s cubic-bezier(0.16, 1, 0.3, 1);
+  z-index: 1;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+/* Center active button */
+#gpu-button.active,
+#subtitle-toggle.active,
+#settings-button.active,
+#gestures-toggle.active,
+#holo-button.active,
+#vision-button.active {
+  transform: translate(-50%, -50%) scale(1.16);
+  opacity: 1;
+  z-index: 10;
+  pointer-events: auto;
+  border-color: #00e5ff !important;
+  color: #00e5ff !important;
+  background: rgba(0, 229, 255, 0.18) !important;
+  box-shadow: 0 0 20px rgba(0, 229, 255, 0.45) !important;
+  text-shadow: 0 0 5px rgba(0, 229, 255, 0.6);
+}
+
+/* Left 1 button (.prev) */
+#gpu-button.prev,
+#subtitle-toggle.prev,
+#settings-button.prev,
+#gestures-toggle.prev,
+#holo-button.prev,
+#vision-button.prev {
+  transform: translate(-166.5%, -50%) scale(0.85);
+  opacity: 0.8;
+  z-index: 5;
+  pointer-events: auto;
+}
+
+/* Left 2 button (.prev2) */
+#gpu-button.prev2,
+#subtitle-toggle.prev2,
+#settings-button.prev2,
+#gestures-toggle.prev2,
+#holo-button.prev2,
+#vision-button.prev2 {
+  transform: translate(-257.5%, -50%) scale(0.65);
+  opacity: 0.5;
+  z-index: 3;
+  pointer-events: auto;
+}
+
+/* Right 1 button (.next) */
+#gpu-button.next,
+#subtitle-toggle.next,
+#settings-button.next,
+#gestures-toggle.next,
+#holo-button.next,
+#vision-button.next {
+  transform: translate(66.5%, -50%) scale(0.85);
+  opacity: 0.8;
+  z-index: 5;
+  pointer-events: auto;
+}
+
+/* Right 2 button (.next2) */
+#gpu-button.next2,
+#subtitle-toggle.next2,
+#settings-button.next2,
+#gestures-toggle.next2,
+#holo-button.next2,
+#vision-button.next2 {
+  transform: translate(157.5%, -50%) scale(0.65);
+  opacity: 0.5;
+  z-index: 3;
+  pointer-events: auto;
+}
+
+/* Hidden buttons */
+#gpu-button.hidden,
+#subtitle-toggle.hidden,
+#settings-button.hidden,
+#gestures-toggle.hidden,
+#holo-button.hidden,
+#vision-button.hidden {
+  transform: translate(-50%, -50%) scale(0.5);
+  opacity: 0;
+  z-index: 1;
+  pointer-events: none;
+}
+
+/* OFF states (applied when inactive but in active center position) */
+#gpu-button[aria-pressed="false"].active,
+#subtitle-toggle[aria-pressed="false"].active,
+#gestures-toggle[aria-pressed="false"].active,
+#holo-button[aria-pressed="false"].active,
+#settings-button[aria-pressed="false"].active {
+  background: rgba(255, 255, 255, 0.05) !important;
+  border-color: rgba(255, 255, 255, 0.15) !important;
+  color: rgba(255, 255, 255, 0.35) !important;
+  box-shadow: none !important;
+  text-shadow: none !important;
+}
+
+/* Indicators */
+.carousel-indicators {
+  display: none !important;
+}
+
+.carousel-dot {
+  width: 10px;
+  height: 2px;
+  background: rgba(0, 229, 255, 0.2);
+  border-radius: 1px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.carousel-dot.active {
+  background: #00e5ff;
+  width: 18px;
+  box-shadow: 0 0 8px #00e5ff;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   2. MIC & STOP PANEL — Centered bottom, glassmorphism pill
+   ══════════════════════════════════════════════════════════════════════════════ */
+.bottom-controls-container {
+  position: fixed !important;
+  bottom: 75px !important; /* Lowered from 95px, creating space from the orb */
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  z-index: 100 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 0 !important;
+  animation: hud20-panel-fadein 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+.mic-stop-panel {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 8px 18px;
+  background: rgba(0, 5, 15, 0.6);
+  backdrop-filter: blur(22px);
+  -webkit-backdrop-filter: blur(22px);
+  border: 1px solid rgba(0, 229, 255, 0.14);
+  border-radius: 50px;
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(0, 229, 255, 0.07);
+}
+
+/* Mic button — large glowing circle */
+#mic-btn {
+  width: 52px !important;
+  height: 52px !important;
+  border-radius: 50% !important;
+  background: rgba(0, 229, 255, 0.07) !important;
+  border: 2px solid rgba(0, 229, 255, 0.45) !important;
+  color: #00e5ff !important;
+  cursor: pointer !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+  transition: background 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease, transform 0.18s ease !important;
+  box-shadow: 0 0 20px rgba(0, 229, 255, 0.18), inset 0 0 18px rgba(0, 229, 255, 0.04) !important;
+  flex-shrink: 0;
+  position: static !important;
+  top: unset !important; left: unset !important; right: unset !important; bottom: unset !important;
+  letter-spacing: 0 !important;
+}
+
+#mic-btn svg {
+  width: 22px;
+  height: 22px;
+  pointer-events: none;
+  filter: drop-shadow(0 0 6px rgba(0, 229, 255, 0.5));
+}
+
+#mic-btn:hover {
+  background: rgba(0, 229, 255, 0.18) !important;
+  border-color: rgba(0, 229, 255, 0.85) !important;
+  box-shadow: 0 0 40px rgba(0, 229, 255, 0.45), inset 0 0 16px rgba(0, 229, 255, 0.08) !important;
+  transform: scale(1.08) !important;
+}
+
+#mic-btn:active {
+  transform: scale(0.95) !important;
+}
+
+/* Active/recording state */
+#mic-btn.active,
+#mic-btn[aria-pressed="true"] {
+  border-color: rgba(0, 229, 255, 0.9) !important;
+  background: rgba(0, 229, 255, 0.14) !important;
+  animation: hud20-pulse-border 1.4s ease-in-out infinite !important;
+}
+
+#mic-btn.is-muted {
+  background: rgba(239, 68, 68, 0.12) !important;
+  border-color: rgba(239, 68, 68, 0.6) !important;
+  color: rgba(255, 100, 100, 0.9) !important;
+  box-shadow: 0 0 28px rgba(239, 68, 68, 0.32), inset 0 0 14px rgba(239, 68, 68, 0.06) !important;
+}
+
+#mic-btn.is-muted svg {
+  filter: drop-shadow(0 0 6px rgba(239, 68, 68, 0.6));
+}
+
+/* Stop / Mute button */
+#mute-button {
+  width: 38px !important;
+  height: 38px !important;
+  border-radius: 12px !important;
+  background: rgba(255, 70, 50, 0.1) !important;
+  border: 1.5px solid rgba(255, 80, 60, 0.45) !important;
+  color: rgba(255, 110, 80, 0.9) !important;
+  cursor: pointer !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-size: 14px !important;
+  transition: background 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease, transform 0.18s ease !important;
+  flex-shrink: 0;
+  padding: 0 !important;
+  animation: hud20-stop-pulse 2.5s ease-in-out infinite !important;
+  position: static !important;
+  top: unset !important; left: unset !important; right: unset !important; bottom: unset !important;
+}
+
+#mute-button:hover {
+  background: rgba(255, 70, 50, 0.22) !important;
+  border-color: rgba(255, 100, 70, 0.8) !important;
+  box-shadow: 0 0 24px rgba(255, 80, 60, 0.55), 0 0 6px rgba(255, 140, 0, 0.3) !important;
+  transform: scale(1.08) !important;
+}
+
+#mute-button:active {
+  transform: scale(0.93) !important;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   3. ORB CLOCK HUD — Upgraded with Orbitron, lighter glassmorphism
+   ══════════════════════════════════════════════════════════════════════════════ */
+#orb-clock-hud {
+  position: fixed !important;
+  top: 18px !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  z-index: 60 !important;
+  pointer-events: none !important;
+  text-align: center !important;
+  padding: 8px 28px 7px !important;
+  min-width: 240px !important;
+  background: rgba(0, 5, 15, 0.42) !important;
+  border: 1px solid rgba(0, 229, 255, 0.13) !important;
+  border-radius: 10px !important;
+  backdrop-filter: blur(18px) !important;
+  -webkit-backdrop-filter: blur(18px) !important;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(0, 229, 255, 0.07) !important;
+  overflow: hidden !important;
+}
+
+/* Subtle scan sweep */
+#orb-clock-hud::before {
+  content: '' !important;
+  position: absolute !important;
+  left: 0 !important;
+  top: -10% !important;
+  width: 100% !important;
+  height: 2px !important;
+  background: linear-gradient(90deg, transparent 0%, rgba(0, 229, 255, 0.35) 50%, transparent 100%) !important;
+  animation: hud-scan 4.5s linear infinite !important;
+  pointer-events: none !important;
+}
+
+/* Thinner, subtler corner brackets */
+.hud-corner { position: absolute; width: 7px; height: 7px; }
+.hud-tl { top: 3px; left: 3px;    border-top: 1px solid rgba(0, 229, 255, 0.5); border-left: 1px solid rgba(0, 229, 255, 0.5); }
+.hud-tr { top: 3px; right: 3px;   border-top: 1px solid rgba(0, 229, 255, 0.5); border-right: 1px solid rgba(0, 229, 255, 0.5); }
+.hud-bl { bottom: 3px; left: 3px;  border-bottom: 1px solid rgba(0, 229, 255, 0.5); border-left: 1px solid rgba(0, 229, 255, 0.5); }
+.hud-br { bottom: 3px; right: 3px; border-bottom: 1px solid rgba(0, 229, 255, 0.5); border-right: 1px solid rgba(0, 229, 255, 0.5); }
+
+/* Time with Orbitron */
+#orb-time-display {
+  font-family: 'Orbitron', 'Courier New', monospace !important;
+  font-size: 44px !important;
+  font-weight: 900 !important;
+  color: #00e5ff !important;
+  letter-spacing: 5px !important;
+  line-height: 1 !important;
+  text-shadow:
+    0 0 10px rgba(0, 229, 255, 0.9),
+    0 0 24px rgba(0, 229, 255, 0.4),
+    0 0 50px rgba(0, 229, 255, 0.14) !important;
+  animation: hud-glow 2.6s ease-in-out infinite !important;
+}
+
+/* CPU/RAM — more discreet */
+.stat-hud {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  min-width: 48px !important;
+  opacity: 0.55 !important;
+  transition: all 0.3s ease !important;
+}
+
+.stat-label {
+  font-family: 'Courier New', monospace !important;
+  font-size: 7px !important;
+  letter-spacing: 1.5px !important;
+  color: rgba(0, 229, 255, 0.35) !important;
+  text-transform: uppercase !important;
+  margin-bottom: -2px !important;
+}
+
+.stat-value {
+  font-family: 'Orbitron', 'Courier New', monospace !important;
+  font-size: 13px !important;
+  font-weight: 700 !important;
+  color: rgba(0, 229, 255, 0.7) !important;
+  text-shadow: 0 0 8px rgba(0, 229, 255, 0.35) !important;
+  letter-spacing: 1px !important;
+}
+
+.stat-hud:hover {
+  opacity: 1 !important;
+  transform: scale(1.08) !important;
+}
+
+.stat-critical .stat-value {
+  color: #ff3366 !important;
+  text-shadow: 0 0 15px rgba(255, 51, 102, 0.7) !important;
+  animation: hud-blink 0.5s ease-in-out infinite !important;
+}
+
+/* Bottom labels row */
+.hud-labels {
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  margin-top: 4px !important;
+  gap: 10px !important;
+}
+
+.hud-lbl {
+  font-family: 'Courier New', monospace !important;
+  font-size: 7px !important;
+  letter-spacing: 2px !important;
+  color: rgba(0, 229, 255, 0.25) !important;
+  text-transform: uppercase !important;
+}
+
+#orb-date-display {
+  font-family: 'Courier New', monospace !important;
+  font-size: 9px !important;
+  letter-spacing: 2px !important;
+  color: rgba(0, 229, 255, 0.4) !important;
+  text-transform: uppercase !important;
+}
+
+/* Hide the verbose LOCAL_TIME prefix */
+.hud-prefix { display: none !important; }
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   4. CONNECTION BADGE — Polished glassmorphism
+   ══════════════════════════════════════════════════════════════════════════════ */
+#connection-badge {
+  position: fixed !important;
+  top: 18px !important;
+  right: 18px !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 7px !important;
+  padding: 6px 14px !important;
+  border: 1px solid rgba(0, 229, 255, 0.11) !important;
+  border-radius: 999px !important;
+  background: rgba(0, 5, 15, 0.55) !important;
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+  z-index: 20 !important;
+  pointer-events: none !important;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(0, 229, 255, 0.05) !important;
+}
+
+#connection-label {
+  font-family: 'Courier New', monospace !important;
+  font-size: 10px !important;
+  letter-spacing: 1.5px !important;
+  font-weight: 400 !important;
+  color: rgba(255, 255, 255, 0.28) !important;
+  text-transform: lowercase !important;
+  transition: color 0.4s ease !important;
+}
+
+#connection-badge.connected #connection-label { color: rgba(34, 197, 94, 0.7) !important; }
+#connection-badge.disconnected #connection-label { color: rgba(239, 68, 68, 0.6) !important; }
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   5. UPDATE BANNER — Centered top
+   ══════════════════════════════════════════════════════════════════════════════ */
+#update-banner {
+  position: fixed !important;
+  top: 18px !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  padding: 7px 20px !important;
+  border-radius: 6px !important;
+  white-space: nowrap !important;
+}
+
+#update-banner:hover {
+  transform: translateX(-50%) scale(1.04) !important;
+}
+
+/* Hide old elements */
+#cpu-hud.stat-hud, #ram-hud.stat-hud { display: none !important; }
+.stat-hud { display: none !important; }
+.hud-labels { display: none !important; }
+.hud-prefix { display: none !important; }
+
+/* ── SYS STATS HUD — bottom right ───────────────────────────────────────── */
+#sys-stats-hud {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  pointer-events: none;
+}
+
+.sys-stat-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-family: 'Courier New', monospace;
+  font-size: 10px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: rgba(0, 229, 255, 0.45);
+  transition: color 0.3s ease;
+}
+
+.sys-stat-icon {
+  font-size: 9px;
+  opacity: 0.6;
+}
+
+.sys-stat-label {
+  width: 28px;
+  opacity: 0.6;
+}
+
+.sys-stat-bar-wrap {
+  width: 55px;
+  height: 2px;
+  background: rgba(0, 229, 255, 0.08);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.sys-stat-bar-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, rgba(0,229,255,0.4), rgba(0,229,255,0.8));
+  border-radius: 2px;
+  transition: width 1s ease, background 0.5s ease;
+}
+
+.sys-stat-value {
+  width: 32px;
+  text-align: right;
+  font-weight: bold;
+  color: rgba(0, 229, 255, 0.6);
+}
+
+/* Critical state */
+.sys-stat-row.stat-critical {
+  color: rgba(255, 80, 80, 0.7);
+}
+.sys-stat-row.stat-critical .sys-stat-bar-fill {
+  background: linear-gradient(90deg, rgba(255,80,80,0.4), rgba(255,80,80,0.9));
+}
+.sys-stat-row.stat-critical .sys-stat-value {
+  color: rgba(255, 80, 80, 0.9);
+}
+
+/* Holo clock canvas container */
+#holo-clock-canvas-wrap {
+  width: 100%;
+  height: 100%;
+}
+#holo-clock-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* Override orb-clock-hud to fit the canvas and make it completely borderless and transparent */
+#orb-clock-hud {
+  width: 380px;
+  height: 95px;
+  padding: 0 !important;
+  overflow: visible;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+#orb-clock-hud::before {
+  display: none !important;
+}
+
+/* Responsive adjustment for small screens / wrapped control bar */
+@media (max-width: 768px) {
+  .hud-bar-sep {
+    display: none !important;
+  }
+  #hud-control-bar {
+    justify-content: center;
+    border-radius: 10px;
+    padding: 6px 10px;
+  }
+}
