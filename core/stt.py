@@ -58,25 +58,24 @@ def transcribe_audio_groq(
 
     # ── Tentative 1 : Groq Whisper ────────────────────────────────────────────
     if groq_client:
-        tmp_path = None
         try:
+            import io
             t0 = time.time()
-            tmp_fd, tmp_path = tempfile.mkstemp(suffix=".wav")
-            os.close(tmp_fd)
-
-            with wave.open(tmp_path, "wb") as wf:
+            audio_buffer = io.BytesIO()
+            
+            with wave.open(audio_buffer, "wb") as wf:
                 wf.setnchannels(1)
                 wf.setsampwidth(2)   # 16-bit = 2 bytes
                 wf.setframerate(sample_rate)
                 wf.writeframes(raw_audio_bytes)
-
-            with open(tmp_path, "rb") as audio_file:
-                transcription = groq_client.audio.transcriptions.create(
-                    file=("audio.wav", audio_file.read()),
-                    model="whisper-large-v3",
-                    language="fr",
-                    response_format="text",
-                )
+            
+            audio_buffer.seek(0)
+            transcription = groq_client.audio.transcriptions.create(
+                file=("audio.wav", audio_buffer.read()),
+                model="whisper-large-v3",
+                language="fr",
+                response_format="text",
+            )
 
             elapsed = time.time() - t0
             texte = (
@@ -103,12 +102,6 @@ def transcribe_audio_groq(
         except Exception as e:
             if jarvis_actif:
                 print(f"[STT] Groq Whisper erreur : {e} — fallback Google.")
-        finally:
-            if tmp_path and os.path.exists(tmp_path):
-                try:
-                    os.remove(tmp_path)
-                except Exception:
-                    pass
 
     # ── Tentative 2 : Google STT ──────────────────────────────────────────────
     if recognizer:

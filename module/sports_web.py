@@ -164,9 +164,9 @@ def get_classement_football(ligue=None):
         print(f"[SPORT] Erreur classement : {e}")
         return f"Impossible de recuperer le classement : {e}"
 
-def get_resultats_sport_gemini(question_sport):
+async def get_resultats_sport_gemini(question_sport):
     try:
-        response = client.models.generate_content(
+        response = await client.aio.models.generate_content(
             model   = CHOSEN_MODEL,
             contents= [types.Content(role="user", parts=[types.Part(text=
                 f"Donne-moi les derniers resultats et actualites sportives en 2026 "

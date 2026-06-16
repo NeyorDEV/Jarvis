@@ -6,14 +6,22 @@ from typing import Optional
 # Configuration du HomePod
 # Vous pouvez spécifier l'IP pour aller plus vite, sinon JARVIS le cherchera sur le réseau.
 HOMEPOD_IP = os.getenv("HOMEPOD_IP", None)
+HOMEPOD_SEJOUR_IP = os.getenv("HOMEPOD_SEJOUR_IP", None)
+HOMEPOD_JEUX_IP = os.getenv("HOMEPOD_JEUX_IP", None)
 
 async def find_homepod(identifier: Optional[str] = None):
     """Recherche un HomePod sur le réseau local."""
-    print("[HOMEPOD] Recherche du HomePod sur le réseau...")
-    discovered = await pyatv.scan(asyncio.get_event_loop(), timeout=5)
+    # print(f"[HOMEPOD] Recherche du HomePod '{identifier}'...")
+    loop = asyncio.get_event_loop()
+    
+    # Si l'identifiant ressemble à une IP, on scanne uniquement cet hôte pour une connexion instantanée
+    is_ip = identifier and all(c in "0123456789." for c in identifier)
+    if is_ip:
+        discovered = await pyatv.scan(loop, hosts=[identifier], timeout=2)
+    else:
+        discovered = await pyatv.scan(loop, timeout=5)
     
     for device in discovered:
-        # On cherche un HomePod (souvent identifié comme tel ou par son nom)
         if identifier:
             if identifier.lower() in device.name.lower() or identifier == device.address:
                 return device
@@ -23,19 +31,28 @@ async def find_homepod(identifier: Optional[str] = None):
             
     return None
 
-async def send_command(command: str, value: Optional[float] = None):
+async def send_command(command: str, value: Optional[float] = None, identifier: Optional[str] = None):
     """Envoie une commande au HomePod (play, pause, stop, volume)."""
     try:
+        # Résolution des IPs statiques du .env si l'identifiant vocal correspond
+        target = identifier
+        if identifier:
+            ident_lower = identifier.lower()
+            if "jeux" in ident_lower:
+                target = HOMEPOD_JEUX_IP or identifier
+            elif "sejour" in ident_lower or "séjour" in ident_lower or "salon" in ident_lower:
+                target = HOMEPOD_SEJOUR_IP or identifier
+
         # Découverte ou utilisation de l'IP
-        if HOMEPOD_IP:
-            # On tente une connexion directe (plus rapide)
-            # Note: pyatv.connect a besoin d'une configuration, le scan est plus sûr au début
+        if target:
+            device = await find_homepod(target)
+        elif HOMEPOD_IP:
             device = await find_homepod(HOMEPOD_IP)
         else:
             device = await find_homepod()
 
         if not device:
-            print("[HOMEPOD] Aucun HomePod trouvé.")
+            print(f"[HOMEPOD] Aucun HomePod trouvé pour '{target or 'par défaut'}'.")
             return False, "Aucun HomePod trouvé sur le réseau."
 
         print(f"[HOMEPOD] Connexion à {device.name} ({device.address})...")
@@ -63,6 +80,35 @@ async def send_command(command: str, value: Optional[float] = None):
     except Exception as e:
         print(f"[HOMEPOD ERROR] {e}")
         return False, str(e)
+
+async def get_playing_metadata(identifier: Optional[str] = None) -> Optional[str]:
+    """Récupère les métadonnées de la chanson en cours sur le HomePod cible."""
+    try:
+        target = identifier
+        if identifier:
+            ident_lower = identifier.lower()
+            if "jeux" in ident_lower:
+                target = HOMEPOD_JEUX_IP or identifier
+            elif "sejour" in ident_lower or "séjour" in ident_lower or "salon" in ident_lower:
+                target = HOMEPOD_SEJOUR_IP or identifier
+
+        device = await find_homepod(target)
+        if not device:
+            return None
+
+        atv = await pyatv.connect(device, asyncio.get_event_loop())
+        try:
+            playing = await atv.metadata.currently_playing()
+            if playing and playing.title:
+                artist = playing.artist or "Artiste inconnu"
+                return f"{artist} - {playing.title}"
+            return None
+        finally:
+            await asyncio.gather(*atv.close())
+    except Exception as e:
+        print(f"[HOMEPOD METADATA ERROR] {e}")
+        return None
+
 
 if __name__ == "__main__":
     # Petit test de scan

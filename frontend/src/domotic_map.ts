@@ -11,7 +11,7 @@ import * as THREE from 'three';
 interface DeviceNodeData {
   id: string;
   name: string;
-  type: 'light' | 'plug' | 'sensor';
+  type: 'light' | 'plug' | 'sensor' | 'speaker';
   room: string;
   relPos: THREE.Vector3; // Position relative au centre de sa pièce
 }
@@ -27,7 +27,7 @@ interface RoomData {
 
 const ROOMS: RoomData[] = [
   // Level 1: Premier Étage (Y = 0)
-  { id: 'salon', name: 'SALON', level: 0, pos: new THREE.Vector3(0, 0, -0.5), size: new THREE.Vector3(5.0, 0.8, 5.0), color: 0x00e5ff },
+  { id: 'salon', name: 'SÉJOUR', level: 0, pos: new THREE.Vector3(0, 0, -0.5), size: new THREE.Vector3(5.0, 0.8, 5.0), color: 0x00e5ff },
   { id: 'cuisine', name: 'CUISINE', level: 0, pos: new THREE.Vector3(-1.25, 0, -1.75), size: new THREE.Vector3(2.5, 0.8, 2.5), color: 0x00e5ff },
   { id: 'parents', name: 'CHAMBRE PARENTS', level: 0, pos: new THREE.Vector3(0.8, 0, -4.1), size: new THREE.Vector3(2.6, 0.8, 2.2), color: 0x00e5ff },
   { id: 'veranda', name: 'VÉRANDA', level: 0, pos: new THREE.Vector3(3.8, 0, 0), size: new THREE.Vector3(2.6, 0.8, 3.0), color: 0x00e5ff },
@@ -86,7 +86,11 @@ const DEVICES: DeviceNodeData[] = [
   // SdB & WC
   { id: 'light.sdb', name: 'SdB Étage', type: 'light', room: 'sdb', relPos: new THREE.Vector3(0, 0.3, 0) },
   { id: 'temp.sdb', name: 'Temp SdB Étage', type: 'sensor', room: 'sdb', relPos: new THREE.Vector3(0.5, -0.2, -0.5) },
-  { id: 'light.toilettes', name: 'WC Étage', type: 'light', room: 'toilettes', relPos: new THREE.Vector3(0, 0.3, 0) }
+  { id: 'light.toilettes', name: 'WC Étage', type: 'light', room: 'toilettes', relPos: new THREE.Vector3(0, 0.3, 0) },
+
+  // HomePods (Haut-Parleurs)
+  { id: 'media_player.homepod_salon', name: 'HomePod Séjour', type: 'speaker', room: 'salon', relPos: new THREE.Vector3(1.5, -0.1, -1.2) },
+  { id: 'media_player.homepod_chambre', name: 'HomePod Ma Chambre', type: 'speaker', room: 'chambre_1', relPos: new THREE.Vector3(-0.6, -0.1, 0.8) }
 ];
 
 const COLORS = {
@@ -146,6 +150,10 @@ class DomoticDeviceNode {
     } else if (data.type === 'plug') {
       geo = new THREE.BoxGeometry(0.18, 0.18, 0.18);
       this.baseScale = 0.9;
+    } else if (data.type === 'speaker') {
+      geo = new THREE.CylinderGeometry(0.13, 0.13, 0.16, 16);
+      this.baseScale = 1.1;
+      matColor = 0xff00ff; // Neon magenta pour les haut-parleurs
     } else { // sensor
       geo = new THREE.CylinderGeometry(0.12, 0.12, 0.08, 12);
       this.baseScale = 0.85;
@@ -186,7 +194,25 @@ class DomoticDeviceNode {
   private _buildLabel(valueText = ''): THREE.Sprite {
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d')!;
-    canvas.width = 256; canvas.height = 40;
+    
+    let labelText = this.data.name.toUpperCase();
+    if (valueText !== '') {
+      labelText += `: ${valueText}`;
+    } else if (this.data.type !== 'sensor') {
+      if (this.data.type === 'speaker' && this.state !== 'paused' && this.state !== 'off') {
+        labelText += `: ${this.state}`;
+      } else {
+        labelText += `: ${this.state.toUpperCase()}`;
+      }
+    }
+
+    ctx.font = 'bold 16px Courier New';
+    const textWidth = ctx.measureText(labelText).width;
+    canvas.width = Math.max(256, Math.ceil(textWidth + 24));
+    canvas.height = 40;
+
+    // Rétablir la police après le changement de taille du canvas
+    ctx.font = 'bold 16px Courier New';
 
     // Fond
     ctx.fillStyle = 'rgba(0, 10, 20, 0.7)';
@@ -195,19 +221,10 @@ class DomoticDeviceNode {
     ctx.fill();
 
     // Texte
-    ctx.font = 'bold 16px Courier New';
     ctx.fillStyle = '#ffffff';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    
-    let text = this.data.name.toUpperCase();
-    if (valueText !== '') {
-      text += `: ${valueText}`;
-    } else if (this.data.type !== 'sensor') {
-      text += `: ${this.state.toUpperCase()}`;
-    }
-    
-    ctx.fillText(text, canvas.width / 2, canvas.height / 2);
+    ctx.fillText(labelText, canvas.width / 2, canvas.height / 2);
 
     const texture = new THREE.CanvasTexture(canvas);
     const spriteMat = new THREE.SpriteMaterial({
@@ -216,7 +233,7 @@ class DomoticDeviceNode {
       depthWrite: false
     });
     const sprite = new THREE.Sprite(spriteMat);
-    sprite.scale.set(1.1, 0.17, 1);
+    sprite.scale.set(1.1 * (canvas.width / 256), 0.17, 1);
     sprite.position.y = 0.32;
     return sprite;
   }
@@ -236,16 +253,20 @@ class DomoticDeviceNode {
     this.state = String(stateVal);
     
     // Mettre à jour la couleur et l'opacité
-    const targetColor = this.state === 'on' 
-      ? (this.data.type === 'light' ? COLORS.glowOn : COLORS.plugOn) 
-      : COLORS.glowOff;
+    let targetColor = COLORS.glowOff;
+    const isActive = this.state === 'on' || this.state === 'playing';
+    if (isActive) {
+      if (this.data.type === 'light') targetColor = COLORS.glowOn;
+      else if (this.data.type === 'plug') targetColor = COLORS.plugOn;
+      else if (this.data.type === 'speaker') targetColor = 0xff00ff; // Magenta
+    }
 
     (this.mesh.material as THREE.MeshBasicMaterial).color.setHex(targetColor);
 
     if (this.glow) {
       (this.glow.material as THREE.SpriteMaterial).color.setHex(targetColor);
-      (this.glow.material as THREE.SpriteMaterial).opacity = this.state === 'on' ? 0.8 : 0.15;
-      this.glow.scale.setScalar(this.state === 'on' ? 0.9 : 0.4);
+      (this.glow.material as THREE.SpriteMaterial).opacity = isActive ? 0.8 : 0.15;
+      this.glow.scale.setScalar(isActive ? 0.9 : 0.4);
     }
 
     // Recréer le label
@@ -263,24 +284,31 @@ class DomoticDeviceNode {
     } else if (this.data.type === 'plug') {
       this.mesh.rotation.y += dt * 0.4;
       this.mesh.rotation.x += dt * 0.2;
+    } else if (this.data.type === 'speaker') {
+      this.mesh.rotation.y += dt * 0.2;
     } else { // sensor
       this.mesh.position.y = Math.sin(time * 2.0 + this.data.relPos.x) * 0.02;
     }
 
     // Effet hover / pulsation
     let targetScale = this.baseScale;
+    const isActive = this.state === 'on' || this.state === 'playing';
     if (this.hovered) {
       targetScale = this.baseScale * 1.35;
-    } else if (this.state === 'on') {
-      targetScale = this.baseScale * (1.0 + Math.sin(time * 3) * 0.05);
+    } else if (isActive) {
+      const amp = this.data.type === 'speaker' ? 0.15 : 0.05;
+      const freq = this.data.type === 'speaker' ? 8.0 : 3.0;
+      targetScale = this.baseScale * (1.0 + Math.sin(time * freq) * amp);
     }
 
     const currScale = this.mesh.scale.x;
     const newScale = currScale + (targetScale - currScale) * dt * 10;
     this.mesh.scale.setScalar(newScale);
 
-    if (this.glow && this.state === 'on') {
-      this.glow.scale.setScalar((0.85 + Math.sin(time * 5) * 0.08) * (this.hovered ? 1.3 : 1.0));
+    if (this.glow && isActive) {
+      const freqGlow = this.data.type === 'speaker' ? 12.0 : 5.0;
+      const ampGlow = this.data.type === 'speaker' ? 0.15 : 0.08;
+      this.glow.scale.setScalar((0.85 + Math.sin(time * freqGlow) * ampGlow) * (this.hovered ? 1.3 : 1.0));
     }
   }
 
@@ -321,6 +349,9 @@ export class DomoticMap {
 
   // Ondes holographiques de clics
   private activeRipples: { ring: THREE.Mesh; age: number; life: number; }[] = [];
+
+  // Ondes acoustiques de routage de la musique
+  private activeWaves: { group: THREE.Group; rings: THREE.Mesh[]; progress: number; speed: number; start: THREE.Vector3; end: THREE.Vector3; }[] = [];
 
   // Bannière HUD Simulation
   private hudBanner: HTMLDivElement | null = null;
@@ -419,30 +450,58 @@ export class DomoticMap {
 
         // C. Sprite étiquette de pièce
         const label = this._buildRoomLabel(r.name);
-        label.position.y = r.size.y / 2 + 0.28;
+        label.position.y = r.size.y / 2 + 0.65;
         roomGroup.add(label);
       }
 
       this.group.add(roomGroup);
       this.roomGroups.set(r.id, roomGroup);
-    });
+     });
   }
 
   private _buildRoomLabel(name: string): THREE.Sprite {
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d')!;
-    canvas.width = 256; canvas.height = 36;
-    ctx.font = '900 13px "Courier New", monospace';
+    canvas.width = 256; canvas.height = 48;
+    
+    // Background dégradé sci-fi subtil
+    const grad = ctx.createLinearGradient(0, 0, canvas.width, 0);
+    grad.addColorStop(0, 'rgba(0, 229, 255, 0.0)');
+    grad.addColorStop(0.3, 'rgba(0, 229, 255, 0.12)');
+    grad.addColorStop(0.7, 'rgba(0, 229, 255, 0.12)');
+    grad.addColorStop(1, 'rgba(0, 229, 255, 0.0)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Ligne de bordure inférieure cyan fluorescente
+    ctx.strokeStyle = 'rgba(0, 229, 255, 0.6)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(30, canvas.height - 2);
+    ctx.lineTo(canvas.width - 30, canvas.height - 2);
+    ctx.stroke();
+
+    // Texte avec halo lumineux
+    ctx.font = '900 15px "Courier New", monospace';
     ctx.fillStyle = '#00e5ff';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.shadowColor = '#00e5ff'; ctx.shadowBlur = 8;
-    ctx.fillText(`◈ ${name} ◈`, canvas.width / 2, canvas.height / 2);
+    ctx.shadowColor = '#00e5ff';
+    ctx.shadowBlur = 8;
+    ctx.fillText(name, canvas.width / 2, canvas.height / 2 - 2);
 
     const tex = new THREE.CanvasTexture(canvas);
-    return new THREE.Sprite(new THREE.SpriteMaterial({
-      map: tex, transparent: true, depthWrite: false
-    }));
+    const spriteMat = new THREE.SpriteMaterial({
+      map: tex,
+      transparent: true,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending
+    });
+    const sprite = new THREE.Sprite(spriteMat);
+    // Calcul correct de l'aspect ratio (256/48 = 5.33)
+    const h = 0.32;
+    sprite.scale.set(h * (canvas.width / canvas.height), h, 1);
+    return sprite;
   }
 
   private _buildStaircases() {
@@ -540,27 +599,106 @@ export class DomoticMap {
     this.activeRipples.push({ ring, age: 0, life: 0.6 });
   }
 
+  animateAudioRouting(sourceRoom: string, destRoom: string) {
+    const roomMap: Record<string, string> = {
+      'salon': 'salon',
+      'sejour': 'salon',
+      'séjour': 'salon',
+      'chambre': 'chambre_1',
+      'ma chambre': 'chambre_1',
+      'chambre 2': 'chambre_2',
+      'salle de jeux': 'chambre_2',
+      'jeux': 'chambre_2',
+      'chambre parentale': 'parents',
+      'parents': 'parents',
+      'cuisine': 'cuisine',
+      'veranda': 'veranda',
+      'garage': 'garage',
+      'couloir': 'couloir',
+      'sdb': 'sdb',
+      'salle de bain': 'sdb'
+    };
+
+    const srcId = roomMap[sourceRoom.toLowerCase()] || sourceRoom;
+    const destId = roomMap[destRoom.toLowerCase()] || destRoom;
+
+    let startPos = new THREE.Vector3();
+    let endPos = new THREE.Vector3();
+
+    const srcGroup = this.roomGroups.get(srcId);
+    const destGroup = this.roomGroups.get(destId);
+
+    if (srcGroup) startPos.copy(srcGroup.position);
+    if (destGroup) endPos.copy(destGroup.position);
+
+    startPos.y += 0.3;
+    endPos.y += 0.3;
+
+    const srcNode = this.deviceNodes.find(n => n.data.room === srcId && n.data.type === 'speaker');
+    const destNode = this.deviceNodes.find(n => n.data.room === destId && n.data.type === 'speaker');
+
+    if (srcNode) startPos.copy(srcNode.group.position);
+    if (destNode) endPos.copy(destNode.group.position);
+
+    const waveGroup = new THREE.Group();
+    const rings: THREE.Mesh[] = [];
+    const colors = [0x8a2be2, 0xff00ff, 0x00ffff];
+
+    for (let i = 0; i < 3; i++) {
+      const g = new THREE.RingGeometry(0.05, 0.15 + i * 0.1, 32);
+      const m = new THREE.MeshBasicMaterial({
+        color: colors[i],
+        transparent: true,
+        opacity: 0.8,
+        side: THREE.DoubleSide,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending
+      });
+      const ring = new THREE.Mesh(g, m);
+      waveGroup.add(ring);
+      rings.push(ring);
+    }
+
+    waveGroup.position.copy(startPos);
+    this.group.add(waveGroup);
+
+    this.activeWaves.push({
+      group: waveGroup,
+      rings,
+      progress: 0,
+      speed: 0.8,
+      start: startPos.clone(),
+      end: endPos.clone()
+    });
+  }
+
   // ── Récéption et communication ──────────────────────────────
 
   handleServerResponse(data: any) {
-    if (!this.active || data.action !== 'domotic_map_update') return;
+    if (!this.active) return;
+    
+    if (data.action === 'domotic_map_update') {
+      const states = data.states || {};
+      this.deviceNodes.forEach((node) => {
+        if (node.data.id in states) {
+          const val = states[node.data.id].state;
+          node.updateState(val);
+        }
+      });
 
-    const states = data.states || {};
-    this.deviceNodes.forEach((node) => {
-      if (node.data.id in states) {
-        const val = states[node.data.id].state;
-        node.updateState(val);
-      }
-    });
-
-    // Mettre à jour les couleurs de confort thermique des pièces
-    ROOMS.forEach((r) => {
-      const tempKey = `temp.${r.id}`;
-      if (tempKey in states) {
-        const tempVal = parseFloat(states[tempKey].state) || 20.0;
-        this._updateThermalComfort(r.id, tempVal);
-      }
-    });
+      // Mettre à jour les couleurs de confort thermique des pièces
+      ROOMS.forEach((r) => {
+        const tempKey = `temp.${r.id}`;
+        if (tempKey in states) {
+          const tempVal = parseFloat(states[tempKey].state) || 20.0;
+          this._updateThermalComfort(r.id, tempVal);
+        }
+      });
+    } else if (data.action === 'domotic_audio_route_animation') {
+      const sourceRoom = data.source || 'salon';
+      const destRoom = data.destination || 'chambre';
+      this.animateAudioRouting(sourceRoom, destRoom);
+    }
   }
 
   private _send(action: string, data: Record<string, any> = {}) {
@@ -848,6 +986,39 @@ export class DomoticMap {
       }
     }
 
+    // Mettre à jour les ondes de routage audio
+    for (let i = this.activeWaves.length - 1; i >= 0; i--) {
+      const w = this.activeWaves[i];
+      w.progress += dt * w.speed;
+      const t = w.progress;
+      
+      const currentPos = new THREE.Vector3().lerpVectors(w.start, w.end, t);
+      const height = Math.sin(t * Math.PI) * 1.5;
+      currentPos.y += height;
+      w.group.position.copy(currentPos);
+      
+      const dir = new THREE.Vector3().subVectors(w.end, w.start).normalize();
+      w.group.lookAt(new THREE.Vector3().addVectors(w.group.position, dir));
+      
+      w.rings.forEach((ring, idx) => {
+        const scale = 1.0 + Math.sin(time * 10 + idx) * 0.2 + t * 2.0;
+        ring.scale.setScalar(scale);
+        ring.rotation.z += dt * (idx + 1) * 2;
+        if (ring.material) {
+          (ring.material as THREE.MeshBasicMaterial).opacity = Math.max(0, (1.0 - t) * 0.8);
+        }
+      });
+      
+      if (t >= 1) {
+        this.group.remove(w.group);
+        w.rings.forEach(ring => {
+          ring.geometry.dispose();
+          (ring.material as THREE.Material).dispose();
+        });
+        this.activeWaves.splice(i, 1);
+      }
+    }
+
     // Mettre à jour les noeuds
     this.deviceNodes.forEach(node => node.update(dt, time));
   }
@@ -876,6 +1047,15 @@ export class DomoticMap {
       (r.ring.material as THREE.Material).dispose();
     });
     this.activeRipples = [];
+
+    this.activeWaves.forEach((w) => {
+      this.group.remove(w.group);
+      w.rings.forEach((ring) => {
+        ring.geometry.dispose();
+        (ring.material as THREE.Material).dispose();
+      });
+    });
+    this.activeWaves = [];
 
     this.scene.remove(this.group);
   }

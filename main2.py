@@ -308,6 +308,11 @@ builtins.spotify_lancer_playlist = spotify_lancer_playlist
 from controller.deezer_controller import *
 from controller.app_launcher import *
 from module.image_generator import generer_image_ia
+from module.chess_manager import ChessGame
+import chess
+CHESS_GAME = None
+CHESS_GAME_ACTIVE = False
+
 
 # ── Plugins de résolution : importés en arrière-plan (gain ~1.4s) ─
 _plugins_prets = threading.Event()
@@ -819,7 +824,7 @@ _skip_pc_audio = False  # True quand la commande vient du mobile (le tél gère 
 PENDING_SCREEN_CAPTURES = {}
 
 async def ws_handler(websocket):
-    global interface_deja_connectee, STOP_PARLER
+    global interface_deja_connectee, STOP_PARLER, CHESS_GAME, CHESS_GAME_ACTIVE
     CONNECTED_CLIENTS.add(websocket)
     interface_deja_connectee = True
     print(f"[WEB] Interface connectee (Clients actifs: {len(CONNECTED_CLIENTS)})")
@@ -987,7 +992,71 @@ async def ws_handler(websocket):
                     else:
                         from plugins.spatial_explorer import handle_spatial_ws
                         await handle_spatial_ws(data, websocket)
+                elif data.get("type") == "chess_action":
+                    action = data.get("action", "")
+                    if action == "start":
+                        difficulty = data.get("difficulty", "1000")
+                        player_color_str = data.get("player_color", "white")
+                        use_timer = data.get("use_timer", "no")
+                        CHESS_GAME = ChessGame()
+                        CHESS_GAME.difficulty = difficulty
+                        CHESS_GAME.player_color = chess.WHITE if player_color_str == "white" else chess.BLACK
+                        CHESS_GAME_ACTIVE = True
+                        state = CHESS_GAME.get_state()
+                        await websocket.send(json.dumps({
+                            "action": "chess_start",
+                            "state": state,
+                            "difficulty": difficulty,
+                            "player_color": player_color_str,
+                            "use_timer": use_timer
+                        }))
+
+                        # Si le joueur est Noir, JARVIS est Blanc et doit jouer le premier coup !
+                        if CHESS_GAME.player_color == chess.BLACK:
+                            async def play_first_move_delayed():
+                                await asyncio.sleep(1.2) # Laisser le temps au plateau de pivoter
+                                if not CHESS_GAME or not CHESS_GAME_ACTIVE:
+                                    return
+                                await diffuser_echecs({
+                                    "action": "chess_thinking",
+                                    "thinking": True
+                                })
+                                thinking_time = CHESS_GAME.calculate_thinking_time()
+                                await asyncio.sleep(thinking_time)
+                                if not CHESS_GAME or not CHESS_GAME_ACTIVE:
+                                    return
+                                j_move, remark, j_state = CHESS_GAME.play_jarvis_move()
+                                await diffuser_echecs({
+                                    "action": "chess_game_state",
+                                    "state": j_state,
+                                    "last_move": {
+                                        "from": chess.square_name(j_move.from_square),
+                                        "to": chess.square_name(j_move.to_square),
+                                        "color": "white"
+                                    }
+                                })
+                                parler(remark)
+                            asyncio.create_task(play_first_move_delayed())
+                    elif action == "stop":
+                        CHESS_GAME = None
+                        CHESS_GAME_ACTIVE = False
+                        await websocket.send(json.dumps({
+                            "action": "chess_stop"
+                        }))
+                    elif action == "reset":
+                        CHESS_GAME = None
+                        CHESS_GAME_ACTIVE = False
+                        # Le frontend a déjà réinitialisé son UI — ne pas renvoyer chess_reset (évite la boucle infinie)
+                    elif action == "get_state":
+                        if not CHESS_GAME:
+                            CHESS_GAME = ChessGame()
+                        state = CHESS_GAME.get_state()
+                        await websocket.send(json.dumps({
+                            "action": "chess_game_state",
+                            "state": state
+                        }))
                 elif data.get("type") == "music_control":
+
                     act = data.get("action")
                     if act == "toggle":
                         import pyautogui
@@ -1202,7 +1271,12 @@ def construire_system_prompt(souvenirs=""):
         '{"action": "ha_scene", "nom": "cinema/diner/nuit/reveil"}\n'
         '{"action": "ha_alarme", "etat": "on/off"}\n'
         '{"action": "ha_verrou", "entity_id": "lock.porte_maison", "etat": "lock/unlock"}\n'
-        '{"action": "homepod_action", "commande": "play/pause/stop/next/previous/volume", "valeur": 0-100}\n\n'
+        '{"action": "homepod_action", "commande": "play/pause/stop/next/previous/volume", "valeur": 0-100, "piece": "séjour/salle de jeux"}\n'
+        '{"action": "domotic_route_audio", "source": "séjour/salle de jeux", "destination": "séjour/salle de jeux"}\n'
+        '{"action": "chess_start"}\n'
+        '{"action": "chess_play", "move": "e2 en e4"}\n'
+        '{"action": "chess_stop"}\n\n'
+
     )
     base += (
         "\n\nTu peux GERER LES FICHIERS ET DOSSIERS de mylane.\n"
@@ -2916,7 +2990,208 @@ async def action_whatsapp_appel(contact):
         parler(f"Desole mylane, je n'ai pas pu lancer l'appel WhatsApp. {e}")
         return False
 
+async def diffuser_echecs(data):
+    if CONNECTED_CLIENTS:
+        msg = json.dumps(data)
+        await asyncio.gather(*[ws.send(msg) for ws in CONNECTED_CLIENTS], return_exceptions=True)
+
+async def resoudre_echecs_localement(texte):
+    """
+    Intercepte les commandes d'échecs en temps réel pour éviter le délai du LLM.
+    """
+    global CHESS_GAME, CHESS_GAME_ACTIVE
+    t = texte.lower().strip()
+    
+    # 1. Commencer une partie (ouvrir le plateau sur le HUD)
+    if any(k in t for k in ["jouons aux echecs", "lance une partie d echecs", "partie d echecs", "jouer aux echecs", "commencer les echecs"]):
+        # Si la commande contient déjà l'intention de démarrer, on passe directement au démarrage ci-dessous
+        if not any(k in t for k in ["lance la partie", "démarre la partie", "commence la partie", "lance le jeu", "démarre le jeu"]):
+            CHESS_GAME = ChessGame()
+            CHESS_GAME_ACTIVE = False
+            state = CHESS_GAME.get_state()
+            await diffuser_echecs({
+                "action": "chess_start",
+                "state": state
+            })
+            return "Très bien monsieur. J'ai disposé le plateau 3D sur le HUD. Veuillez configurer la partie et la démarrer."
+
+    # 1.5 Lancer / Démarrer la partie avec options
+    if any(k in t for k in ["lance la partie", "démarre la partie", "commence la partie", "lance le jeu", "démarre le jeu"]):
+        # Déterminer la couleur
+        player_color = "white"
+        if "noir" in t or "noire" in t or "noirs" in t:
+            player_color = "black"
+        
+        # Déterminer la difficulté (Bot Elo)
+        difficulty = "1000"
+        if "facile" in t or "débutant" in t or "600" in t:
+            difficulty = "600"
+        elif "novice" in t or "800" in t:
+            difficulty = "800"
+        elif "moyen" in t or "amateur" in t or "1000" in t:
+            difficulty = "1000"
+        elif "difficile" in t or "intermédiaire" in t or "1400" in t:
+            difficulty = "1400"
+        elif "confirmé" in t or "1600" in t:
+            difficulty = "1600"
+        elif "expert" in t or "avancé" in t or "1800" in t:
+            difficulty = "1800"
+        elif "maître" in t or "master" in t or "2000" in t:
+            difficulty = "2000"
+
+        # Déterminer si on utilise le chronomètre (10 min)
+        use_timer = "no"
+        if "chrono" in t or "chronomètre" in t or "temps" in t or "limite" in t:
+            if not "sans chrono" in t and not "sans temps" in t and not "sans limite" in t:
+                use_timer = "yes"
+
+        CHESS_GAME = ChessGame()
+        CHESS_GAME.difficulty = difficulty
+        CHESS_GAME.player_color = chess.WHITE if player_color == "white" else chess.BLACK
+        CHESS_GAME_ACTIVE = True
+        state = CHESS_GAME.get_state()
+
+        await diffuser_echecs({
+            "action": "chess_start",
+            "state": state,
+            "difficulty": difficulty,
+            "player_color": player_color,
+            "use_timer": use_timer
+        })
+
+        color_text = "les Blancs" if player_color == "white" else "les Noirs"
+        timer_text = "avec chronomètre" if use_timer == "yes" else "sans chronomètre"
+        remark = f"Partie d'échecs démarrée avec {color_text}, niveau {difficulty} Elo, {timer_text}."
+
+        if CHESS_GAME.player_color == chess.BLACK:
+            async def play_first_move_delayed():
+                await asyncio.sleep(1.5) # Laisser pivoter le plateau
+                if not CHESS_GAME or not CHESS_GAME_ACTIVE:
+                    return
+                await diffuser_echecs({
+                    "action": "chess_thinking",
+                    "thinking": True
+                })
+                thinking_time = CHESS_GAME.calculate_thinking_time()
+                await asyncio.sleep(thinking_time)
+                if not CHESS_GAME or not CHESS_GAME_ACTIVE:
+                    return
+                j_move, j_remark, j_state = CHESS_GAME.play_jarvis_move()
+                await diffuser_echecs({
+                    "action": "chess_game_state",
+                    "state": j_state,
+                    "last_move": {
+                        "from": chess.square_name(j_move.from_square),
+                        "to": chess.square_name(j_move.to_square),
+                        "color": "white"
+                    }
+                })
+                parler(j_remark)
+            asyncio.create_task(play_first_move_delayed())
+
+        return remark
+
+    # 2. Recommencer la partie
+    if any(k in t for k in ["recommence la partie", "réinitialise la partie", "relance la partie", "recommence le jeu"]):
+        CHESS_GAME = None
+        CHESS_GAME_ACTIVE = False
+        await diffuser_echecs({
+            "action": "chess_reset"
+        })
+        return "Plateau d'échecs réinitialisé, monsieur. Les réglages sont de retour à l'écran de configuration."
+
+    # 2.5 Arrêter une partie / Quitter le jeu
+    if any(k in t for k in ["arrete les echecs", "stop echecs", "quitte les echecs", "ferme les echecs", "quitte la partie", "arrête la partie", "quitte le jeu", "arrête le jeu"]):
+        CHESS_GAME = None
+        CHESS_GAME_ACTIVE = False
+        await diffuser_echecs({
+            "action": "chess_stop"
+        })
+        return "Jeu d'échecs fermé, monsieur. Retour au HUD standard."
+
+    # 3. Jouer un coup (si une partie est active et démarrée)
+    if CHESS_GAME:
+        if not CHESS_GAME_ACTIVE:
+            chess_keywords = ["pion", "cavalier", "fou", "tour", "dame", "reine", "roi", "roque", "e2", "e4", "d4", "f3", "c3"]
+            if any(k in t for k in chess_keywords) or re.search(r'[a-h][1-8]', t):
+                return "La partie n'est pas encore démarrée, monsieur. Veuillez cliquer sur 'DÉMARRER LA PARTIE' sur le HUD."
+            return None
+
+        try:
+            # Essayer d'appliquer le coup du joueur
+            move, state = CHESS_GAME.play_player_move(texte)
+            
+            # Notifier le coup joué par le joueur
+            await diffuser_echecs({
+                "action": "chess_game_state",
+                "state": state,
+                "last_move": {
+                    "from": chess.square_name(move.from_square),
+                    "to": chess.square_name(move.to_square),
+                    "color": "white" if CHESS_GAME.player_color == chess.WHITE else "black"
+                }
+            })
+            
+            # Si le jeu est fini après le coup du joueur
+            if state["is_game_over"]:
+                result = state["result"]
+                CHESS_GAME = None
+                CHESS_GAME_ACTIVE = False
+                if result == "1-0":
+                    return "Félicitations, vous avez gagné ! Je m'incline."
+                elif result == "1/2-1/2":
+                    return "Match nul. Bien joué de part et d'autre."
+                else:
+                    return "Fin de partie."
+            
+            # Notification que JARVIS réfléchit (effet visuel sur le HUD)
+            await diffuser_echecs({
+                "action": "chess_thinking",
+                "thinking": True
+            })
+            
+            # JARVIS réfléchit un temps dynamique similaire à un humain
+            thinking_time = CHESS_GAME.calculate_thinking_time()
+            print(f"[CHESS] JARVIS réfléchit pendant {thinking_time:.2f} secondes (Elo: {CHESS_GAME.difficulty})...")
+            await asyncio.sleep(thinking_time)
+            
+            # Coup de JARVIS
+            j_move, remark, j_state = CHESS_GAME.play_jarvis_move()
+            
+            await diffuser_echecs({
+                "action": "chess_game_state",
+                "state": j_state,
+                "last_move": {
+                    "from": chess.square_name(j_move.from_square),
+                    "to": chess.square_name(j_move.to_square),
+                    "color": "black" if CHESS_GAME.player_color == chess.WHITE else "white"
+                }
+            })
+            
+            if j_state["is_game_over"]:
+                result = j_state["result"]
+                CHESS_GAME = None
+                CHESS_GAME_ACTIVE = False
+                if result == "0-1":
+                    return f"{remark} Échec et mat. J'ai gagné la partie."
+                elif result == "1/2-1/2":
+                    return f"{remark} Match nul."
+                    
+            return remark
+            
+        except ValueError as e:
+            # Si le texte ressemble à un coup d'échecs
+            chess_keywords = ["pion", "cavalier", "fou", "tour", "dame", "reine", "roi", "roque", "e2", "e4", "d4", "f3", "c3"]
+            if any(k in t for k in chess_keywords) or re.search(r'[a-h][1-8]', t):
+                return str(e)
+            
+            # Sinon, on retourne None pour passer aux autres resolvers
+            return None
+            
+    return None
+
 async def resoudre_commandes_locales(texte):
+
     """Détecte et exécute les commandes locales (Spotify, dossiers, apps) sans IA."""
     global attente_nom_dossier, attente_nom_app
     t = texte.lower().strip()
@@ -3332,7 +3607,7 @@ def est_action_oriented(texte):
     return any(m in t for m in mots_actions)
 
 async def traiter_reponse_ia(texte_utilisateur, mobile_ws=None, from_voice=False):
-    global MODE_IRON_MAN, jarvis_actif, dernier_message, _skip_pc_audio, is_thinking, _derniere_reponse_streamed, phrases_streamed, ACTIVE_SPEAKER
+    global MODE_IRON_MAN, jarvis_actif, dernier_message, _skip_pc_audio, is_thinking, _derniere_reponse_streamed, phrases_streamed, ACTIVE_SPEAKER, CHESS_GAME, CHESS_GAME_ACTIVE
     dernier_message = time.time()
     _derniere_reponse_streamed = False
     phrases_streamed = []
@@ -3349,6 +3624,7 @@ async def traiter_reponse_ia(texte_utilisateur, mobile_ws=None, from_voice=False
 
     async with traiter_lock:
         is_thinking = True
+        reponse = None
         # Reset du flag audio au début de chaque commande
         _skip_pc_audio = False
         
@@ -3357,12 +3633,13 @@ async def traiter_reponse_ia(texte_utilisateur, mobile_ws=None, from_voice=False
 
         # TENTATIVE DE RÉSOLUTION LOCALE (Commandes, Math, Français, etc.)
         print(f"[DEBUG] Tentative de résolution locale pour : {texte_utilisateur}")
-        reponse = await builtins.resoudre_developpement(texte_utilisateur)
+        # Échecs (Priorité absolue pour intercepter les coups et éviter de charger la DB vectorielle de la mémoire locale)
+        if not reponse: reponse = await resoudre_echecs_localement(texte_utilisateur)
         
         # Résolution locale dynamique (Pour les résolveurs additionnels enregistrés à chaud sans redémarrage)
         if not reponse:
             for attr_name in sorted(dir(builtins)):
-                if attr_name.startswith("resoudre_") and attr_name not in ["resoudre_developpement", "resoudre_dom_hud", "resoudre_chemin"]:
+                if attr_name.startswith("resoudre_") and attr_name not in ["resoudre_developpement", "resoudre_dom_hud", "resoudre_chemin", "resoudre_echecs_localement"]:
                     try:
                         resolver_fn = getattr(builtins, attr_name)
                         if asyncio.iscoroutinefunction(resolver_fn):
@@ -3375,6 +3652,7 @@ async def traiter_reponse_ia(texte_utilisateur, mobile_ws=None, from_voice=False
                     except Exception as e:
                         print(f"[DEBUG DYNAMIC] Erreur lors de l'appel du résolveur {attr_name} : {e}")
 
+        if not reponse: reponse = await builtins.resoudre_dom_hud(texte_utilisateur)
         if not reponse: reponse = await builtins.resoudre_dom_hud(texte_utilisateur)
         if not reponse: reponse = await resoudre_commandes_locales(texte_utilisateur)
         if not reponse: reponse = await builtins.resoudre_commandes_systeme(texte_utilisateur)
@@ -3483,7 +3761,80 @@ async def traiter_reponse_ia(texte_utilisateur, mobile_ws=None, from_voice=False
                     parler("Désolé, cette action est restreinte en mode invité. Veuillez vous authentifier.")
                     continue
 
-                if action == "mode_iron_man":
+                if action == "chess_start":
+                    CHESS_GAME = ChessGame()
+                    CHESS_GAME_ACTIVE = False
+                    state = CHESS_GAME.get_state()
+                    await diffuser_echecs({
+                        "action": "chess_start",
+                        "state": state
+                    })
+                    parler("Très bien monsieur. J'ai disposé le plateau 3D sur le HUD. Veuillez configurer la partie et la démarrer.")
+                elif action == "chess_stop":
+                    CHESS_GAME = None
+                    CHESS_GAME_ACTIVE = False
+                    await diffuser_echecs({
+                        "action": "chess_stop"
+                    })
+                    parler("Partie d'échecs interrompue, monsieur. Retour au HUD standard.")
+                elif action == "chess_play":
+                    if not CHESS_GAME:
+                        parler("Aucune partie d'échecs n'est en cours, monsieur.")
+                    else:
+                        move_str = data.get("move", "")
+                        try:
+                            # Jouer coup du joueur
+                            move, state = CHESS_GAME.play_player_move(move_str)
+                            await diffuser_echecs({
+                                "action": "chess_game_state",
+                                "state": state,
+                                "last_move": {
+                                    "from": chess.square_name(move.from_square),
+                                    "to": chess.square_name(move.to_square),
+                                    "color": "white" if CHESS_GAME.player_color == chess.WHITE else "black"
+                                }
+                            })
+                            if state["is_game_over"]:
+                                result = state["result"]
+                                CHESS_GAME = None
+                                if result == "1-0":
+                                    parler("Félicitations, vous avez gagné ! Je m'incline.")
+                                elif result == "1/2-1/2":
+                                    parler("Match nul. Bien joué de part et d'autre.")
+                                else:
+                                    parler("Fin de partie.")
+                            else:
+                                # Faire réfléchir JARVIS et jouer
+                                await diffuser_echecs({
+                                    "action": "chess_thinking",
+                                    "thinking": True
+                                })
+                                thinking_time = CHESS_GAME.calculate_thinking_time()
+                                print(f"[CHESS] JARVIS réfléchit pendant {thinking_time:.2f} secondes (Elo: {CHESS_GAME.difficulty})...")
+                                await asyncio.sleep(thinking_time)
+                                j_move, remark, j_state = CHESS_GAME.play_jarvis_move()
+                                await diffuser_echecs({
+                                    "action": "chess_game_state",
+                                    "state": j_state,
+                                    "last_move": {
+                                        "from": chess.square_name(j_move.from_square),
+                                        "to": chess.square_name(j_move.to_square),
+                                        "color": "black" if CHESS_GAME.player_color == chess.WHITE else "white"
+                                    }
+                                })
+                                if j_state["is_game_over"]:
+                                    result = j_state["result"]
+                                    CHESS_GAME = None
+                                    if result == "0-1":
+                                        parler(f"{remark} Échec et mat. J'ai gagné la partie.")
+                                    elif result == "1/2-1/2":
+                                        parler(f"{remark} Match nul.")
+                                else:
+                                    parler(remark)
+                        except ValueError as e:
+                            parler(str(e))
+                elif action == "mode_iron_man":
+
                     MODE_IRON_MAN = (etat == "on")
                     msg = "Mode Iron Man activé, Monsieur. Je reste à l'écoute de vos signaux." if MODE_IRON_MAN else "Mode Iron Man désactivé. Je repasse en veille domotique."
                     parler(msg)
@@ -3863,12 +4214,17 @@ async def traiter_reponse_ia(texte_utilisateur, mobile_ws=None, from_voice=False
                 elif action == "homepod_action":
                     cmd   = data.get("commande", "play")
                     val   = data.get("valeur")
-                    ok, res = await homepod_controller.send_command(cmd, val)
+                    piece = data.get("piece")
+                    ok, res = await homepod_controller.send_command(cmd, val, identifier=piece)
                     if ok:
                         if cmd == "volume":
-                            parler(f"Volume du HomePod réglé à {val}%.")
+                            parler(f"Volume du HomePod {piece or ''} réglé à {val}%.")
                         else:
-                            parler(f"Commande {cmd} exécutée sur le HomePod.")
+                            parler(f"Commande {cmd} exécutée sur le HomePod {piece or ''}.")
+                elif action == "domotic_route_audio":
+                    source = data.get("source", "salon")
+                    dest   = data.get("destination", "chambre")
+                    await domotic_route_audio(source, dest)
                 elif action == "open_drive":
                     result = ouvrir_google_drive()
                     parler(result)
@@ -4059,7 +4415,7 @@ async def traiter_reponse_ia(texte_utilisateur, mobile_ws=None, from_voice=False
                 elif action == "sport_live":
                     question = data.get("question", "derniers resultats sportifs 2026")
                     parler("Je recherche les derniers resultats en direct, un instant mylane.")
-                    result = get_resultats_sport_gemini(question)
+                    result = await get_resultats_sport_gemini(question)
                     parler(result)
                 elif action == "voir_ecran":
                     inst = data.get("instruction", "")
@@ -4280,7 +4636,7 @@ def transcribe_audio_groq(raw_audio_bytes, sample_rate=16000, recognizer=None):
 
 
 def ecouter():
-    global is_listening, jarvis_actif, dernier_message, STOP_PARLER, is_speaking, dernier_parle_time, MIC_MUTED, MIC_NEED_RELOAD
+    global is_listening, jarvis_actif, dernier_message, STOP_PARLER, is_speaking, dernier_parle_time, MIC_MUTED, MIC_NEED_RELOAD, ACTIVE_SPEAKER, SPEAKER_ANNOUNCED
 
     r = sr.Recognizer()
     mic_index = detecter_microphone()
@@ -4383,6 +4739,21 @@ def ecouter():
                 try:
                     asyncio.run(send_web_state("idle"))
                 except: pass
+                
+                # Consolidation automatique de la mémoire en arrière-plan (non bloquante)
+                try:
+                    from module.memory_manager import consolider_memoire_ia
+                    def _run_consolidation():
+                        try:
+                            loop = asyncio.new_event_loop()
+                            loop.run_until_complete(consolider_memoire_ia())
+                            loop.close()
+                        except Exception as e_thread:
+                            print(f"[JARVIS] Erreur thread consolidation : {e_thread}")
+                            
+                    threading.Thread(target=_run_consolidation, daemon=True).start()
+                except Exception as ce:
+                    print(f"[JARVIS] Échec du déclenchement de la consolidation automatique : {ce}")
 
             # 2. Lecture du flux audio
             try:
@@ -4464,7 +4835,6 @@ def ecouter():
                             dernier_message = time.time()
                             
                             # --- BIOMÉTRIE : IDENTIFIER LE LOCUTEUR ---
-                            global ACTIVE_SPEAKER, SPEAKER_ANNOUNCED
                             if VOICE_BIOMETRICS:
                                 try:
                                     name, score = VOICE_BIOMETRICS.identify_speaker(raw_audio, RATE)
@@ -4485,9 +4855,11 @@ def ecouter():
                                     if SPEAKER_ANNOUNCED != ACTIVE_SPEAKER:
                                         SPEAKER_ANNOUNCED = ACTIVE_SPEAKER
                                         if ACTIVE_SPEAKER == "guest":
-                                            parler("Bonjour, votre voix n'a pas été reconnue. Connexion en mode invité restreint.")
+                                            parler("Voix inconnue détectée, connexion en mode invité restreint.")
+                                        elif ACTIVE_SPEAKER == "mylane":
+                                            parler("Voix de Mylane détectée, toutes les permissions sont accordées.")
                                         else:
-                                            parler(f"Bonjour {ACTIVE_SPEAKER.capitalize()}, j'ai reconnu votre voix. Connexion sécurisée établie.")
+                                            parler(f"Voix de {ACTIVE_SPEAKER.capitalize()} détectée, connexion sécurisée établie.")
                                 except Exception as eb:
                                     print(f"❌  [SPEAKER] Erreur lors de l'identification : {eb}")
                             
@@ -4524,6 +4896,7 @@ def ecouter():
                                     
                                     # --- ENREGISTREMENT VOCAL / BIOMÉTRIE ---
                                     if "enregistre la voix de" in commande or "apprends la voix de" in commande or "enregistre ma voix" in commande:
+                                        import queue
                                         prenom = "mylane"
                                         if "enregistre la voix de" in commande:
                                             prenom = commande.split("enregistre la voix de")[-1].strip()
@@ -4534,44 +4907,123 @@ def ecouter():
                                         if not prenom:
                                             prenom = "mylane"
                                             
-                                        parler(f"Très bien. Je vais enregistrer votre voix pour le profil {prenom.capitalize()}. Préparez-vous à parler pendant 5 secondes après le signal...")
-                                        time.sleep(4.5)
-                                        parler("C'est à vous, parlez maintenant.")
+                                        # Liste des phrases à répéter proposées et validées par l'utilisateur
+                                        phrases = [
+                                            "Il fait un temps magnifique aujourd'hui pour aller se promener.",
+                                            "J'utilise cet assistant vocal pour contrôler mes applications au quotidien.",
+                                            "La reconnaissance vocale s'adapte parfaitement à ma façon de parler."
+                                        ]
                                         
-                                        enroll_buffer = []
-                                        while not queue_ecoute.empty():
-                                            try:
-                                                queue_ecoute.get_nowait()
-                                            except Exception:
-                                                break
+                                        parler(f"Très bien. Pour créer un profil robuste pour {prenom.capitalize()}, je vais enregistrer votre voix trois fois avec des phrases différentes. Répétez distinctement chaque phrase après mon signal.")
+                                        
+                                        idx_phrase = 0
+                                        while idx_phrase < len(phrases):
+                                            phrase = phrases[idx_phrase]
                                             
-                                        t_end = time.time() + 5.0
-                                        while time.time() < t_end:
+                                            # Attendre la fin de la parole précédente de JARVIS
+                                            while get_is_speaking():
+                                                time.sleep(0.1)
+                                            time.sleep(0.5)
+                                            
+                                            # Annoncer la phrase à répéter
+                                            parler(f"Phrase numéro {idx_phrase + 1} : Répétez : {phrase}")
+                                            
+                                            # Attendre la fin du TTS
+                                            while get_is_speaking():
+                                                time.sleep(0.1)
+                                            time.sleep(0.5)
+                                            
+                                            # Indiquer visuellement l'écoute sur le HUD
                                             try:
-                                                enroll_data = queue_ecoute.get(timeout=0.1)
-                                                enroll_buffer.append(enroll_data)
-                                            except Exception:
+                                                asyncio.run(send_web_state("listening"))
+                                            except:
                                                 pass
-                                                
-                                        parler("Merci, enregistrement terminé. Analyse en cours...")
-                                        raw_enroll_audio = b"".join(enroll_buffer)
-                                        
-                                        if VOICE_BIOMETRICS:
-                                            try:
-                                                emb = VOICE_BIOMETRICS.get_embedding(raw_enroll_audio, RATE)
-                                                if emb is not None:
-                                                    VOICE_BIOMETRICS.save_voiceprint(prenom, emb)
-                                                    print(f"✔  [BIOMETRICS] Empreinte vocale enregistrée pour : {prenom}")
-                                                    parler(f"C'est parfait {prenom.capitalize()}, votre voix a été enregistrée avec succès. Vous êtes désormais reconnu.")
-                                                    ACTIVE_SPEAKER = prenom
-                                                    builtins.ACTIVE_SPEAKER = ACTIVE_SPEAKER
+                                            
+                                            # Vider la file d'écoute audio pour enlever les bruits accumulés pendant le TTS
+                                            while not queue_ecoute.empty():
+                                                try:
+                                                    queue_ecoute.get_nowait()
+                                                except:
+                                                    break
+                                                    
+                                            # Boucle de capture VAD pour enregistrer la phrase de l'utilisateur
+                                            enroll_buffer = []
+                                            is_recording_local = False
+                                            silence_start_local = None
+                                            phrase_start_time = time.time()
+                                            speech_detected_local = False
+                                            timeout_local = 15.0  # Limite de temps par phrase (15s)
+                                            
+                                            while time.time() - phrase_start_time < timeout_local:
+                                                try:
+                                                    chunk_data = queue_ecoute.get(timeout=0.1)
+                                                    chunk_int16 = np.frombuffer(chunk_data, dtype=np.int16)
+                                                except queue.Empty:
+                                                    continue
+                                                    
+                                                # Appliquer le Silero VAD ou fallback sur l'énergie
+                                                is_speech_local = False
+                                                if VAD_MODEL is not None:
+                                                    try:
+                                                        speech_prob = VAD_MODEL(chunk_int16, RATE)
+                                                        is_speech_local = speech_prob > 0.45
+                                                    except:
+                                                        energy = np.sqrt(np.mean(chunk_int16.astype(np.float64)**2))
+                                                        is_speech_local = energy > ENERGY_THRESHOLD
                                                 else:
-                                                    parler("Désolé, je n'ai pas réussi à extraire une empreinte vocale claire. Parlez bien fort et distinctement.")
-                                            except Exception as eb:
-                                                print(f"❌  [BIOMETRICS] Erreur d'analyse : {eb}")
-                                                parler("Une erreur est survenue lors de l'analyse de votre voix.")
-                                        else:
-                                            parler("Le système de biométrie vocale n'est pas initialisé.")
+                                                    energy = np.sqrt(np.mean(chunk_int16.astype(np.float64)**2))
+                                                    is_speech_local = energy > ENERGY_THRESHOLD
+                                                    
+                                                if is_speech_local:
+                                                    if not is_recording_local:
+                                                        is_recording_local = True
+                                                        speech_detected_local = True
+                                                        enroll_buffer = [chunk_data]
+                                                    else:
+                                                        enroll_buffer.append(chunk_data)
+                                                    silence_start_local = None
+                                                elif is_recording_local:
+                                                    enroll_buffer.append(chunk_data)
+                                                    if silence_start_local is None:
+                                                        silence_start_local = time.time()
+                                                    
+                                                    # Si l'utilisateur a fini de parler (silence > SILENCE_LIMIT)
+                                                    if time.time() - silence_start_local > SILENCE_LIMIT:
+                                                        break
+                                            
+                                            try:
+                                                asyncio.run(send_web_state("idle"))
+                                            except:
+                                                pass
+                                            
+                                            # Validation de l'audio de l'utilisateur
+                                            if not speech_detected_local or len(enroll_buffer) < 5:
+                                                parler("Je n'ai pas entendu de parole claire. Recommençons cette phrase.")
+                                                continue
+                                                
+                                            raw_enroll_audio = b"".join(enroll_buffer)
+                                            if VOICE_BIOMETRICS:
+                                                try:
+                                                    emb = VOICE_BIOMETRICS.get_embedding(raw_enroll_audio, RATE)
+                                                    if emb is not None:
+                                                        VOICE_BIOMETRICS.save_voiceprint(prenom, emb)
+                                                        print(f"✔  [BIOMETRICS] Échantillon {idx_phrase + 1} enregistré pour : {prenom}")
+                                                        parler(f"Très bien, échantillon {idx_phrase + 1} validé.")
+                                                        idx_phrase += 1
+                                                    else:
+                                                        parler("Désolé, je n'ai pas réussi à extraire une empreinte nette. Veuillez répéter cette phrase bien distinctement.")
+                                                except Exception as eb:
+                                                    print(f"❌  [BIOMETRICS] Erreur : {eb}")
+                                                    parler("Une erreur technique est survenue lors de l'analyse. Recommençons cette phrase.")
+                                            else:
+                                                parler("Le système de biométrie vocale n'est pas initialisé.")
+                                                break
+                                                
+                                        # Fin du protocole complet
+                                        if idx_phrase == len(phrases):
+                                            ACTIVE_SPEAKER = prenom
+                                            builtins.ACTIVE_SPEAKER = ACTIVE_SPEAKER
+                                            parler(f"C'est parfait {prenom.capitalize()}, le protocole d'enregistrement est terminé. Votre profil vocal multi-empreintes est maintenant actif et sécurisé.")
                                             
                                         audio_buffer = []
                                         continue
@@ -4930,6 +5382,7 @@ def start_ia():
         asyncio.create_task(broadcast_weather_stats())
         asyncio.create_task(broadcast_music_stats())
         asyncio.create_task(broadcast_ha_stats())
+        asyncio.create_task(update_homepods_metadata_loop())
         
         # Le gestionnaire de parole est déjà lancé au démarrage du script
 
@@ -5358,7 +5811,30 @@ SIMULATED_DOMOTIC_STATES = {
     "temp.chambre_1": 20.0,
     "temp.chambre_2": 20.2,
     "temp.sdb": 22.5,
+    
+    # Lecteurs Audio (HomePods)
+    "media_player.homepod_salon": "playing",
+    "media_player.homepod_chambre": "paused",
 }
+
+async def update_homepods_metadata_loop():
+    """Boucle d'arrière-plan pour rafraîchir les métadonnées de musique des HomePods."""
+    while True:
+        try:
+            # Séjour (salon)
+            state_sejour = SIMULATED_DOMOTIC_STATES.get("media_player.homepod_salon")
+            if state_sejour != "paused":
+                track = await homepod_controller.get_playing_metadata("Séjour")
+                SIMULATED_DOMOTIC_STATES["media_player.homepod_salon"] = track or "Musique en cours (Séjour)"
+
+            # Salle de jeux (chambre)
+            state_jeux = SIMULATED_DOMOTIC_STATES.get("media_player.homepod_chambre")
+            if state_jeux != "paused":
+                track = await homepod_controller.get_playing_metadata("Salle de jeux")
+                SIMULATED_DOMOTIC_STATES["media_player.homepod_chambre"] = track or "Musique en cours (Salle de jeux)"
+        except Exception as e:
+            pass
+        await asyncio.sleep(8)
 
 async def broadcast_ha_stats():
     """Diffuse périodiquement les états domotiques de simulation."""
@@ -5406,6 +5882,57 @@ async def handle_domotic_sim_ws(data, websocket):
                 "states": {k: {"state": v} for k, v in SIMULATED_DOMOTIC_STATES.items()}
             })
             await asyncio.gather(*[ws.send(msg) for ws in CONNECTED_CLIENTS], return_exceptions=True)
+
+async def domotic_route_audio(source: str, destination: str):
+    """
+    Déplace la musique d'une pièce à une autre.
+    """
+    print(f"[DOMOTIC AUDIO] Routage de '{source}' vers '{destination}'")
+    
+    mapping = {
+        "salon": {"id": "media_player.homepod_salon", "name": "Séjour"},
+        "sejour": {"id": "media_player.homepod_salon", "name": "Séjour"},
+        "séjour": {"id": "media_player.homepod_salon", "name": "Séjour"},
+        "chambre": {"id": "media_player.homepod_chambre", "name": "Salle de jeux"},
+        "ma chambre": {"id": "media_player.homepod_chambre", "name": "Salle de jeux"},
+        "salle de jeux": {"id": "media_player.homepod_chambre", "name": "Salle de jeux"},
+        "jeux": {"id": "media_player.homepod_chambre", "name": "Salle de jeux"},
+    }
+    
+    src_info = mapping.get(source.lower(), {"id": "media_player.homepod_salon", "name": "Séjour"})
+    dest_info = mapping.get(destination.lower(), {"id": "media_player.homepod_chambre", "name": "Salle de jeux"})
+    
+    async def run_pyatv_actions():
+        try:
+            await homepod_controller.send_command("pause", identifier=src_info["name"])
+            await asyncio.sleep(0.5)
+            await homepod_controller.send_command("play", identifier=dest_info["name"])
+        except Exception as e:
+            print(f"[DOMOTIC AUDIO] Erreur pyatv : {e}")
+
+    asyncio.create_task(run_pyatv_actions())
+    
+    src_entity = src_info["id"]
+    dest_entity = dest_info["id"]
+    if src_entity in SIMULATED_DOMOTIC_STATES:
+        SIMULATED_DOMOTIC_STATES[src_entity] = "paused"
+    if dest_entity in SIMULATED_DOMOTIC_STATES:
+        SIMULATED_DOMOTIC_STATES[dest_entity] = "playing"
+        
+    msg_states = json.dumps({
+        "action": "domotic_map_update",
+        "states": {k: {"state": v} for k, v in SIMULATED_DOMOTIC_STATES.items()}
+    })
+    await asyncio.gather(*[ws.send(msg_states) for ws in CONNECTED_CLIENTS], return_exceptions=True)
+    
+    msg_anim = json.dumps({
+        "action": "domotic_audio_route_animation",
+        "source": source,
+        "destination": destination
+    })
+    await asyncio.gather(*[ws.send(msg_anim) for ws in CONNECTED_CLIENTS], return_exceptions=True)
+    
+    parler(f"C'est fait, je déplace la musique du {source} vers {destination}.")
 
 async def handle_cortex_ws(data, websocket):
     """Gère les messages WebSocket spatial_action du Cortex Neuronal."""

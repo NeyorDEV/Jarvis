@@ -91,3 +91,93 @@ def _charger_historique_recent():
         print(f"[CONV] Erreur chargement historique: {e}")
         return []
 
+async def consolider_memoire_ia():
+    """Analyse l'historique récent des conversations avec Gemini pour en extraire des faits marquants et mettre à jour la mémoire persistante."""
+    import builtins
+    from core.config import CHOSEN_MODEL
+    
+    # 1. Charger l'historique
+    if not os.path.exists(HISTORIQUE_CONV_FILE):
+        return False
+    try:
+        with open(HISTORIQUE_CONV_FILE, "r", encoding="utf-8") as f:
+            echanges = json.load(f)
+    except Exception:
+        return False
+        
+    if not echanges:
+        return False
+        
+    # Prendre les 30 derniers échanges pour la consolidation
+    recents = echanges[-30:]
+    
+    # Formater les échanges
+    conv_text = ""
+    for e in recents:
+        conv_text += f"[{e.get('date')} {e.get('heure')}] User: {e.get('user')}\nAssistant: {e.get('model')}\n\n"
+        
+    # Charger la mémoire actuelle
+    memoire_actuelle = charger_memoire()
+    mem_formatted = json.dumps(memoire_actuelle, ensure_ascii=False, indent=2)
+    
+    prompt = f"""Analyse l'historique récent des conversations ci-dessous pour extraire les faits persistants importants ou les préférences de l'utilisateur (mylane). 
+Mets à jour ou ajoute les informations dans la mémoire. Ne conserve que les informations durables (goûts, outils préférés, prénoms de proches, choix technologiques) et ignore les détails transitoires (timers, météo d'aujourd'hui, requêtes système ponctuelles).
+
+MÉMOIRE ACTUELLE :
+{mem_formatted}
+
+CONVERSATIONS RÉCENTES :
+{conv_text}
+
+Renvoie OBLIGATOIREMENT un objet JSON respectant ce format :
+{{
+  "updates": {{
+    "clé": "valeur de l'information extraite avec son contexte"
+  }},
+  "deletes": ["clés devenues obsolètes ou fausses à supprimer"]
+}}
+Ne renvoie rien d'autre que le JSON brut. Si aucune nouvelle information n'est détectée, renvoie un objet vide pour updates et deletes.
+"""
+
+    print("[MEMORY MANAGER] Déclenchement de la consolidation de mémoire via Gemini...")
+    try:
+        client = getattr(builtins, "client", None)
+        if not client:
+            import google.genai as genai
+            from core.config import GEMINI_API_KEY
+            client = genai.Client(api_key=GEMINI_API_KEY)
+            
+        response = await client.aio.models.generate_content(
+            model=CHOSEN_MODEL,
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json"
+            )
+        )
+        
+        data = json.loads(response.text)
+        updates = data.get("updates", {})
+        deletes = data.get("deletes", [])
+        
+        if updates or deletes:
+            mem = charger_memoire()
+            timestamp = time.strftime("%d/%m/%Y %H:%M")
+            for k, v in updates.items():
+                mem[k] = {"valeur": v, "timestamp": timestamp}
+                print(f"[MEMORY MANAGER] Fait mémorisé : {k} -> {v}")
+            for k in deletes:
+                if k in mem:
+                    del mem[k]
+                    print(f"[MEMORY MANAGER] Fait supprimé : {k}")
+            sauvegarder_memoire(mem)
+            return True
+            
+    except Exception as e:
+        print(f"[MEMORY MANAGER] Erreur lors de la consolidation de mémoire : {e}")
+        
+    return False
+
+# Injection builtins
+import builtins
+builtins.consolider_memoire_ia = consolider_memoire_ia
+

@@ -136,19 +136,80 @@ class SpeakerBiometrics:
         return None
         
     def save_voiceprint(self, username, embedding):
-        dest = os.path.join(self.voiceprints_dir, f"{username.lower()}.npy")
-        np.save(dest, embedding)
+        username_clean = username.lower().strip()
+        user_dir = os.path.join(self.voiceprints_dir, username_clean)
+        os.makedirs(user_dir, exist_ok=True)
+
+        max_samples = 5
+        chosen_file = None
+        
+        # Trouver un emplacement d'échantillon libre de 1 à 5
+        for i in range(1, max_samples + 1):
+            filepath = os.path.join(user_dir, f"sample_{i}.npy")
+            if not os.path.exists(filepath):
+                chosen_file = filepath
+                break
+                
+        # S'ils sont tous pris, on écrase le plus ancien (basé sur le temps de modification)
+        if not chosen_file:
+            oldest_time = float('inf')
+            oldest_file = None
+            for i in range(1, max_samples + 1):
+                filepath = os.path.join(user_dir, f"sample_{i}.npy")
+                if os.path.exists(filepath):
+                    mtime = os.path.getmtime(filepath)
+                    if mtime < oldest_time:
+                        oldest_time = mtime
+                        oldest_file = filepath
+            chosen_file = oldest_file or os.path.join(user_dir, "sample_1.npy")
+            
+        np.save(chosen_file, embedding)
+        print(f"[BIOMETRICS] Empreinte sauvegardée dans : {chosen_file}")
         
     def load_voiceprints(self):
+        import re
+        import shutil
         voiceprints = {}
-        if os.path.exists(self.voiceprints_dir):
-            for f in os.listdir(self.voiceprints_dir):
-                if f.endswith(".npy"):
-                    name = f[:-4]
-                    try:
-                        voiceprints[name] = np.load(os.path.join(self.voiceprints_dir, f))
-                    except Exception:
-                        pass
+        if not os.path.exists(self.voiceprints_dir):
+            return voiceprints
+
+        # 1. Migration automatique des anciens fichiers en vrac de la racine vers leurs sous-dossiers respectifs
+        for f in os.listdir(self.voiceprints_dir):
+            fpath = os.path.join(self.voiceprints_dir, f)
+            if os.path.isfile(fpath) and f.endswith(".npy"):
+                raw_name = f[:-4]
+                # Identifier le nom de profil en retirant le suffixe de numéro (ex: mylane ou mylane_1)
+                name = re.sub(r'_\d+$', '', raw_name).lower()
+                
+                # Détecter l'index
+                match = re.search(r'_(\d+)$', raw_name)
+                index = match.group(1) if match else "1"
+                
+                # Créer le sous-dossier et déplacer le fichier
+                user_dir = os.path.join(self.voiceprints_dir, name)
+                os.makedirs(user_dir, exist_ok=True)
+                new_fpath = os.path.join(user_dir, f"sample_{index}.npy")
+                
+                try:
+                    shutil.move(fpath, new_fpath)
+                    print(f"[BIOMETRICS] Migration : {f} déplacé vers {name}/sample_{index}.npy")
+                except Exception as me:
+                    print(f"[BIOMETRICS] Échec de la migration de {f} : {me}")
+        
+        # 2. Chargement depuis les sous-dossiers par profil
+        for entry in os.listdir(self.voiceprints_dir):
+            dir_path = os.path.join(self.voiceprints_dir, entry)
+            if os.path.isdir(dir_path):
+                username = entry.lower()
+                for f in os.listdir(dir_path):
+                    if f.endswith(".npy"):
+                        try:
+                            emb = np.load(os.path.join(dir_path, f))
+                            if username not in voiceprints:
+                                voiceprints[username] = []
+                            voiceprints[username].append(emb)
+                        except Exception:
+                            pass
         return voiceprints
         
     def identify_speaker(self, raw_audio_bytes, sample_rate=16000, threshold=0.60):
@@ -166,12 +227,13 @@ class SpeakerBiometrics:
         # Normalisation du vecteur d'entrée
         emb_norm = emb / (np.linalg.norm(emb) + 1e-8)
         
-        for name, ref_emb in voiceprints.items():
-            ref_norm = ref_emb / (np.linalg.norm(ref_emb) + 1e-8)
-            score = float(np.dot(emb_norm, ref_norm))
-            if score > best_score:
-                best_score = score
-                best_name = name
+        for name, emb_list in voiceprints.items():
+            for ref_emb in emb_list:
+                ref_norm = ref_emb / (np.linalg.norm(ref_emb) + 1e-8)
+                score = float(np.dot(emb_norm, ref_norm))
+                if score > best_score:
+                    best_score = score
+                    best_name = name
                 
         if best_score >= threshold:
             return best_name, best_score

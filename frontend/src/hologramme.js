@@ -915,6 +915,10 @@ class UIManager {
     this.container.querySelector('#holo-btn-cortex')?.addEventListener('click', () => {
       this.app.toggleCortex();
     });
+    this.container.querySelector('#holo-btn-chess')?.addEventListener('click', () => {
+      this.app.toggleChess();
+    });
+
     this.container.querySelector('#holo-btn-mirror')?.addEventListener('click', () => {
       this.app.toggleMirror();
       const btn = this.container.querySelector('#holo-btn-mirror');
@@ -995,6 +999,8 @@ class App {
     this.spatialExplorer = null; // SpatialFileExplorer instance (ou null)
     this.domoticMap = null; // DomoticMap instance (ou null)
     this.cortexMap = null; // CortexMap instance (ou null)
+    this.chessMap = null; // ChessMap instance (ou null)
+
 
     // États de souris pour le déplacement (glisser) et la rotation du groupe de formes
     this._isLeftDown = false;
@@ -1003,7 +1009,7 @@ class App {
     this._lastMouseY = 0;
 
     this._onMouseDown = (e) => {
-      if (this.spatialExplorer?.active || this.domoticMap?.active || this.cortexMap?.active) return;
+      if (this.spatialExplorer?.active || this.domoticMap?.active || this.cortexMap?.active || this.chessMap?.active) return;
       const canvas = document.getElementById('holo-three-canvas');
       if (!canvas || e.target !== canvas) return;
 
@@ -1018,7 +1024,7 @@ class App {
     };
 
     this._onMouseMove = (e) => {
-      if (this.spatialExplorer?.active || this.domoticMap?.active || this.cortexMap?.active) return;
+      if (this.spatialExplorer?.active || this.domoticMap?.active || this.cortexMap?.active || this.chessMap?.active) return;
 
       const dx = e.clientX - this._lastMouseX;
       const dy = e.clientY - this._lastMouseY;
@@ -1048,7 +1054,7 @@ class App {
     };
 
     this._onContextMenu = (e) => {
-      if (this.spatialExplorer?.active || this.domoticMap?.active || this.cortexMap?.active) return;
+      if (this.spatialExplorer?.active || this.domoticMap?.active || this.cortexMap?.active || this.chessMap?.active) return;
       const canvas = document.getElementById('holo-three-canvas');
       if (canvas && e.target === canvas) {
         e.preventDefault();
@@ -1068,7 +1074,7 @@ class App {
     this.gestureLabel = 'BOOT'; this.lastResults = null;
 
     setTimeout(() => { 
-      if (this._running && !this.shapes.shapes.length && !this.spatialExplorer?.active && !this.domoticMap?.active && !this.cortexMap?.active) {
+      if (this._running && !this.shapes.shapes.length && !this.spatialExplorer?.active && !this.domoticMap?.active && !this.cortexMap?.active && !this.chessMap?.active) {
         this.shapes.add('sphere', new THREE.Vector3(0, 0, 0)); 
       }
     }, 250);
@@ -1156,12 +1162,54 @@ class App {
     }
   }
 
+  toggleChess() {
+    const btn = this.ui.container.querySelector('#holo-btn-chess');
+    if (this.chessMap?.active) {
+      this.chessMap.deactivate();
+      this.chessMap = null;
+      window._chessMap = null;
+      this.shapes.shapes.forEach(s => { s.group.visible = true; });
+      this.ui.showGesture('ECHECS OFF');
+      if (btn) btn.classList.remove('active');
+      const ws = window._jarvisWs;
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: "chess_action", action: "stop" }));
+      }
+    } else {
+      if (this.spatialExplorer?.active) {
+        this.toggleExplorer();
+      }
+      if (this.domoticMap?.active) {
+        this.toggleDomotic();
+      }
+      if (this.cortexMap?.active) {
+        this.toggleCortex();
+      }
+      const ws = window._jarvisWs;
+      if (!ws) { console.warn('[CHESS] WebSocket non disponible'); return; }
+      const CM = window.ChessMap;
+      if (!CM) { console.warn('[CHESS] Module non chargé'); return; }
+      this.shapes.shapes.forEach(s => { s.group.visible = false; });
+      this.chessMap = new CM(this.renderer.scene, this.renderer.camera, ws);
+      window._chessMap = this.chessMap;
+      this.chessMap.activate();
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: "chess_action", action: "get_state" }));
+      }
+      this.ui.showGesture('ECHECS ON');
+      if (btn) btn.classList.add('active');
+
+    }
+  }
+
   destroy() {
     this._running = false;
     if (this._raf) { cancelAnimationFrame(this._raf); this._raf = null; }
     if (this.spatialExplorer) { this.spatialExplorer.destroy(); this.spatialExplorer = null; window._spatialExplorer = null; }
     if (this.domoticMap) { this.domoticMap.deactivate(); this.domoticMap = null; window._domoticMap = null; }
     if (this.cortexMap) { this.cortexMap.deactivate(); this.cortexMap = null; window._cortexMap = null; }
+    if (this.chessMap) { this.chessMap.deactivate(); this.chessMap = null; window._chessMap = null; }
+
     if (this.video && this.video.srcObject) {
       this.video.srcObject.getTracks().forEach(t => t.stop());
       this.video.srcObject = null;
@@ -1244,6 +1292,7 @@ class App {
     const isExplorerActive = this.spatialExplorer?.active;
     const isDomoticActive = this.domoticMap?.active;
     const isCortexActive = this.cortexMap?.active;
+    const isChessActive = this.chessMap?.active;
 
     for (let i = 0; i < 2; i++) {
       const h = hands[i]; 
@@ -1268,11 +1317,11 @@ class App {
         }
       }
 
-      if (!isExplorerActive && !isDomoticActive && !isCortexActive) {
+      if (!isExplorerActive && !isDomoticActive && !isCortexActive && !isChessActive) {
         this.gestures.pushHistory(i, h);
       }
       if (!h) { 
-        if (!isExplorerActive && this.handGrab[i]) { 
+        if (!isExplorerActive && !isChessActive && this.handGrab[i]) { 
           if (this.handGrab[i].vertexIdx >= 0) this.handGrab[i].shape.releaseVertex(this.handGrab[i].vertexIdx); 
           this.handGrab[i] = null; 
         } 
@@ -1314,7 +1363,7 @@ class App {
         this.wasPinched[i] = false;
       }
 
-      if (isExplorerActive || isDomoticActive || isCortexActive) {
+      if (isExplorerActive || isDomoticActive || isCortexActive || isChessActive) {
         continue;
       }
 
@@ -1388,6 +1437,25 @@ class App {
       }
       return;
     }
+    if (isChessActive) {
+      const p0 = this.handPos3D[0];
+      const p1 = this.handPos3D[1];
+      const pinched0 = (hands[0] && GestureSystem.isPinched(hands[0])) ? true : false;
+      const pinched1 = (hands[1] && GestureSystem.isPinched(hands[1])) ? true : false;
+      
+      this.chessMap.updateHandsInteraction(p0, pinched0, p1, pinched1);
+      
+      if (pinched0 && pinched1) {
+        this.gestureLabel = '2-HANDS ORBIT';
+      } else if (pinched0 || pinched1) {
+        this.gestureLabel = 'DRAG';
+      } else if (hands.length > 0) {
+        this.gestureLabel = 'TRACKING';
+      } else {
+        this.gestureLabel = 'IDLE';
+      }
+      return;
+    }
     if (hands.length >= 2 && this.handPos3D[0] && this.handPos3D[1]) {
       const pA = GestureSystem.pinchCenter(hands[0]), pB = GestureSystem.pinchCenter(hands[1]);
       const dx = pB.x-pA.x, dy = pB.y-pA.y, dist = Math.hypot(dx, dy), angle = Math.atan2(dy, dx);
@@ -1448,6 +1516,8 @@ class App {
     if (this.spatialExplorer?.active) this.spatialExplorer.update(dt);
     if (this.domoticMap?.active) this.domoticMap.update(dt);
     if (this.cortexMap?.active) this.cortexMap.update(dt);
+    if (this.chessMap?.active) this.chessMap.update(dt);
+
     this.particles.update(dt, this.renderer.camera.position);
     this.starfield.update(now / 1000);
     this.handOverlay.draw(this.lastResults, this._mirror);

@@ -8,7 +8,7 @@ programmée dans le système J.A.R.V.I.S.
 1. PIPELINE AUDIO & BIOMÉTRIE (main2.py, core/)
 ================================================================================
 * Détection de parole (VAD) : Utilise Silero VAD (ONNX) avec repli sur l'énergie RMS.
-* Biométrie vocale (GMM) : Identifie l'utilisateur via sa voix et restreint l'accès aux invités.
+* Biométrie vocale (CAM++ Deep Learning) : Identifie l'utilisateur via sa voix (modèle de réseau de neurones profond multi-empreintes pour plus de robustesse) et restreint l'accès aux invités.
 * Détection de claps : Coupe la parole de JARVIS sur un simple clap, et le réveille sur un double clap.
 * Réduction de feedback (Barge-in) : Purge le son des haut-parleurs sous 1800 RMS pendant que JARVIS parle.
 * Interruption vocale ("Stop") : Arrêt instantané tolérant aux déformations (stop, top, hop, coupe, etc.).

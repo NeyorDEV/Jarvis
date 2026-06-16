@@ -2518,7 +2518,8 @@ body.ar-mode-active #hand-canvas {
 /* ==============================================================================
    CORTEX NODE DETAILS PANEL — Iron Man HUD (right side)
    ============================================================================== */
-#holo-cortex-panel {
+#holo-cortex-panel,
+#holo-chess-panel {
   position: absolute;
   top: 90px;
   right: 25px;

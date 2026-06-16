@@ -571,6 +571,97 @@
       </div>
     </div>
 
+    <!-- ══ CHESS CORE PANEL — HUD (right side) ════════ -->
+    <div id="holo-chess-panel" style="display:none;">
+      <div class="cp-scanlines"></div>
+      <div class="cp-corner cp-tl"></div>
+      <div class="cp-corner cp-tr"></div>
+      <div class="cp-corner cp-bl"></div>
+      <div class="cp-corner cp-br"></div>
+      <div class="cp-header">
+        <span class="cp-title">▣ CHESS_CORE // BATTLE_ENGINE</span>
+      </div>
+      <div class="cp-content">
+        <div class="cp-meta"><span class="cp-key">GAME_STATE:</span> <span id="chess-meta-state" style="color: #00ff88; font-weight: bold;">ACTIVE</span></div>
+        <div class="cp-meta"><span class="cp-key">CURRENT_TURN:</span> <span id="chess-meta-turn" style="color: #00e5ff; font-weight: bold; text-shadow: 0 0 8px rgba(0,229,255,0.65);">VOTRE TOUR // BLANC</span></div>
+        <hr style="border:0;border-top:1px solid rgba(0,229,255,0.15);margin:15px 0;">
+        <div class="cp-body" style="flex: 1; display: flex; flex-direction: column;">
+          <!-- Configuration de la partie -->
+          <div id="chess-setup-container" style="background: rgba(0, 229, 255, 0.04); border: 1px solid rgba(0, 229, 255, 0.25); padding: 12px; border-radius: 4px; margin-bottom: 15px; box-shadow: 0 0 10px rgba(0, 229, 255, 0.05);">
+            <div class="cp-section-title" style="margin-top: 0; color: #00e5ff; font-size: 10px; letter-spacing: 1.5px; border-bottom: 1px solid rgba(0,229,255,0.15); padding-bottom: 5px; margin-bottom: 10px;">CONFIGURATION DE PARTIE</div>
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; font-family: monospace; font-size: 11px; color: #a5f3fc;">
+              <span>CHRONOMÈTRE (TIMER) :</span>
+              <select id="chess-config-timer" style="background: rgba(0, 10, 25, 0.85); border: 1px solid rgba(0, 229, 255, 0.4); color: #00e5ff; font-family: monospace; font-size: 11px; padding: 3px 8px; border-radius: 3px; cursor: pointer; outline: none; transition: border-color 0.2s ease;">
+                <option value="yes">OUI (10 MIN)</option>
+                <option value="no" selected>NON (SANS LIMITE)</option>
+              </select>
+            </div>
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; font-family: monospace; font-size: 11px; color: #a5f3fc;">
+              <span>DIFFICULTÉ DU BOT :</span>
+              <select id="chess-config-difficulty" style="background: rgba(0, 10, 25, 0.85); border: 1px solid rgba(0, 229, 255, 0.4); color: #00e5ff; font-family: monospace; font-size: 11px; padding: 3px 8px; border-radius: 3px; cursor: pointer; outline: none; transition: border-color 0.2s ease;">
+                <option value="600">Débutant (600 Elo)</option>
+                <option value="800">Novice (800 Elo)</option>
+                <option value="1000" selected>Amateur (1000 Elo)</option>
+                <option value="1200">Occasionnel (1200 Elo)</option>
+                <option value="1400">Intermédiaire (1400 Elo)</option>
+                <option value="1600">Confirmé (1600 Elo)</option>
+                <option value="1800">Avancé (1800 Elo)</option>
+                <option value="2000">Master (2000 Elo)</option>
+              </select>
+            </div>
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; font-family: monospace; font-size: 11px; color: #a5f3fc;">
+              <span>VOTRE COULEUR :</span>
+              <select id="chess-config-color" style="background: rgba(0, 10, 25, 0.85); border: 1px solid rgba(0, 229, 255, 0.4); color: #00e5ff; font-family: monospace; font-size: 11px; padding: 3px 8px; border-radius: 3px; cursor: pointer; outline: none; transition: border-color 0.2s ease;">
+                <option value="white" selected>BLANC (JOUE EN 1ER)</option>
+                <option value="black">NOIR (JARVIS JOUE EN 1ER)</option>
+              </select>
+            </div>
+            <button id="chess-start-game-btn" style="width: 100%; padding: 8px; background: rgba(0, 255, 136, 0.12); border: 1px solid rgba(0, 255, 136, 0.4); color: #00ff88; font-family: monospace; font-size: 10px; font-weight: bold; cursor: pointer; border-radius: 3px; letter-spacing: 1px; transition: all 0.3s ease; text-shadow: 0 0 5px rgba(0,255,136,0.3);">DÉMARRER LA PARTIE</button>
+          </div>
+          <div class="cp-section-title">GUIDE DE JEU HOLOGRAPHIQUE</div>
+          <div style="font-size: 11px; line-height: 1.6; color: rgba(180, 240, 255, 0.85); margin-bottom: 15px;">
+            <p style="margin: 5px 0;">🎙️ <strong>À la voix :</strong> Dites <span style="color: #00e5ff;">"pion e4"</span>, <span style="color: #00e5ff;">"cavalier f3"</span> ou <span style="color: #00e5ff;">"e2 en e4"</span>.</p>
+            <p style="margin: 5px 0;">🖱️ <strong>À la souris :</strong> Cliquez sur l'une de vos pièces, puis sur un cercle vert de destination.</p>
+          </div>
+          <div class="cp-section-title">PIÈCES CAPTURÉES</div>
+          <div id="chess-captured-container" style="margin-bottom: 15px; font-size: 16px; display: flex; flex-direction: column; gap: 8px;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <span style="font-size: 10px; color: rgba(255, 255, 255, 0.4); width: 120px; font-family: monospace;">VOUS AVEZ PERDU :</span>
+              <span id="chess-captured-white" style="color: #ffffff; letter-spacing: 3px; text-shadow: 0 0 4px rgba(255,255,255,0.5);">—</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <span style="font-size: 10px; color: rgba(0, 229, 255, 0.4); width: 120px; font-family: monospace;">VOUS AVEZ CAPTURÉ :</span>
+              <span id="chess-captured-black" style="color: #00e5ff; letter-spacing: 3px; text-shadow: 0 0 4px rgba(0,229,255,0.5);">—</span>
+            </div>
+          </div>
+          <div class="cp-section-title">CHRONOMÈTRE // CLOCK</div>
+          <div id="chess-timer-container" style="display: flex; gap: 10px; margin-bottom: 15px; font-family: monospace;">
+            <div style="flex: 1; background: rgba(0, 229, 255, 0.05); border: 1px solid rgba(0, 229, 255, 0.2); padding: 8px; border-radius: 3px; text-align: center;">
+              <div style="font-size: 9px; color: rgba(0, 229, 255, 0.6); margin-bottom: 3px;">VOUS</div>
+              <div id="chess-timer-white" style="font-size: 18px; color: #00e5ff; font-weight: bold; text-shadow: 0 0 6px rgba(0,229,255,0.5);">10:00</div>
+            </div>
+            <div style="flex: 1; background: rgba(255, 46, 77, 0.05); border: 1px solid rgba(255, 46, 77, 0.2); padding: 8px; border-radius: 3px; text-align: center;">
+              <div style="font-size: 9px; color: rgba(255, 46, 77, 0.6); margin-bottom: 3px;">JARVIS</div>
+              <div id="chess-timer-black" style="font-size: 18px; color: #ff2e4d; font-weight: bold; text-shadow: 0 0 6px rgba(255,46,77,0.5);">10:00</div>
+            </div>
+          </div>
+          <div class="cp-section-title">HISTORIQUE DES COUPS (SAN)</div>
+          <div id="chess-history-container" style="max-height: 100px; overflow-y: auto; background: rgba(0, 8, 20, 0.45); border: 1px solid rgba(0, 229, 255, 0.15); padding: 8px; font-size: 11px; color: #a5f3fc; border-radius: 3px; line-height: 1.5; font-family: monospace; margin-bottom: 15px;">
+            <div id="chess-history-list" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 4px 10px;">
+            </div>
+          </div>
+          <div class="cp-section-title">LOG CONSOLE / ÉTAT</div>
+          <div id="chess-log-text" style="flex: 1; min-height: 120px; overflow-y: auto; background: rgba(0, 8, 20, 0.45); border: 1px solid rgba(0, 229, 255, 0.15); padding: 8px; font-size: 11px; color: #6ff8ff; border-radius: 3px; line-height: 1.5; font-family: monospace;">
+            Prêt pour la partie.
+          </div>
+        </div>
+        <div class="cp-actions" style="display: flex; gap: 10px; margin-top: 15px;">
+          <button class="cp-btn" id="chess-reset-btn" style="flex: 1; padding: 10px; background: rgba(255, 140, 0, 0.12); border: 1px solid rgba(255, 140, 0, 0.35); color: #ff8a1a; font-family: monospace; font-size: 10px; cursor: pointer; border-radius: 3px; font-weight: bold; letter-spacing: 1px; transition: all 0.3s ease; height: 36px; display: flex; align-items: center; justify-content: center;">RECOMMENCER</button>
+          <button class="cp-delete-btn" id="chess-stop-btn" style="flex: 1; margin: 0; padding: 10px; background: rgba(255, 46, 77, 0.12); border: 1px solid rgba(255, 46, 77, 0.35); color: #ff2e4d; font-family: monospace; font-size: 10px; cursor: pointer; border-radius: 3px; font-weight: bold; letter-spacing: 1px; transition: all 0.3s ease; height: 36px; display: flex; align-items: center; justify-content: center;">QUITTER</button>
+        </div>
+      </div>
+    </div>
+
     <!-- Dock — boutons de formes (touches 1-9) -->
     <div id="holo-dock">
       <button class="holo-dock-btn" data-shape="sphere" title="Sphère [1]">⬤</button>
@@ -582,6 +673,8 @@
       <button class="holo-dock-btn holo-dock-sep" id="holo-btn-explorer" title="Explorateur de Fichiers Spatial 3D">EXPLORER</button>
       <button class="holo-dock-btn holo-dock-sep" id="holo-btn-domotic" title="Carte Domotique 3D Immersive">CARTE 3D</button>
       <button class="holo-dock-btn holo-dock-sep" id="holo-btn-cortex" title="Cortex Neuronal (Mémoire 3D)">CORTEX</button>
+      <button class="holo-dock-btn holo-dock-sep" id="holo-btn-chess" title="Jeu d'échecs 3D vocal interactif">ÉCHECS</button>
+
       <button class="holo-dock-btn holo-dock-sep" id="holo-btn-game" title="Jeu balle — utilise ta main pour faire rebondir la balle">JEU</button>
       <button class="holo-dock-btn holo-dock-sep active" id="holo-btn-mirror" title="Inverser les mains">MIROIR</button>
       <button class="holo-dock-btn holo-dock-sep" id="holo-btn-clear" title="Effacer tout [Suppr]">CLR</button>

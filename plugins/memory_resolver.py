@@ -10,6 +10,17 @@ async def resoudre_memoire_locale(texte):
     t = texte.lower().strip()
     if "google" in t or "tasks" in t:
         return None
+        
+    # ── CONSOLIDATION DE LA MÉMOIRE IA (ex: "consolide ma mémoire")
+    if "consolide" in t or "synthetise" in t:
+        if "memoire" in t or "conversation" in t or "notes" in t:
+            builtins.parler("Très bien mylane, je lance le protocole de consolidation de votre mémoire...")
+            from module.memory_manager import consolider_memoire_ia
+            success = await consolider_memoire_ia()
+            if success:
+                return "Consolidation de la mémoire terminée. J'ai extrait les faits récents importants et mis à jour vos notes."
+            else:
+                return "J'ai analysé nos échanges récents, mais aucune nouvelle information significative n'a été trouvée pour enrichir vos notes."
     
     # ── ENREGISTREMENT (ex: "enregistre que mon code est 1234")
     _triggers_save = ["enregistre que", "mémorise que", "note que", "rappelle-toi que", "retiens que", "retiens de", "retiens "]

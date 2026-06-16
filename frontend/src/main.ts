@@ -18,11 +18,14 @@ import { activerHolo, desactiverHolo } from "./hologramme";
 import { SpatialFileExplorer } from "./spatial_explorer";
 import { DomoticMap } from "./domotic_map";
 import { CortexMap } from "./cortex_map";
+import { ChessMap } from "./chess_map";
 
 // Expose SpatialFileExplorer class globally for hologramme.js
 (window as any).SpatialFileExplorer = SpatialFileExplorer;
 (window as any).DomoticMap = DomoticMap;
 (window as any).CortexMap = CortexMap;
+(window as any).ChessMap = ChessMap;
+
 import "./style.css";
 import "./widgets.css";
 
@@ -504,7 +507,82 @@ function connect(): void {
         return;
       }
 
+      // ── Chess Map 3D ──
+      if (data.action === "chess_start") {
+        if (!_holoActive) {
+          (window as any)._openHolo?.();
+        }
+        setTimeout(() => {
+          const app = (window as any)._holoApp;
+          if (app) {
+            if (!app.chessMap) {
+              app.toggleChess();
+            }
+            setTimeout(() => {
+              const chess = (window as any)._chessMap;
+              if (chess) {
+                // Si la commande provient du serveur avec des paramètres de configuration
+                const anyData = data as any;
+                if (anyData.difficulty) {
+                  const diffSelect = document.getElementById('chess-config-difficulty') as HTMLSelectElement | null;
+                  if (diffSelect) diffSelect.value = anyData.difficulty;
+                }
+                if (anyData.player_color) {
+                  const colorSelect = document.getElementById('chess-config-color') as HTMLSelectElement | null;
+                  if (colorSelect) colorSelect.value = anyData.player_color;
+                }
+                if (anyData.use_timer) {
+                  const timerSelect = document.getElementById('chess-config-timer') as HTMLSelectElement | null;
+                  if (timerSelect) timerSelect.value = anyData.use_timer;
+                }
+
+                // Démarrer la partie avec les paramètres si fournis
+                if (anyData.difficulty && anyData.player_color && anyData.use_timer) {
+                  chess.startFromConfig(anyData.difficulty, anyData.player_color, anyData.use_timer === 'yes');
+                }
+
+                chess.handleGameState(data.state);
+              }
+            }, 100);
+          }
+        }, 150);
+        return;
+      }
+
+      if (data.action === "chess_reset") {
+        const chess = (window as any)._chessMap;
+        if (chess) {
+          chess.resetGame(true); // reset forcé (sans confirm prompt)
+        }
+        return;
+      }
+
+      if (data.action === "chess_stop") {
+        const app = (window as any)._holoApp;
+        if (app && app.chessMap) {
+          app.toggleChess();
+        }
+        return;
+      }
+
+      if (data.action === "chess_game_state") {
+        const chess = (window as any)._chessMap;
+        if (chess) {
+          chess.handleGameState(data.state, (data as any).last_move);
+        }
+        return;
+      }
+
+      if (data.action === "chess_thinking") {
+        const chess = (window as any)._chessMap;
+        if (chess) {
+          chess.handleThinking((data as any).thinking);
+        }
+        return;
+      }
+
       // ── Domotic Map 3D ──
+
       if (data.action === "domotic_map_update") {
         const domMap = (window as any)._domoticMap;
         if (domMap) domMap.handleServerResponse(data);
@@ -561,6 +639,23 @@ function connect(): void {
             }
           }
         }, 150);
+        return;
+      }
+
+      if (data.action === "domotic_audio_route_animation") {
+        if (!_holoActive) {
+          (window as any)._openHolo?.();
+        }
+        setTimeout(() => {
+          const app = (window as any)._holoApp;
+          if (app && !app.domoticMap) {
+            app.toggleDomotic();
+          }
+          setTimeout(() => {
+            const domMap = (window as any)._domoticMap;
+            if (domMap) domMap.handleServerResponse(data);
+          }, 250);
+        }, 200);
         return;
       }
 

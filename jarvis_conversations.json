@@ -100,5 +100,11 @@
     "heure": "10:33",
     "user": "passe la musique.",
     "model": "Tout de suite...\n{\"action\": \"spotify_suivant\"}"
+  },
+  {
+    "date": "15/06/2026",
+    "heure": "10:52",
+    "user": "comment ca va ?",
+    "model": "Tout va bien, merci de vous en soucier ! Je suis prêt à discuter ou à vous aider si vous avez besoin de quelque chose. Qu'est-ce qui vous occupe aujourd'hui, mylane ?"
   }
 ]

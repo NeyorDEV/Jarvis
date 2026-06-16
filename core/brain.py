@@ -22,7 +22,7 @@ async def generer_reponse_ia(prompt, historique=None):
     """Gère la génération de réponse avec failover entre Gemini et Groq."""
     try:
         # Tentative Gemini
-        response = client.models.generate_content(
+        response = await client.aio.models.generate_content(
             model=CHOSEN_MODEL,
             contents=historique or [prompt],
             config=types.GenerateContentConfig(
