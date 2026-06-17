@@ -216,8 +216,11 @@
   </div>
   <button id="fullscreen-btn" title="Plein écran">&#x26F6;</button>
 
-  <!-- ══ HUD CONTROL BAR — Glassmorphism Carousel (Placed below Clock) ══════════════════ -->
-  <div id="hud-control-bar" class="carousel-container">
+  <!-- ══ HUD CONTROL BAR — Carousel caché par défaut ══════════════════ -->
+  <div id="carousel-arrow-wrap">
+    <button id="carousel-toggle-arrow" title="Afficher les commandes"><svg width="12" height="8" viewBox="0 0 12 8" fill="none" xmlns="http://www.w3.org/2000/svg"><polyline points="1,1 6,7 11,1" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+  </div>
+  <div id="hud-control-bar" class="carousel-container carousel-hidden">
     <div class="carousel-viewport">
       <div class="carousel-track" id="carousel-track">
         <button id="gpu-button" aria-pressed="true">GPU BOOST</button>
@@ -571,6 +574,20 @@
       </div>
     </div>
 
+    <!-- ══ NETWORK RADAR PANEL ════════════════════════ -->
+    <div id="network-radar-panel" style="display:none; position:fixed; top:80px; right:18px; width:320px; max-height:calc(100vh - 100px); flex-direction:column; background:rgba(0,8,20,0.88); border:1px solid rgba(0,229,255,0.35); border-radius:6px; overflow:hidden; z-index:75; font-family:monospace; backdrop-filter:blur(8px);">
+      <div style="padding:10px 14px 8px; border-bottom:1px solid rgba(0,229,255,0.2); display:flex; justify-content:space-between; align-items:center;">
+        <span style="color:#00e5ff; font-size:11px; letter-spacing:2px; font-weight:bold;">◈ RADAR RÉSEAU</span>
+        <button onclick="window._holoApp?.toggleNetworkRadar?.()" style="background:none;border:none;color:rgba(0,229,255,0.5);cursor:pointer;font-size:14px;padding:0 4px;">✕</button>
+      </div>
+      <div style="padding:8px 14px; border-bottom:1px solid rgba(0,229,255,0.1); display:flex; gap:14px; font-size:10px;">
+        <span style="color:rgba(0,229,255,0.7)"><span id="radar-count" style="color:#00e5ff;font-weight:bold">0</span> conn.</span>
+        <span style="color:rgba(0,229,255,0.7)"><span id="radar-countries" style="color:#00e5ff;font-weight:bold">0</span> pays</span>
+        <span id="radar-threats" style="color:#00ff88;font-weight:bold;font-size:10px">0 menaces</span>
+      </div>
+      <div id="radar-connections-list" style="overflow-y:auto; flex:1; padding:6px 0;"></div>
+    </div>
+
     <!-- ══ CHESS CORE PANEL — HUD (right side) ════════ -->
     <div id="holo-chess-panel" style="display:none;">
       <div class="cp-scanlines"></div>
@@ -673,7 +690,6 @@
       <button class="holo-dock-btn holo-dock-sep" id="holo-btn-explorer" title="Explorateur de Fichiers Spatial 3D">EXPLORER</button>
       <button class="holo-dock-btn holo-dock-sep" id="holo-btn-domotic" title="Carte Domotique 3D Immersive">CARTE 3D</button>
       <button class="holo-dock-btn holo-dock-sep" id="holo-btn-cortex" title="Cortex Neuronal (Mémoire 3D)">CORTEX</button>
-      <button class="holo-dock-btn holo-dock-sep" id="holo-btn-chess" title="Jeu d'échecs 3D vocal interactif">ÉCHECS</button>
 
       <button class="holo-dock-btn holo-dock-sep" id="holo-btn-game" title="Jeu balle — utilise ta main pour faire rebondir la balle">JEU</button>
       <button class="holo-dock-btn holo-dock-sep active" id="holo-btn-mirror" title="Inverser les mains">MIROIR</button>

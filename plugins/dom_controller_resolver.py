@@ -150,7 +150,7 @@ async def resoudre_dom_hud(cmd):
             return "Widget musique masqué, Monsieur."
 
     # --- 11. MODE HOLOGRAMME (HOLO) ---
-    if any(k in t for k in ["active le mode hologramme", "active le mode holo", "active l'hologramme", "ouvre l'hologramme", "lance le mode hologramme", "active hologramme", "lance l'hologramme", "active holo", "ouvre holo"]):
+    if any(k in t for k in ["holo", "mode holo", "hologramme", "mode hologramme", "active le mode hologramme", "active le mode holo", "active l'hologramme", "ouvre l'hologramme", "lance le mode hologramme", "active hologramme", "lance l'hologramme", "active holo", "ouvre holo"]):
         if hasattr(builtins, "send_web_action"):
             await builtins.send_web_action("click", selector="#holo-button:not([aria-pressed=\"true\"])")
             return "J'active le mode hologramme, Monsieur."
@@ -159,6 +159,14 @@ async def resoudre_dom_hud(cmd):
         if hasattr(builtins, "send_web_action"):
             await builtins.send_web_action("click", selector="#holo-button[aria-pressed=\"true\"]")
             return "Je désactive le mode hologramme, Monsieur."
+
+    # --- 11b. MODE ÉCHECS ---
+    if any(k in t for k in ["echecs", "echec", "mode echecs", "joue aux echecs", "on joue aux echecs", "on joue une partie d echecs", "partie d echecs", "jeu d echecs", "lance les echecs", "ouvre les echecs"]):
+        if hasattr(builtins, "CONNECTED_CLIENTS") and builtins.CONNECTED_CLIENTS:
+            import json, asyncio
+            msg = json.dumps({"action": "chess_start"})
+            await asyncio.gather(*[ws.send(msg) for ws in builtins.CONNECTED_CLIENTS], return_exceptions=True)
+            return "Déploiement du plateau d'échecs 3D, Monsieur."
 
     # --- 12. MODE AR (HAND TRACKING) ---
     if any(k in t for k in ["active le mode ar", "active l'ar", "lance le mode ar", "active le tracking", "active les gestes", "lance l'ar", "ouvre l'ar"]):

@@ -2516,6 +2516,38 @@ body.ar-mode-active #hand-canvas {
 }
 
 /* ==============================================================================
+   NETWORK RADAR PANEL
+   ============================================================================== */
+.radar-conn-row {
+  display: grid;
+  grid-template-columns: 12px 22px 1fr auto auto;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 14px;
+  font-size: 10px;
+  border-bottom: 1px solid rgba(0, 229, 255, 0.06);
+  transition: background 0.15s;
+}
+.radar-conn-row:hover {
+  background: rgba(0, 229, 255, 0.05);
+}
+.radar-proc {
+  color: rgba(0, 229, 255, 0.85);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 90px;
+}
+.radar-ip {
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 9px;
+}
+.radar-port {
+  color: rgba(0, 229, 255, 0.35);
+  font-size: 9px;
+}
+
+/* ==============================================================================
    CORTEX NODE DETAILS PANEL — Iron Man HUD (right side)
    ============================================================================== */
 #holo-cortex-panel,
@@ -2799,11 +2831,16 @@ body.ar-mode-active #hand-canvas {
 }
 
 /* ══════════════════════════════════════════════════════════════════════════════
+   CAROUSEL TOGGLE ARROW
+   ══════════════════════════════════════════════════════════════════════════════ */
+/* arrow positionné entièrement via JS dans main.ts */
+
+/* ══════════════════════════════════════════════════════════════════════════════
    1. HUD CONTROL BAR — Bottom-left glassmorphism bar
    ══════════════════════════════════════════════════════════════════════════════ */
 #hud-control-bar.carousel-container {
   position: fixed;
-  bottom: 5px; /* placed at the bottom, lowered */
+  bottom: 34px;
   left: 50%;
   transform: translateX(-50%);
   z-index: 500;
@@ -2823,6 +2860,20 @@ body.ar-mode-active #hand-canvas {
   -webkit-backdrop-filter: none !important;
   overflow: visible;
   animation: hud20-bar-fadein 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+#hud-control-bar.carousel-hidden {
+  opacity: 0 !important;
+  pointer-events: none !important;
+  transform: translateX(-50%) translateY(14px) !important;
+  animation: none !important;
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+#hud-control-bar:not(.carousel-hidden) {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateX(-50%) translateY(0);
+  transition: opacity 0.25s ease, transform 0.25s ease;
 }
 
 .carousel-viewport {

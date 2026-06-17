@@ -1000,7 +1000,7 @@ class App {
     this.domoticMap = null; // DomoticMap instance (ou null)
     this.cortexMap = null; // CortexMap instance (ou null)
     this.chessMap = null; // ChessMap instance (ou null)
-
+    this.networkRadar = null; // NetworkRadar instance (ou null)
 
     // États de souris pour le déplacement (glisser) et la rotation du groupe de formes
     this._isLeftDown = false;
@@ -1009,7 +1009,7 @@ class App {
     this._lastMouseY = 0;
 
     this._onMouseDown = (e) => {
-      if (this.spatialExplorer?.active || this.domoticMap?.active || this.cortexMap?.active || this.chessMap?.active) return;
+      if (this.spatialExplorer?.active || this.domoticMap?.active || this.cortexMap?.active || this.chessMap?.active || this.networkRadar?.active) return;
       const canvas = document.getElementById('holo-three-canvas');
       if (!canvas || e.target !== canvas) return;
 
@@ -1024,7 +1024,7 @@ class App {
     };
 
     this._onMouseMove = (e) => {
-      if (this.spatialExplorer?.active || this.domoticMap?.active || this.cortexMap?.active || this.chessMap?.active) return;
+      if (this.spatialExplorer?.active || this.domoticMap?.active || this.cortexMap?.active || this.chessMap?.active || this.networkRadar?.active) return;
 
       const dx = e.clientX - this._lastMouseX;
       const dy = e.clientY - this._lastMouseY;
@@ -1054,7 +1054,7 @@ class App {
     };
 
     this._onContextMenu = (e) => {
-      if (this.spatialExplorer?.active || this.domoticMap?.active || this.cortexMap?.active || this.chessMap?.active) return;
+      if (this.spatialExplorer?.active || this.domoticMap?.active || this.cortexMap?.active || this.chessMap?.active || this.networkRadar?.active) return;
       const canvas = document.getElementById('holo-three-canvas');
       if (canvas && e.target === canvas) {
         e.preventDefault();
@@ -1074,7 +1074,7 @@ class App {
     this.gestureLabel = 'BOOT'; this.lastResults = null;
 
     setTimeout(() => { 
-      if (this._running && !this.shapes.shapes.length && !this.spatialExplorer?.active && !this.domoticMap?.active && !this.cortexMap?.active && !this.chessMap?.active) {
+      if (this._running && !this.shapes.shapes.length && !this.spatialExplorer?.active && !this.domoticMap?.active && !this.cortexMap?.active && !this.chessMap?.active && !this.networkRadar?.active) {
         this.shapes.add('sphere', new THREE.Vector3(0, 0, 0)); 
       }
     }, 250);
@@ -1202,6 +1202,26 @@ class App {
     }
   }
 
+  toggleNetworkRadar() {
+    if (this.networkRadar?.active) {
+      this.networkRadar.deactivate();
+      this.networkRadar = null;
+      window._networkRadar = null;
+      this.shapes.shapes.forEach(s => { s.group.visible = true; });
+    } else {
+      if (this.spatialExplorer?.active) this.toggleExplorer();
+      if (this.domoticMap?.active)      this.toggleDomotic();
+      if (this.cortexMap?.active)       this.toggleCortex();
+      if (this.chessMap?.active)        this.toggleChess();
+      const NR = window.NetworkRadar;
+      if (!NR) { console.warn('[RADAR] Module NetworkRadar non chargé'); return; }
+      this.shapes.shapes.forEach(s => { s.group.visible = false; });
+      this.networkRadar = new NR(this.renderer.scene, this.renderer.camera);
+      window._networkRadar = this.networkRadar;
+      this.networkRadar.activate();
+    }
+  }
+
   destroy() {
     this._running = false;
     if (this._raf) { cancelAnimationFrame(this._raf); this._raf = null; }
@@ -1209,6 +1229,7 @@ class App {
     if (this.domoticMap) { this.domoticMap.deactivate(); this.domoticMap = null; window._domoticMap = null; }
     if (this.cortexMap) { this.cortexMap.deactivate(); this.cortexMap = null; window._cortexMap = null; }
     if (this.chessMap) { this.chessMap.deactivate(); this.chessMap = null; window._chessMap = null; }
+    if (this.networkRadar) { this.networkRadar.deactivate(); this.networkRadar = null; window._networkRadar = null; }
 
     if (this.video && this.video.srcObject) {
       this.video.srcObject.getTracks().forEach(t => t.stop());
@@ -1517,6 +1538,7 @@ class App {
     if (this.domoticMap?.active) this.domoticMap.update(dt);
     if (this.cortexMap?.active) this.cortexMap.update(dt);
     if (this.chessMap?.active) this.chessMap.update(dt);
+    if (this.networkRadar?.active) this.networkRadar.update(dt);
 
     this.particles.update(dt, this.renderer.camera.position);
     this.starfield.update(now / 1000);

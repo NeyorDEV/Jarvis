@@ -19,12 +19,14 @@ import { SpatialFileExplorer } from "./spatial_explorer";
 import { DomoticMap } from "./domotic_map";
 import { CortexMap } from "./cortex_map";
 import { ChessMap } from "./chess_map";
+import { NetworkRadar } from "./network_radar";
 
 // Expose SpatialFileExplorer class globally for hologramme.js
 (window as any).SpatialFileExplorer = SpatialFileExplorer;
 (window as any).DomoticMap = DomoticMap;
 (window as any).CortexMap = CortexMap;
 (window as any).ChessMap = ChessMap;
+(window as any).NetworkRadar = NetworkRadar;
 
 import "./style.css";
 import "./widgets.css";
@@ -578,6 +580,33 @@ function connect(): void {
         if (chess) {
           chess.handleThinking((data as any).thinking);
         }
+        return;
+      }
+
+      // ── Network Radar 3D ──
+      if (data.action === "network_radar_show") {
+        if (!_holoActive) _openHolo();
+        setTimeout(() => {
+          const app = (window as any)._holoApp;
+          if (app && !app.networkRadar) app.toggleNetworkRadar?.();
+          const connections = (data as any).connections;
+          if (connections) {
+            setTimeout(() => {
+              const radar = (window as any)._networkRadar;
+              if (radar) radar.handleRadarUpdate(connections);
+            }, 200);
+          }
+        }, 150);
+        return;
+      }
+      if (data.action === "network_radar_update") {
+        const radar = (window as any)._networkRadar;
+        if (radar) radar.handleRadarUpdate((data as any).connections || []);
+        return;
+      }
+      if (data.action === "network_radar_hide") {
+        const app = (window as any)._holoApp;
+        if (app?.networkRadar) app.toggleNetworkRadar?.();
         return;
       }
 
@@ -1876,6 +1905,60 @@ function makeDraggable(el: HTMLElement): void {
   const el = document.getElementById(id);
   if (el) makeDraggable(el);
 });
+
+// ── Carousel toggle arrow ─────────────────────────────────────────────────────
+const _carouselBar   = document.getElementById("hud-control-bar");
+const _carouselArrow = document.getElementById("carousel-toggle-arrow") as HTMLButtonElement | null;
+
+// Position JS directe — immunisé contre tout conflit CSS/stacking-context
+// La flèche reste TOUJOURS à bottom:8px, seule son apparence change
+function _positionArrow(open: boolean) {
+  if (!_carouselArrow) return;
+  const w = 36, h = 22;
+  Object.assign(_carouselArrow.style, {
+    position:   'fixed',
+    left:       `${Math.round(window.innerWidth / 2 - w / 2)}px`,
+    bottom:     '8px',
+    width:      `${w}px`,
+    height:     `${h}px`,
+    zIndex:     '10010',
+    display:    'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    background: 'rgba(0,8,20,0.75)',
+    border:     `1px solid rgba(0,229,255,${open ? '0.7' : '0.35'})`,
+    borderRadius: '4px',
+    color:      open ? '#00e5ff' : 'rgba(0,229,255,0.6)',
+    fontSize:   '16px',
+    cursor:     'pointer',
+    padding:    '0',
+    lineHeight: '1',
+    transform:  open ? 'rotate(180deg)' : 'none',
+    transition: 'transform 0.25s ease, color 0.15s, border-color 0.15s',
+  });
+}
+
+let _carouselOpen = false;
+
+function _toggleCarousel(force?: boolean) {
+  if (!_carouselBar) return;
+  _carouselOpen = force !== undefined ? force : !_carouselOpen;
+  _carouselBar.classList.toggle("carousel-hidden", !_carouselOpen);
+  _positionArrow(_carouselOpen);
+}
+
+// Hover sur la flèche = toggle, debounce 300ms pour éviter le flash sur les bords
+let _carouselLastToggle = 0;
+_carouselArrow?.addEventListener("mouseenter", () => {
+  const now = Date.now();
+  if (now - _carouselLastToggle < 300) return;
+  _carouselLastToggle = now;
+  _toggleCarousel();
+});
+
+// Init — visible dès le départ (couvert par le boot overlay comme tous les autres éléments)
+_positionArrow(false);
+window.addEventListener("resize", () => _positionArrow(_carouselOpen));
 
 // ── Carousel Controls for Button Bar (3D Dial / Cover Flow) ───────────────────
 const track = document.getElementById("carousel-track");

@@ -331,6 +331,7 @@ def _charger_plugins():
     import plugins.recipe_resolver
     import plugins.os_autopilot_resolver
     import plugins.local_mode_resolver
+    import plugins.network_resolver
     _plugins_prets.set()
 threading.Thread(target=_charger_plugins, daemon=True).start()
 
@@ -5635,6 +5636,14 @@ def main():
 
         def _on_closed():
             print("\n[JARVIS] Fenetre fermee — extinction du systeme...")
+            # Arrêter le radar réseau proprement avant la fermeture
+            try:
+                import plugins.network_resolver as _nr
+                _nr._radar_active = False
+                if _nr._radar_task and not _nr._radar_task.done():
+                    _nr._radar_task.cancel()
+            except Exception:
+                pass
             if frontend_process:
                 subprocess.run(
                     ["taskkill", "/F", "/T", "/PID", str(frontend_process.pid)],
