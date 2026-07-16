@@ -296,6 +296,32 @@ try:
 except Exception as e:
     print(f"❌  [VAD/BIOMETRICS] Erreur lors de l'initialisation : {e}")
 
+# --- INITIALISATION OPENWAKEWORD (détection locale du wake word, gate STT) ---
+WAKEWORD_MODEL = None
+WAKEWORD_THRESHOLD = 0.35
+try:
+    _cfg_ww = {}
+    try:
+        import json as _json_ww
+        _cfg_ww_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "jarvis_config.json")
+        if os.path.exists(_cfg_ww_path):
+            with open(_cfg_ww_path, "r", encoding="utf-8") as f:
+                _cfg_ww = _json_ww.load(f)
+    except Exception:
+        pass
+
+    if _cfg_ww.get("use_openwakeword", True):
+        from core.wakeword import init_wakeword, WakeWordDetector
+        init_wakeword()
+        WAKEWORD_MODEL = WakeWordDetector()
+        WAKEWORD_THRESHOLD = float(_cfg_ww.get("wakeword_threshold", 0.35))
+        print(f"✔  [WAKEWORD] openWakeWord 'hey jarvis' initialisé (seuil {WAKEWORD_THRESHOLD}). Le STT n'est appelé qu'après détection locale.")
+    else:
+        print("ℹ  [WAKEWORD] openWakeWord désactivé via config (use_openwakeword=false).")
+except Exception as e:
+    WAKEWORD_MODEL = None
+    print(f"ℹ  [WAKEWORD] openWakeWord indisponible ({e}). Comportement historique : STT sur chaque phrase.")
+
 
 # Nouveaux modules extraits
 from module.file_manager import *
@@ -6035,6 +6061,15 @@ def ecouter():
                 energy = np.sqrt(np.mean(audio_chunk_int16.astype(np.float64)**2))
                 is_speech = energy > ENERGY_THRESHOLD
 
+            # Alimente openWakeWord en continu quand JARVIS est en veille (détection locale du wake word)
+            if WAKEWORD_MODEL is not None and not jarvis_actif and not get_is_speaking():
+                try:
+                    ww_score = WAKEWORD_MODEL(audio_chunk_int16)
+                    if ww_score > getattr(ecouter, "_wake_score", 0.0):
+                        ecouter._wake_score = ww_score
+                except Exception:
+                    pass
+
             if is_speech:
                 if not is_recording:
                     if not get_is_speaking():
@@ -6085,6 +6120,18 @@ def ecouter():
                             # print("[JARVIS] Phrase complète ignorée sans transcription (auto-audition de Jarvis).")
                             audio_buffer = []
                             continue
+
+                        # GATE OPENWAKEWORD : en veille, on ne paie l'appel STT que si le wake word
+                        # a été détecté localement. La vérification "WAKE_WORD in texte" plus bas
+                        # reste l'autorité finale (un faux positif ne coûte qu'une transcription).
+                        if WAKEWORD_MODEL is not None and not jarvis_actif and not was_during_speech:
+                            wake_score = getattr(ecouter, "_wake_score", 0.0)
+                            ecouter._wake_score = 0.0  # Fenêtre de détection consommée
+                            if wake_score < WAKEWORD_THRESHOLD:
+                                print(f"[WAKEWORD] Phrase ignorée sans STT (score {wake_score:.2f} < seuil {WAKEWORD_THRESHOLD}).")
+                                audio_buffer = []
+                                continue
+                            print(f"[WAKEWORD] Wake word détecté localement (score {wake_score:.2f}) → transcription.")
 
                         # Transcription Groq Whisper avec fallback Google STT
                         texte = transcribe_audio_groq(raw_audio, RATE, r)
