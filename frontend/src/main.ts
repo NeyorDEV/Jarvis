@@ -1900,17 +1900,65 @@ keyboardToggleButtonEl.addEventListener("click", () => {
   keyboardHudEl.style.display = keyboardEnabled ? "block" : "none";
 
   if (keyboardEnabled) {
+    // Réinitialiser la position pour le centrer au cas où il a été glissé précédemment
+    keyboardHudEl.style.left = "";
+    keyboardHudEl.style.top = "";
+    keyboardHudEl.style.right = "";
+    keyboardHudEl.style.bottom = "";
+    keyboardHudEl.style.transform = "";
     setTimeout(() => keyboardInputEl.focus(), 100);
   }
 });
 
+// Rendre le clavier HUD déplaçable par son en-tête
+const keyboardHeaderEl = keyboardHudEl?.querySelector(".keyboard-hud-header") as HTMLElement | null;
+if (keyboardHudEl && keyboardHeaderEl) {
+  makePanelDraggable(keyboardHudEl, keyboardHeaderEl);
+}
+
+let keyboardDecryptTimeout: any = null;
+keyboardInputEl.addEventListener("input", () => {
+  const statusLabel = document.getElementById("keyboard-status-label");
+  if (!statusLabel) return;
+
+  // Effet de décryptage dynamique
+  const chars = "0123456789ABCDEFXYZ//_#◈";
+  let randomStr = "";
+  for (let i = 0; i < 6; i++) {
+    randomStr += chars[Math.floor(Math.random() * chars.length)];
+  }
+  statusLabel.textContent = `DECRYPTING: [ ${randomStr} ]`;
+  statusLabel.style.color = "#ff8a1a"; // Orange pendant le décryptage
+  statusLabel.style.textShadow = "0 0 8px rgba(255, 138, 26, 0.5)";
+
+  if (keyboardDecryptTimeout) clearTimeout(keyboardDecryptTimeout);
+  keyboardDecryptTimeout = setTimeout(() => {
+    statusLabel.textContent = "AWAITING_COMMAND...";
+    statusLabel.style.color = "#00e5ff"; // Retour au cyan JARVIS
+    statusLabel.style.textShadow = "0 0 8px rgba(0, 229, 255, 0.4)";
+  }, 400);
+});
+
 keyboardInputEl.addEventListener("keydown", (e) => {
+  const statusLabel = document.getElementById("keyboard-status-label");
   if (e.key === "Enter") {
     const val = keyboardInputEl.value.trim();
     if (val && ws && ws.readyState === WebSocket.OPEN) {
       ws.send(JSON.stringify({ type: "user_input", text: val }));
       keyboardInputEl.value = "";
-      // Optionnel: masquer après envoi ? Non, on laisse si l'utilisateur veut continuer à taper
+      
+      // Flash de statut d'envoi réussi
+      if (statusLabel) {
+        statusLabel.textContent = "COMMAND_TRANSMITTED";
+        statusLabel.style.color = "#00ff88"; // Vert de validation
+        statusLabel.style.textShadow = "0 0 10px rgba(0, 255, 136, 0.6)";
+        if (keyboardDecryptTimeout) clearTimeout(keyboardDecryptTimeout);
+        keyboardDecryptTimeout = setTimeout(() => {
+          statusLabel.textContent = "AWAITING_COMMAND...";
+          statusLabel.style.color = "#00e5ff";
+          statusLabel.style.textShadow = "0 0 8px rgba(0, 229, 255, 0.4)";
+        }, 1200);
+      }
     }
   }
 });
@@ -2207,6 +2255,7 @@ function runBootSequence(): void {
   if (buildYear) buildYear.textContent = new Date().getFullYear().toString();
 
   const MODULES = [
+
     "NEURAL_NETWORK_CORE",
     "SPEECH_RECOGNITION",
     "KNOWLEDGE_DATABASE",
@@ -2259,6 +2308,8 @@ function runBootSequence(): void {
     finalText.style.transform = "scale(1)";
 
     setTimeout(() => {
+      // Retirer la protection anti-FOUC pour révéler l'interface
+      document.body.classList.remove("loading");
       overlay.style.opacity = "0";
       setTimeout(() => { overlay.style.display = "none"; }, 900);
     }, 1600);
@@ -2313,16 +2364,127 @@ initJarvisGlobe();
 initHandTracking();
 initHADashboard(ws);
 initIPTVPlayer(ws);
+initDynamicAmbientGlow();
+initMagneticButtons();
 runBootSequence();
 
-// Masquer le message d'aide après 10 secondes
-setTimeout(() => {
-  const tip = document.getElementById("user-tip");
-  if (tip) {
-    tip.style.opacity = "0";
-    setTimeout(() => { tip.style.display = "none"; }, 1000);
+// ── Dynamic Quick Tips Carousel (Option 2) ──────────────────────────
+const QUICK_TIPS = [
+  "DEMANDEZ : 'ACTIVE LE MODE IRON MAN'",
+  "DEMANDEZ : 'LANCE LE SCAN ANTIVIRUS'",
+  "DEMANDEZ : 'ALLUME LA LUMIERE DU SALON'",
+  "DEMANDEZ : 'LANCE UNE PARTIE D'ECHECS'",
+  "DEMANDEZ : 'LANCE LE DESSIN DE JARVIS'",
+  "DEMANDEZ : 'LANCE LE LECTEUR IPTV'",
+  "CONSEIL : SURVOLEZ LES BOUTONS POUR L'ATTRACTION MAGNETIQUE",
+  "SAISIE DIRECTE : CLIQUEZ SUR CLAVIER POUR LES COMMANDES TEXTE",
+  "CONFIGURATION : COMMANDE 'METS LA VOIX D'HOMME / DE FEMME'"
+];
+
+function initDynamicUserTips() {
+  const tipPanelEl = document.getElementById("user-tip");
+  const tipTextEl = document.getElementById("user-tip-text");
+  if (!tipPanelEl || !tipTextEl) return;
+
+  let currentTipIndex = 0;
+  let typingInterval: number | null = null;
+  let collapseTimeout: number | null = null;
+  let isCollapsed = false;
+
+  function typeText(text: string, callback: () => void) {
+    let charIndex = 0;
+    tipTextEl!.textContent = "";
+    
+    if (typingInterval) clearInterval(typingInterval);
+    
+    typingInterval = window.setInterval(() => {
+      if (charIndex < text.length) {
+        tipTextEl!.textContent += text.charAt(charIndex);
+        charIndex++;
+      } else {
+        if (typingInterval) {
+          clearInterval(typingInterval);
+          typingInterval = null;
+        }
+        callback();
+      }
+    }, 35); // 35ms par lettre
   }
-}, 10000);
+
+  function collapsePanel() {
+    isCollapsed = true;
+    tipPanelEl!.classList.add("collapsed");
+    // Changer le texte en "?" après un léger délai pour coller à la transition CSS (200ms)
+    setTimeout(() => {
+      if (isCollapsed) {
+        tipTextEl!.textContent = "?";
+      }
+    }, 200);
+  }
+
+  function expandPanel() {
+    if (!isCollapsed) return; // Déjà déplié
+    isCollapsed = false;
+    tipPanelEl!.classList.remove("collapsed");
+
+    // Choisir le conseil suivant
+    currentTipIndex = (currentTipIndex + 1) % QUICK_TIPS.length;
+    
+    // Attendre la fin de l'expansion CSS (300ms) puis dactylographier
+    setTimeout(() => {
+      if (!isCollapsed) {
+        typeText(QUICK_TIPS[currentTipIndex], () => {
+          // Relancer le timer de disparition automatique (5s)
+          resetCollapseTimer(5000);
+        });
+      }
+    }, 300);
+  }
+
+  function resetCollapseTimer(delay: number) {
+    if (collapseTimeout) clearTimeout(collapseTimeout);
+    collapseTimeout = window.setTimeout(() => {
+      collapsePanel();
+    }, delay);
+  }
+
+  // Événements d'interaction
+  tipPanelEl.addEventListener("mouseenter", () => {
+    if (isCollapsed) {
+      expandPanel();
+    } else {
+      // Si l'utilisateur survole alors qu'il est déjà étendu, on garde ouvert
+      if (collapseTimeout) clearTimeout(collapseTimeout);
+    }
+  });
+
+  tipPanelEl.addEventListener("mouseleave", () => {
+    if (!isCollapsed) {
+      // S'il quitte la zone, on replie après 5 secondes d'inactivité
+      resetCollapseTimer(5000);
+    }
+  });
+
+  tipPanelEl.addEventListener("click", () => {
+    if (isCollapsed) {
+      expandPanel();
+    } else {
+      // Si déjà ouvert, un clic force le passage directement à l'astuce suivante
+      currentTipIndex = (currentTipIndex + 1) % QUICK_TIPS.length;
+      typeText(QUICK_TIPS[currentTipIndex], () => {
+        resetCollapseTimer(5000);
+      });
+    }
+  });
+
+  // Cycle initial : Dactylographie la première astuce, puis se replie au bout de 5 secondes
+  typeText(QUICK_TIPS[currentTipIndex], () => {
+    resetCollapseTimer(5000);
+  });
+}
+
+// Initialiser le carrousel d'astuces
+initDynamicUserTips();
 // ── Help HUD Logic ───────────────────────────────────────────────────────────
 function showHelpHUD() {
   helpOverlayEl.style.display = "block";
@@ -2839,7 +3001,7 @@ function _positionArrow(open: boolean) {
   Object.assign(_carouselArrow.style, {
     position:   'fixed',
     left:       `${Math.round(window.innerWidth / 2 - w / 2)}px`,
-    bottom:     '8px',
+    bottom:     open ? '32px' : '8px',
     width:      `${w}px`,
     height:     `${h}px`,
     zIndex:     '10010',
@@ -2887,61 +3049,47 @@ const getCarouselButtons = () => Array.from(track ? track.getElementsByTagName("
 
 let activeIndex = 0;
 
-function interpolate(val: number, keyframes: [number, number][]) {
-  if (val <= keyframes[0][0]) return keyframes[0][1];
-  if (val >= keyframes[keyframes.length - 1][0]) return keyframes[keyframes.length - 1][1];
-  for (let i = 0; i < keyframes.length - 1; i++) {
-    const k1 = keyframes[i];
-    const k2 = keyframes[i+1];
-    if (val >= k1[0] && val <= k2[0]) {
-      const pct = (val - k1[0]) / (k2[0] - k1[0]);
-      return k1[1] + pct * (k2[1] - k1[1]);
-    }
-  }
-  return keyframes[0][1];
-}
-
-const scaleKeyframes: [number, number][] = [
-  [-3, 0.5],
-  [-2, 0.65],
-  [-1, 0.85],
-  [0, 1.16],
-  [1, 0.85],
-  [2, 0.65],
-  [3, 0.5]
-];
-
-const opacityKeyframes: [number, number][] = [
-  [-3, 0],
-  [-2, 0.5],
-  [-1, 0.8],
-  [0, 1],
-  [1, 0.8],
-  [2, 0.5],
-  [3, 0]
-];
-
-const txKeyframes: [number, number][] = [
-  [-3, -281],
-  [-2, -207.5],
-  [-1, -116.5],
-  [0, 0],
-  [1, 116.5],
-  [2, 207.5],
-  [3, 281]
-];
-
 function renderCarousel(progress = 0) {
   const buttons = getCarouselButtons();
   if (buttons.length === 0) return;
 
-  buttons.forEach((btn) => {
-    // Supprimer les styles inline appliqués par le carrousel 3D précédent
-    btn.style.transform = "";
-    btn.style.opacity = "";
-    btn.style.zIndex = "";
-    btn.style.pointerEvents = "";
-    btn.setAttribute("aria-hidden", "false");
+  // Index virtuel basé sur le drag ou scroll
+  let virtualIndex = activeIndex - progress;
+  
+  // Limiter l'index pour ne pas défiler dans le vide
+  virtualIndex = Math.max(0, Math.min(virtualIndex, buttons.length - 1));
+
+  // Chaque bouton fait 120px de large + 15px de gap = 135px de décalage
+  const buttonOffset = 135;
+  const halfButtonWidth = 60; // 120px / 2
+
+  if (track) {
+    // Calcule la translation négative par rapport au left: 50% de la track
+    track.style.transform = `translateX(-${(virtualIndex * buttonOffset) + halfButtonWidth}px)`;
+  }
+
+  // Arrondir l'index pour savoir quel bouton est actif visuellement
+  const roundedActive = Math.round(virtualIndex);
+
+  buttons.forEach((btn, idx) => {
+    if (idx === roundedActive) {
+      btn.classList.add("active");
+      btn.style.opacity = "1";
+    } else {
+      btn.classList.remove("active");
+      btn.style.opacity = "0.5";
+    }
+  });
+
+  // Mettre à jour les points indicateurs
+  const dots = document.querySelectorAll(".carousel-dot");
+  const N = buttons.length / 3;
+  dots.forEach((dot, idx) => {
+    if (N > 0 && idx === (roundedActive % N)) {
+      dot.classList.add("active");
+    } else {
+      dot.classList.remove("active");
+    }
   });
 }
 
@@ -2955,16 +3103,19 @@ function createIndicators() {
   if (!indicatorsContainer) return;
   indicatorsContainer.innerHTML = "";
   const buttons = getCarouselButtons();
-  buttons.forEach((_, idx) => {
+  const N = buttons.length / 3;
+  if (N === 0) return;
+
+  for (let idx = 0; idx < N; idx++) {
     const dot = document.createElement("span");
-    dot.className = `carousel-dot${idx === activeIndex ? " active" : ""}`;
+    dot.className = `carousel-dot${(activeIndex % N) === idx ? " active" : ""}`;
     dot.setAttribute("data-page", idx.toString());
     dot.addEventListener("click", () => {
-      activeIndex = idx;
+      activeIndex = N + idx; // Aligner sur la 2ème copie
       updateCarousel();
     });
     indicatorsContainer.appendChild(dot);
-  });
+  }
 }
 
 const controlBar = document.getElementById("hud-control-bar");
@@ -3072,10 +3223,67 @@ if (controlBar && track) {
       activeIndex = (activeIndex - 1 + len) % len;
     }
     updateCarousel();
+    setTimeout(() => checkInfiniteBoundaries(), 400);
   }, { passive: false });
 }
 
+// ── FONCTIONS POUR LA BOUCLE INFINIE DU CAROUSEL (3 COPIES) ──
+function checkInfiniteBoundaries() {
+  const buttons = getCarouselButtons();
+  const N = buttons.length / 3;
+  if (N === 0) return;
+  
+  let snapped = false;
+  if (activeIndex < N) {
+    activeIndex += N;
+    snapped = true;
+  } else if (activeIndex >= 2 * N) {
+    activeIndex -= N;
+    snapped = true;
+  }
+  
+  if (snapped && track) {
+    const prevTransition = track.style.transition;
+    track.style.transition = "none";
+    const buttonOffset = 135;
+    const halfButtonWidth = 60;
+    track.style.transform = `translateX(-${(activeIndex * buttonOffset) + halfButtonWidth}px)`;
+    track.offsetHeight; // Forcer reflow
+    track.style.transition = prevTransition;
+  }
+}
+
+function initInfiniteCarousel() {
+  if (!track) return;
+  const originalButtons = Array.from(track.children) as HTMLButtonElement[];
+  const N = originalButtons.length;
+  if (N === 0) return;
+
+  // Assigner l'attribut data-original-id
+  originalButtons.forEach(btn => {
+    btn.setAttribute("data-original-id", btn.id);
+  });
+
+  // Vider et dupliquer en 3 copies
+  track.innerHTML = "";
+  for (let c = 0; c < 3; c++) {
+    originalButtons.forEach(btn => {
+      const clone = btn.cloneNode(true) as HTMLButtonElement;
+      track.appendChild(clone);
+    });
+  }
+
+  // Démarrer au début de la 2ème copie
+  activeIndex = N;
+
+  // Gérer la fin de transition pour le snap invisible
+  track.addEventListener("transitionend", () => {
+    checkInfiniteBoundaries();
+  });
+}
+
 // Initialize
+initInfiniteCarousel();
 createIndicators();
 updateCarousel();
 
@@ -3818,6 +4026,13 @@ function openUninstallerPanel() {
     uninstallerPanel.classList.add("visible");
     uninstallerToggleBtn?.setAttribute("aria-pressed", "true");
     
+    // Synchroniser avec le bouton du menu dropdown unifié
+    const menuBtn = document.getElementById("menu-uninstaller-toggle-btn");
+    if (menuBtn) {
+      menuBtn.setAttribute("aria-pressed", "true");
+      menuBtn.classList.add("active");
+    }
+    
     if (wingetPanel) closeWingetPanel();
     
     // Switch to list view initially
@@ -3841,6 +4056,13 @@ function closeUninstallerPanel() {
     uninstallerPanel.classList.add("hidden");
     uninstallerPanel.classList.remove("visible");
     uninstallerToggleBtn?.setAttribute("aria-pressed", "false");
+    
+    // Synchroniser avec le bouton du menu dropdown unifié
+    const menuBtn = document.getElementById("menu-uninstaller-toggle-btn");
+    if (menuBtn) {
+      menuBtn.setAttribute("aria-pressed", "false");
+      menuBtn.classList.remove("active");
+    }
   }
 }
 
@@ -4038,6 +4260,13 @@ function openWingetPanel() {
     wingetPanel.classList.add("visible");
     wingetToggleBtn?.setAttribute("aria-pressed", "true");
     
+    // Synchroniser avec le bouton du menu dropdown unifié
+    const menuBtn = document.getElementById("winget-toggle-btn");
+    if (menuBtn) {
+      menuBtn.setAttribute("aria-pressed", "true");
+      menuBtn.classList.add("active");
+    }
+    
     // Close other panels if needed
     if (uninstallerPanel) closeUninstallerPanel();
     
@@ -4059,6 +4288,13 @@ function closeWingetPanel() {
     wingetPanel.classList.add("hidden");
     wingetPanel.classList.remove("visible");
     wingetToggleBtn?.setAttribute("aria-pressed", "false");
+    
+    // Synchroniser avec le bouton du menu dropdown unifié
+    const menuBtn = document.getElementById("winget-toggle-btn");
+    if (menuBtn) {
+      menuBtn.setAttribute("aria-pressed", "false");
+      menuBtn.classList.remove("active");
+    }
   }
 }
 
@@ -4247,3 +4483,268 @@ if (hudBrowserCloseBtn) {
     }
   });
 }
+
+// ── Dynamic Ambient Glow Management ──────────────────────────────────────────
+function initDynamicAmbientGlow() {
+  const container = document.querySelector(".ambient-glow-auras") as HTMLDivElement | null;
+  if (!container) return;
+
+  // Couleurs d'auras possibles
+  const GLOW_COLORS = [
+    "rgba(0, 229, 255, 0.16)", // Cyan
+    "rgba(0, 110, 255, 0.14)", // Bleu électrique
+    "rgba(189, 83, 237, 0.12)", // Violet
+    "rgba(0, 255, 136, 0.11)"  // Vert émeraude
+  ];
+
+  function spawnAura() {
+    if (!container) return;
+    // Si on a déjà 3 auras actives, on ne fait rien
+    if (container.children.length >= 3) return;
+
+    const aura = document.createElement("div");
+    aura.className = "glow-aura";
+    
+    // Propriétés aléatoires de taille et d'effet
+    const size = Math.floor(Math.random() * 350) + 550; // Entre 550px et 900px
+    const color = GLOW_COLORS[Math.floor(Math.random() * GLOW_COLORS.length)];
+    const blur = Math.floor(Math.random() * 35) + 85; // Entre 85px et 120px
+    
+    // Position initiale aléatoire (sur tout l'écran)
+    const startX = Math.random() * window.innerWidth;
+    const startY = Math.random() * window.innerHeight;
+    
+    // Destination aléatoire pour la dérive
+    const destX = Math.random() * window.innerWidth;
+    const destY = Math.random() * window.innerHeight;
+    
+    // Application des styles initiaux
+    aura.style.width = `${size}px`;
+    aura.style.height = `${size}px`;
+    aura.style.left = `${startX - size / 2}px`;
+    aura.style.top = `${startY - size / 2}px`;
+    aura.style.background = `radial-gradient(circle, ${color} 0%, rgba(0,0,0,0) 70%)`;
+    aura.style.filter = `blur(${blur}px)`;
+    aura.style.opacity = "0";
+    
+    // Transition fluide (8s pour le fondu, 55s pour le déplacement)
+    aura.style.transition = "opacity 8s ease-in-out, transform 55s cubic-bezier(0.1, 0.25, 0.1, 1)";
+    
+    container.appendChild(aura);
+    
+    // 1. Débuter l'apparition et la dérive après injection
+    setTimeout(() => {
+      aura.style.opacity = "0.9";
+      aura.style.transform = `translate(${destX - startX}px, ${destY - startY}px) scale(${Math.random() * 0.4 + 0.8})`;
+    }, 100);
+    
+    // 2. Cycle de vie : fondu sortant après une durée de vie aléatoire (20 à 38 secondes)
+    const lifeTime = (Math.random() * 18 + 20) * 1000;
+    
+    setTimeout(() => {
+      aura.style.opacity = "0";
+      // Retirer du DOM une fois le fondu terminé
+      setTimeout(() => {
+        aura.remove();
+      }, 8500);
+    }, lifeTime);
+  }
+
+  // Intervalle régulateur : décide s'il faut ajuster les auras vers une cible aléatoire (0 à 3)
+  setInterval(() => {
+    if (!container) return;
+    const targetCount = Math.floor(Math.random() * 4); // 0, 1, 2 ou 3 auras
+    const currentCount = container.children.length;
+    
+    if (currentCount < targetCount) {
+      spawnAura();
+    }
+  }, 7000);
+
+  // Instancier 1 à 2 auras initiales pour donner vie directement à l'écran
+  const initCount = Math.floor(Math.random() * 2) + 1; // 1 ou 2 auras
+  for (let i = 0; i < initCount; i++) {
+    spawnAura();
+  }
+}
+
+// ── Magnetic Buttons (Micro-Interactions Aimantées à distance) ────────────────
+function initMagneticButtons() {
+  const buttons = document.querySelectorAll(
+    ".carousel-track > button, #jarvis-menu-btn, #mic-btn, .menu-action-btn, #keyboard-toggle, #gestures-mirror, #fullscreen-btn"
+  );
+
+  const MAGNET_RADIUS = 60; // Zone d'attraction magnétique plus serrée (60px)
+
+  document.addEventListener("mousemove", (e) => {
+    const mouseX = e.clientX;
+    const mouseY = e.clientY;
+
+    buttons.forEach(btn => {
+      const button = btn as HTMLElement;
+      // Ne pas magnetiser si le bouton est caché
+      if (button.offsetWidth === 0 || button.offsetHeight === 0) return;
+
+      const rect = button.getBoundingClientRect();
+      const centerX = rect.left + rect.width / 2;
+      const centerY = rect.top + rect.height / 2;
+
+      // Distance euclidienne entre la souris et le centre du bouton
+      const dx = mouseX - centerX;
+      const dy = mouseY - centerY;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+
+      if (distance < MAGNET_RADIUS) {
+        // Le curseur est entré dans le rayon magnétique
+        const proximity = 1 - distance / MAGNET_RADIUS; // Entre 0 (bord) et 1 (centre)
+        const strength = proximity * 0.18; // Attraction très subtile de 18% max de la distance
+
+        // Transition ultra-courte pendant le mouvement pour fluidifier le glissement
+        button.style.transition = "transform 0.12s cubic-bezier(0.25, 1, 0.5, 1)";
+        button.style.transform = `translate(${dx * strength}px, ${dy * strength}px) scale(${1 + proximity * 0.03})`;
+        button.setAttribute("data-magnetized", "true");
+      } else {
+        // En dehors du champ, on réinitialise s'il était actif
+        if (button.getAttribute("data-magnetized") === "true") {
+          button.style.transition = "transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275)";
+          button.style.transform = "translate(0px, 0px) scale(1)";
+          button.removeAttribute("data-magnetized");
+        }
+      }
+    });
+  });
+}
+
+// ── BINDINGS D'ÉVÉNEMENTS POUR LE DOCK CAROUSEL OPERATIONAL (OPTION B) ──
+const bindCarouselAction = (btnId: string, actionFn: () => void) => {
+  const btn = document.getElementById(btnId);
+  if (btn) btn.addEventListener("click", actionFn);
+};
+
+// 1. Vision (déjà liée à vision-button par ailleurs, mais on assure la compatibilité)
+bindCarouselAction("vision-button", () => {
+  const original = document.getElementById("vision-button");
+  if (original && original !== document.activeElement) {
+    // La logique de Vision s'active déjà sur son clic, aucun doublon requis.
+  }
+});
+
+// 2. IPTV / Lecteur Vidéo
+bindCarouselAction("carousel-iptv-btn", () => {
+  const p = document.getElementById("iptv-panel");
+  if (!p) return;
+  const isHidden = p.classList.contains("hidden");
+  if (isHidden) {
+    p.classList.remove("hidden");
+    const btn = document.getElementById("carousel-iptv-btn");
+    if (btn) { btn.classList.add("active"); btn.setAttribute("aria-pressed", "true"); }
+  } else {
+    p.classList.add("hidden");
+    const btn = document.getElementById("carousel-iptv-btn");
+    if (btn) { btn.classList.remove("active"); btn.setAttribute("aria-pressed", "false"); }
+    const vid = document.getElementById("iptv-video") as HTMLVideoElement | null;
+    if (vid && !vid.paused) vid.pause();
+  }
+});
+
+// 3. Désinstallateur
+bindCarouselAction("carousel-uninstaller-btn", () => {
+  const uninstallerPanel = document.getElementById("uninstaller-panel");
+  if (!uninstallerPanel) return;
+  const isHidden = uninstallerPanel.classList.contains("hidden");
+  if (isHidden) {
+    // openUninstallerPanel est une fonction globale disponible dans main.ts
+    // Déclenchons-la :
+    const openBtn = document.getElementById("uninstaller-toggle-btn");
+    if (openBtn) {
+      openBtn.click();
+    } else {
+      uninstallerPanel.classList.remove("hidden");
+    }
+    const btn = document.getElementById("carousel-uninstaller-btn");
+    if (btn) { btn.classList.add("active"); btn.setAttribute("aria-pressed", "true"); }
+  } else {
+    const closeBtn = document.getElementById("uninstaller-close-btn");
+    if (closeBtn) {
+      closeBtn.click();
+    } else {
+      uninstallerPanel.classList.add("hidden");
+    }
+    const btn = document.getElementById("carousel-uninstaller-btn");
+    if (btn) { btn.classList.remove("active"); btn.setAttribute("aria-pressed", "false"); }
+  }
+});
+
+// 4. Winget / Mises à jour
+bindCarouselAction("carousel-winget-btn", () => {
+  const wingetLogsPanel = document.getElementById("winget-logs-panel");
+  if (!wingetLogsPanel) return;
+  const isHidden = wingetLogsPanel.classList.contains("hidden");
+  if (isHidden) {
+    wingetLogsPanel.classList.remove("hidden");
+    const btn = document.getElementById("carousel-winget-btn");
+    if (btn) { btn.classList.add("active"); btn.setAttribute("aria-pressed", "true"); }
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: "winget_get_logs" }));
+    }
+  } else {
+    wingetLogsPanel.classList.add("hidden");
+    const btn = document.getElementById("carousel-winget-btn");
+    if (btn) { btn.classList.remove("active"); btn.setAttribute("aria-pressed", "false"); }
+  }
+});
+
+// 5. Antivirus Scan
+bindCarouselAction("carousel-av-scan-btn", () => {
+  // Déclenche le scan antivirus en simulant le clic sur le bouton de configuration d'origine
+  const settingsAvScanBtn = document.getElementById("settings-av-scan-btn");
+  if (settingsAvScanBtn) {
+    settingsAvScanBtn.click();
+  }
+});
+
+// 6. Domotique (Home Assistant)
+bindCarouselAction("carousel-ha-btn", () => {
+  const haPanel = document.getElementById("ha-panel");
+  if (!haPanel) return;
+  const isHidden = haPanel.classList.contains("hidden");
+  if (isHidden) {
+    haPanel.classList.remove("hidden");
+    const btn = document.getElementById("carousel-ha-btn");
+    if (btn) { btn.classList.add("active"); btn.setAttribute("aria-pressed", "true"); }
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: "ha_get_states" }));
+    }
+  } else {
+    haPanel.classList.add("hidden");
+    const btn = document.getElementById("carousel-ha-btn");
+    if (btn) { btn.classList.remove("active"); btn.setAttribute("aria-pressed", "false"); }
+  }
+});
+
+// 7. Navigateur Sécurisé
+bindCarouselAction("carousel-browser-btn", () => {
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({ type: "open_browser" }));
+  }
+});
+
+// 8. Liste des commandes
+bindCarouselAction("carousel-commands-btn", () => {
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({ type: "open_commands_file" }));
+  }
+});
+
+// 9. API Keys Modal
+bindCarouselAction("carousel-api-btn", () => {
+  const modal = document.getElementById("api-keys-modal");
+  if (modal) {
+    const isVisible = modal.classList.contains("visible");
+    if (isVisible) {
+      modal.classList.remove("visible");
+    } else {
+      modal.classList.add("visible");
+    }
+  }
+});

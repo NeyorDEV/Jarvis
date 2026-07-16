@@ -5,6 +5,16 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>J.A.R.V.I.S</title>
+  <style>
+    /* Protection anti-FOUC : force un fond noir et masque les éléments bruts au tout début du chargement */
+    body.loading {
+      background-color: #050508 !important;
+      overflow: hidden !important;
+    }
+    body.loading > *:not(#boot-overlay) {
+      display: none !important;
+    }
+  </style>
   <link rel="icon" type="image/png" href="/favicon.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -13,91 +23,7 @@
   <link rel="stylesheet" href="/lib/leaflet.css" />
   <script src="/lib/leaflet.js"></script>
 
-  <!-- ══ SHOPPING PANEL — Iron Man HUD ════════════════════════════════ -->
-  <div id="shopping-panel" class="shopping-panel hidden">
-    <div class="av-panel-scanlines"></div>
-    <div class="av-panel-corner-tr"></div>
-    <div class="av-panel-corner-bl"></div>
-    <div class="shopping-panel-header" id="shopping-panel-header">
-      <div class="shopping-panel-drag-icon">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <circle cx="9" cy="21" r="1"/>
-          <circle cx="20" cy="21" r="1"/>
-          <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
-        </svg>
-      </div>
-      <div class="shopping-panel-title">JARVIS // SHOPPING_LIST</div>
-      <button class="shopping-panel-close" id="shopping-panel-close-btn">&times;</button>
-    </div>
-    <div class="shopping-panel-body">
-      <div class="shopping-list-container" id="shopping-list-container">
-        <!-- Dynamique -->
-      </div>
-      <div class="shopping-add-form">
-        <input type="text" id="shopping-add-input" placeholder="Ajouter un article...">
-        <button id="shopping-add-btn">+</button>
-      </div>
-    </div>
-    <div class="shopping-panel-footer">
-      <button class="shopping-clear-btn" id="shopping-clear-btn">VIDER LA LISTE</button>
-      <span>JARVIS_HUD_SHOP_V1.0</span>
-    </div>
-  </div>
 
-  <!-- ══ TIMER OVERLAY — Iron Man Style ═══════════════════════════════ -->
-  <div id="timer-hud"
-    style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%, -50%);z-index:200;text-align:center;pointer-events:none;">
-    <div
-      style="font-family:'Courier New',monospace;color:#00e5ff;font-size:120px;font-weight:900;text-shadow:0 0 30px rgba(0,229,255,0.8);letter-spacing:10px;"
-      id="timer-display">00:00</div>
-    <div
-      style="font-family:'Courier New',monospace;color:rgba(0,229,255,0.5);font-size:14px;letter-spacing:5px;text-transform:uppercase;margin-top:-20px;">
-      Protocol Minuteur Actif</div>
-    <div
-      style="width:300px;height:2px;background:rgba(0,229,255,0.2);margin:20px auto;position:relative;overflow:hidden;">
-      <div id="timer-progress"
-        style="position:absolute;top:0;left:0;height:100%;width:0%;background:#00e5ff;box-shadow:0 0 10px #00e5ff;">
-      </div>
-    </div>
-  </div>
-
-  <!-- ══ HELP OVERLAY — Iron Man Style ═══════════════════════════════ -->
-  <div id="help-overlay" style="display:none;position:fixed;inset:0;z-index:90;pointer-events:none;">
-    <!-- Widgets will be injected here by JS -->
-  </div>
-
-  <!-- ══ AUTONOMOUS DEV SWARM HUD — Iron Man Style (Minimal Progress) ══════════════════ -->
-  <div id="dev-swarm-hud" class="dev-swarm-hud hidden">
-    <div class="swarm-progress-header">
-      <span class="swarm-progress-agent" id="swarm-progress-agent">AGENT: PM</span>
-      <button class="swarm-close-btn" id="swarm-close-btn">✕</button>
-    </div>
-    <div class="swarm-progress-bar-wrap">
-      <div class="swarm-progress-bar" id="swarm-progress-bar-fill"></div>
-    </div>
-    <div class="swarm-progress-message" id="swarm-progress-msg">Initialisation de la tâche...</div>
-  </div>
-
-  <!-- ══ RECIPE MODAL — Iron Man Style ═══════════════════════════════ -->
-  <div id="recipe-modal" class="recipe-modal hidden">
-    <div class="recipe-header" id="recipe-header">
-      <div class="recipe-drag-handle">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>
-      </div>
-      <span class="recipe-title" id="recipe-title">RECETTE J.A.R.V.I.S</span>
-      <button id="close-recipe" class="close-recipe">X</button>
-    </div>
-    <div class="recipe-content">
-      <div class="recipe-ingredients">
-        <h3>INGRÉDIENTS</h3>
-        <ul id="recipe-ingredients-list"></ul>
-      </div>
-      <div class="recipe-instructions">
-        <h3>INSTRUCTIONS</h3>
-        <ol id="recipe-instructions-list"></ol>
-      </div>
-    </div>
-  </div>
 
   <style>
     .help-widget {
@@ -166,7 +92,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils@0.3.1675466124/drawing_utils.js" crossorigin="anonymous"></script>
 </head>
 
-<body>
+<body class="loading">
   <!-- Elements de réalité augmentée pour le suivi gestuel (Hand Tracking) -->
   <video id="hand-video" autoplay playsinline muted></video>
   <canvas id="hand-canvas"></canvas>
@@ -226,6 +152,9 @@
 
     <canvas id="orb-canvas"></canvas>
 
+  <!-- Ambient Glow Background Auras -->
+  <div class="ambient-glow-auras"></div>
+
   <div id="orb-clock-hud">
     <div id="holo-clock-canvas-wrap"></div>
   </div>
@@ -241,101 +170,20 @@
           <line x1="9" y1="22" x2="15" y2="22" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
         </svg>
       </button>
-      <button id="mute-button" aria-label="Stopper JARVIS" title="Cliquez pour stopper JARVIS" aria-pressed="false">&#9632;</button>
-    </div>
-  </div>
-
-  <!-- ══ UNIFIED MENU HUD ════════════════════════════════════════ -->
-  <button id="jarvis-menu-btn" title="Menu principal J.A.R.V.I.S">◈ MENU</button>
-  <div id="jarvis-menu-dropdown" class="hidden">
-    <div class="dropdown-scanlines"></div>
-    <div class="dropdown-corner tl"></div>
-    <div class="dropdown-corner tr"></div>
-    <div class="dropdown-corner bl"></div>
-    <div class="dropdown-corner br"></div>
-    
-    <div class="dropdown-header">◈ CONTROLES_SYSTEME // MENU</div>
-    
-    <div class="dropdown-sections">
-      <!-- Section 1: IA & Reconnaissance -->
-      <div class="dropdown-section">
-        <div class="section-title">INTELLIGENCE ARTIFICIELLE</div>
-        <div class="section-buttons">
-          <button id="vision-button" class="menu-action-btn">
-            <span class="btn-icon">👁️</span> ACTIVER LA VISION
-          </button>
-        </div>
-      </div>
-      
-      <!-- Section 2: Performances & Accès -->
-      <div class="dropdown-section">
-        <div class="section-title">PERFORMANCES & ACCÈS</div>
-        <div class="section-buttons">
-          <button id="menu-gpu-btn" aria-pressed="true" class="menu-action-btn">
-            <span class="btn-icon">⚡</span> GPU BOOST
-          </button>
-          <button id="menu-keyboard-toggle" aria-pressed="false" class="menu-action-btn">
-            <span class="btn-icon">⌨️</span> CLAVIER VISUEL
-          </button>
-        </div>
-      </div>
-      
-      <!-- Section 3: Outils & Paramètres -->
-      <div class="dropdown-section">
-        <div class="section-title">OUTILS SYSTEME</div>
-        <div class="section-buttons">
-          <button id="menu-subtitle-toggle" aria-pressed="true" class="menu-action-btn">
-            <span class="btn-icon">💬</span> HUD TEXT (TTS)
-          </button>
-          <button id="menu-holo-btn" aria-pressed="false" class="menu-action-btn">
-            <span class="btn-icon">⬡</span> HOLOGRAMME
-          </button>
-          <button id="menu-iptv-toggle-btn" aria-pressed="false" class="menu-action-btn">
-            <span class="btn-icon">📺</span> LECTEUR VIDÉO / IPTV
-          </button>
-           <button id="menu-uninstaller-toggle-btn" aria-pressed="false" class="menu-action-btn">
-            <span class="btn-icon">🗑️</span> DÉSINSTALLATEUR
-          </button>
-          <button id="winget-toggle-btn" aria-pressed="false" class="menu-action-btn">
-            <span class="btn-icon">🚀</span> MAJ LOGICIELS (WINGET)
-            <span id="winget-count-badge" class="badge hidden" style="margin-left:auto; background:#ff3366; color:white; font-size:9px; font-weight:bold; padding:2px 6px; border-radius:10px;">0</span>
-          </button>
-          <button id="menu-av-scan-btn" aria-pressed="false" class="menu-action-btn">
-            <span class="btn-icon">🛡️</span> ANTIVIRUS (SCAN)
-          </button>
-          <button id="menu-av-live-btn" aria-pressed="false" class="menu-action-btn">
-            <span class="btn-icon">🛡️</span> PROT. TEMPS RÉEL : OFF
-          </button>
-          <button id="menu-ha-toggle-btn" aria-pressed="false" class="menu-action-btn">
-            <span class="btn-icon">🏠</span> DOMOTIQUE
-          </button>
-          <button id="clear-cache-btn" aria-pressed="false" class="menu-action-btn" title="Vide le cache WebView2 et recharge l'interface — utile après une mise à jour">
-            <span class="btn-icon">🔄</span> VIDER CACHE / RECHARGER
-          </button>
-          <button id="commands-btn" aria-pressed="false" class="menu-action-btn">
-            <span class="btn-icon">📋</span> LISTE COMMANDES
-          </button>
-          <button id="browser-btn" aria-pressed="false" class="menu-action-btn">
-            <span class="btn-icon">🌐</span> NAVIGATEUR SÉCURISÉ
-          </button>
-          <button id="api-keys-button" aria-pressed="false" class="menu-action-btn">
-            <span class="btn-icon">🔑</span> CONFIGURATION API
-          </button>
-          <button id="menu-settings-btn" aria-pressed="false" class="menu-action-btn">
-            <span class="btn-icon">⚙️</span> PARAMÈTRES
-          </button>
-          <div style="font-family:'Courier New',monospace; color:rgba(0,229,255,0.5); font-size:10px; text-align:center; margin-top:12px; letter-spacing:3px; text-transform:uppercase;">
-            VERSION 9.0
-          </div>
-        </div>
-      </div>
+      <button id="mute-button" aria-label="Stopper JARVIS" title="Cliquez pour stopper JARVIS" aria-pressed="false">
+        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2" />
+          <rect x="9" y="9" width="6" height="6" rx="1" fill="currentColor" />
+          <line x1="6" y1="6" x2="18" y2="18" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+        </svg>
+      </button>
     </div>
   </div>
 
   <div id="status-text"></div>
-  <div id="user-tip"
-    style="position:fixed;top:60px;left:20px;z-index:80;color:rgba(0,229,255,0.8);font-family:'Courier New',monospace;font-size:14px;font-weight:bold;letter-spacing:1px;pointer-events:none;background:rgba(0,229,255,0.1);padding:10px 20px;border-left:3px solid #00e5ff;border-radius:0 4px 4px 0;box-shadow:0 0 15px rgba(0,229,255,0.2);text-transform:uppercase;transition:opacity 1s ease-in-out;">
-    Demandez : "Jarvis, que peux-tu faire ?"
+  <div id="user-tip" class="user-tip-panel">
+    <div class="user-tip-header">JARVIS // QUICK_TIP</div>
+    <div class="user-tip-body" id="user-tip-text">Demandez : "Jarvis, que peux-tu faire ?"</div>
   </div>
   <div id="error-text"></div>
   <div id="connection-badge" class="disconnected">
@@ -351,11 +199,26 @@
   <div id="hud-control-bar" class="carousel-container carousel-hidden">
     <div class="carousel-viewport">
       <div class="carousel-track" id="carousel-track">
-        <button id="gpu-button" aria-pressed="true">GPU BOOST</button>
-        <button id="holo-button" aria-pressed="false">HOLO</button>
-        <button id="subtitle-toggle" aria-pressed="true">HUD TEXT</button>
-        <button id="gestures-toggle" aria-pressed="false">MODE AR</button>
-        <button id="settings-button" aria-pressed="false">PARAMS</button>
+        <!-- Section IA / Core -->
+        <button id="vision-button" title="Activer la vision de JARVIS"><span class="btn-icon">👁️</span> VISION</button>
+        <button id="gpu-button" aria-pressed="true" title="Activer le mode performances GPU"><span class="btn-icon">⚡</span> GPU BOOST</button>
+        <button id="holo-button" aria-pressed="false" title="Activer le mode hologramme"><span class="btn-icon">⬡</span> HOLO</button>
+        <button id="subtitle-toggle" aria-pressed="true" title="Activer les sous-titres du HUD"><span class="btn-icon">💬</span> HUD TEXT</button>
+        <button id="gestures-toggle" aria-pressed="false" title="Activer la détection de gestes AR"><span class="btn-icon">🖐️</span> MODE AR</button>
+        
+        <!-- Section Outils -->
+        <button id="carousel-iptv-btn" aria-pressed="false" title="Ouvrir le lecteur vidéo / IPTV"><span class="btn-icon">📺</span> IPTV</button>
+        <button id="carousel-uninstaller-btn" aria-pressed="false" title="Ouvrir le désinstallateur d'applications"><span class="btn-icon">🗑️</span> UNINSTALL</button>
+        <button id="carousel-winget-btn" aria-pressed="false" title="Mettre à jour les logiciels avec Winget"><span class="btn-icon">🚀</span> WINGET <span id="winget-count-badge" class="badge hidden" style="background:#ff3366; color:white; font-size:8px; padding:1px 4px; border-radius:10px; margin-left:3px;">0</span></button>
+        <button id="carousel-av-scan-btn" aria-pressed="false" title="Lancer un scan antivirus rapide"><span class="btn-icon">🛡️</span> ANTIVIRUS</button>
+        <button id="carousel-ha-btn" aria-pressed="false" title="Contrôler la domotique Home Assistant"><span class="btn-icon">🏠</span> DOMOTIQUE</button>
+        <button id="carousel-browser-btn" aria-pressed="false" title="Ouvrir le navigateur web sécurisé"><span class="btn-icon">🌐</span> NAVIGATEUR</button>
+        
+        <!-- Section Système -->
+        <button id="carousel-commands-btn" aria-pressed="false" title="Afficher la liste des commandes vocales"><span class="btn-icon">📋</span> COMMANDES</button>
+        <button id="carousel-api-btn" aria-pressed="false" title="Configurer les clés d'API (OpenAI, Gemini...)"><span class="btn-icon">🔑</span> API KEYS</button>
+        <button id="clear-cache-btn" aria-pressed="false" title="Vider le cache WebView2 et relancer l'interface"><span class="btn-icon">🔄</span> CACHE</button>
+        <button id="settings-button" aria-pressed="false" title="Accéder aux paramètres globaux"><span class="btn-icon">⚙️</span> PARAMS</button>
       </div>
     </div>
     <div class="carousel-indicators"></div>
@@ -368,17 +231,13 @@
 
   <div id="assistant-label">J.A.R.V.I.S <span style="font-size:10px;opacity:0.5;margin-left:10px;font-weight:normal;">by Neyor</span></div>
 
-  <div id="keyboard-hud"
-    style="display:none;position:fixed;bottom:220px;left:50%;transform:translateX(-50%);z-index:10005;width:85%;max-width:600px;pointer-events:auto;">
-    <div
-      style="background:rgba(5,5,8,0.85);border:1px solid #00e5ff;padding:15px;backdrop-filter:blur(15px);border-radius:4px;box-shadow:0 0 30px rgba(0,229,255,0.2);">
-      <div
-        style="display:flex;justify-content:space-between;margin-bottom:10px;font-family:'Courier New',monospace;color:#00e5ff;font-size:10px;letter-spacing:2px;text-transform:uppercase;">
-        <span>DIRECT_INPUT_OVERRIDE</span>
-        <span>AWAITING_COMMAND...</span>
+  <div id="keyboard-hud" class="keyboard-hud-container" style="display: none;">
+    <div class="keyboard-hud-inner">
+      <div class="keyboard-hud-header">
+        <span class="keyboard-hud-title">DIRECT_INPUT_OVERRIDE</span>
+        <span class="keyboard-hud-status" id="keyboard-status-label">AWAITING_COMMAND...</span>
       </div>
-      <input type="text" id="keyboard-input" placeholder="ENTREZ VOTRE COMMANDE ICI..."
-        style="width:100%;background:rgba(0,229,255,0.05);border:none;border-bottom:2px solid rgba(0,229,255,0.3);padding:10px;color:#00e5ff;font-family:'Courier New',monospace;font-size:16px;outline:none;letter-spacing:1px;text-transform:uppercase;">
+      <input type="text" id="keyboard-input" placeholder="ENTREZ VOTRE COMMANDE ICI..." autocomplete="off">
     </div>
   </div>
 
@@ -1412,6 +1271,92 @@
   <div id="hud-browser-controls" class="hidden">
     <button id="hud-browser-dock-btn" class="hud-browser-btn" title="Ancrer / Détacher le navigateur">⚡ DÉTACHER</button>
     <button id="hud-browser-close-btn" class="hud-browser-btn danger" title="Fermer le navigateur">❌ FERMER</button>
+  </div>
+
+  <!-- ══ SHOPPING PANEL — Iron Man HUD ════════════════════════════════ -->
+  <div id="shopping-panel" class="shopping-panel hidden" style="display: none;">
+    <div class="av-panel-scanlines"></div>
+    <div class="av-panel-corner-tr"></div>
+    <div class="av-panel-corner-bl"></div>
+    <div class="shopping-panel-header" id="shopping-panel-header">
+      <div class="shopping-panel-drag-icon">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="9" cy="21" r="1"/>
+          <circle cx="20" cy="21" r="1"/>
+          <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
+        </svg>
+      </div>
+      <div class="shopping-panel-title">JARVIS // SHOPPING_LIST</div>
+      <button class="shopping-panel-close" id="shopping-panel-close-btn">&times;</button>
+    </div>
+    <div class="shopping-panel-body">
+      <div class="shopping-list-container" id="shopping-list-container">
+        <!-- Dynamique -->
+      </div>
+      <div class="shopping-add-form">
+        <input type="text" id="shopping-add-input" placeholder="Ajouter un article...">
+        <button id="shopping-add-btn">+</button>
+      </div>
+    </div>
+    <div class="shopping-panel-footer">
+      <button class="shopping-clear-btn" id="shopping-clear-btn">VIDER LA LISTE</button>
+      <span>JARVIS_HUD_SHOP_V1.0</span>
+    </div>
+  </div>
+
+  <!-- ══ TIMER OVERLAY — Iron Man Style ═══════════════════════════════ -->
+  <div id="timer-hud"
+    style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%, -50%);z-index:200;text-align:center;pointer-events:none;">
+    <div
+      style="font-family:'Courier New',monospace;color:#00e5ff;font-size:120px;font-weight:900;text-shadow:0 0 30px rgba(0,229,255,0.8);letter-spacing:10px;"
+      id="timer-display">00:00</div>
+    <div
+      style="font-family:'Courier New',monospace;color:rgba(0,229,255,0.5);font-size:14px;letter-spacing:5px;text-transform:uppercase;margin-top:-20px;">
+      Protocol Minuteur Actif</div>
+    <div
+      style="width:300px;height:2px;background:rgba(0,229,255,0.2);margin:20px auto;position:relative;overflow:hidden;">
+      <div id="timer-progress"
+        style="position:absolute;top:0;left:0;height:100%;width:0%;background:#00e5ff;box-shadow:0 0 10px #00e5ff;">
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ HELP OVERLAY — Iron Man Style ═══════════════════════════════ -->
+  <div id="help-overlay" style="display:none;position:fixed;inset:0;z-index:90;pointer-events:none;">
+    <!-- Widgets will be injected here by JS -->
+  </div>
+
+  <!-- ══ AUTONOMOUS DEV SWARM HUD — Iron Man Style (Minimal Progress) ══════════════════ -->
+  <div id="dev-swarm-hud" class="dev-swarm-hud hidden" style="display: none;">
+    <div class="swarm-progress-header">
+      <span class="swarm-progress-agent" id="swarm-progress-agent">AGENT: PM</span>
+      <button class="swarm-close-btn" id="swarm-close-btn">✕</button>
+    </div>
+    <div class="swarm-progress-bar-wrap">
+      <div class="swarm-progress-bar" id="swarm-progress-bar-fill"></div>
+    </div>
+    <div class="swarm-progress-message" id="swarm-progress-msg">Initialisation de la tâche...</div>
+  </div>
+
+  <!-- ══ RECIPE MODAL — Iron Man Style ═══════════════════════════════ -->
+  <div id="recipe-modal" class="recipe-modal hidden" style="display: none;">
+    <div class="recipe-header" id="recipe-header">
+      <div class="recipe-drag-handle">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>
+      </div>
+      <span class="recipe-title" id="recipe-title">RECETTE J.A.R.V.I.S</span>
+      <button id="close-recipe" class="close-recipe">X</button>
+    </div>
+    <div class="recipe-content">
+      <div class="recipe-ingredients">
+        <h3>INGRÉDIENTS</h3>
+        <ul id="recipe-ingredients-list"></ul>
+      </div>
+      <div class="recipe-instructions">
+        <h3>INSTRUCTIONS</h3>
+        <ol id="recipe-instructions-list"></ol>
+      </div>
+    </div>
   </div>
 
 </body>

@@ -280,13 +280,15 @@ function injectIPTVStyles(): void {
       top: 60px; left: 50%;
       transform: translateX(-50%);
       width: 900px; min-width: 340px; min-height: 280px;
-      background: rgba(5, 5, 8, 0.97);
-      border: 1px solid rgba(255, 138, 26, 0.45);
-      box-shadow: 0 0 40px rgba(255, 138, 26, 0.2), 0 0 60px rgba(255, 138, 26, 0.08);
-      border-radius: 4px; z-index: 500;
+      background: rgba(10, 16, 26, 0.55);
+      border: 1px solid rgba(255, 138, 26, 0.28);
+      box-shadow: 0 15px 45px rgba(0, 0, 0, 0.65), 0 0 25px rgba(255, 138, 26, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+      border-radius: 16px; z-index: 500;
+      backdrop-filter: blur(24px) saturate(180%);
+      -webkit-backdrop-filter: blur(24px) saturate(180%);
       display: flex; flex-direction: column;
       overflow: hidden;
-      font-family: 'Courier New', monospace; user-select: none;
+      font-family: var(--font-title); user-select: none;
     }
     .iptv-panel:not(.hidden) { display: flex; }
     .iptv-panel.hidden { display: none !important; }
@@ -300,11 +302,7 @@ function injectIPTVStyles(): void {
       background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255,138,26,0.012) 2px, rgba(255,138,26,0.012) 4px);
     }
 
-    .iptv-corner { position: absolute; width: 12px; height: 12px; z-index: 2; pointer-events: none; }
-    .iptv-tl { top:0; left:0;    border-top: 2px solid rgba(255,138,26,0.7); border-left: 2px solid rgba(255,138,26,0.7); }
-    .iptv-tr { top:0; right:0;   border-top: 2px solid rgba(255,138,26,0.7); border-right: 2px solid rgba(255,138,26,0.7); }
-    .iptv-bl { bottom:0; left:0; border-bottom: 2px solid rgba(255,138,26,0.7); border-left: 2px solid rgba(255,138,26,0.7); }
-    .iptv-br { bottom:0; right:0;border-bottom: 2px solid rgba(255,138,26,0.7); border-right: 2px solid rgba(255,138,26,0.7); }
+    .iptv-corner { display: none !important; }
 
     .iptv-resize-handle { position: absolute; z-index: 10; }
     .iptv-rh-n  { top:-3px; left:12px; right:12px; height:6px; cursor:n-resize; }
@@ -317,8 +315,8 @@ function injectIPTVStyles(): void {
     .iptv-rh-se { bottom:-3px; right:-3px; width:12px; height:12px; cursor:se-resize; }
 
     .iptv-header {
-      display:flex; align-items:center; gap:10px; padding:8px 12px;
-      background: rgba(255,138,26,0.07);
+      display:flex; align-items:center; gap:10px; padding:10px 16px;
+      background: rgba(10,16,26,0.45) !important;
       border-bottom: 1px solid rgba(255,138,26,0.25);
       cursor: grab; flex-shrink:0; position:relative; z-index:3;
     }
@@ -327,14 +325,16 @@ function injectIPTVStyles(): void {
     .iptv-title-area { flex:1; min-width:0; display:flex; flex-direction:column; gap:1px; }
     .iptv-label-tag { font-size:8px; letter-spacing:3px; color:rgba(255,138,26,0.6); text-transform:uppercase; }
     .iptv-current-title {
+      font-family: var(--font-title);
       font-size:11px; font-weight:bold; color:#ff8a1a;
-      letter-spacing:1px; text-transform:uppercase;
+      letter-spacing:2px; text-transform:uppercase;
       white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+      text-shadow: 0 0 8px rgba(255,138,26,0.4);
     }
     .iptv-header-actions { display:flex; gap:4px; flex-shrink:0; }
     .iptv-hbtn {
       background:none; border:1px solid rgba(255,138,26,0.3); color:rgba(255,138,26,0.7);
-      padding:3px 7px; border-radius:2px; cursor:pointer; font-size:11px;
+      padding:3px 8px; border-radius:6px; cursor:pointer; font-size:11px;
       transition:all 0.15s ease; line-height:1;
     }
     .iptv-hbtn:hover { background:rgba(255,138,26,0.15); color:#ff8a1a; border-color:#ff8a1a; }
@@ -1130,10 +1130,26 @@ function bindVideoEvents(): void {
 }
 
 // ── Open / Close Panel ─────────────────────────────────────────────────────
-function openPanel(): void { panel.classList.remove("hidden"); }
+function openPanel(): void { 
+  panel.classList.remove("hidden");
+  
+  // Synchroniser avec le bouton du menu dropdown unifié
+  const btn = document.getElementById("menu-iptv-toggle-btn");
+  if (btn) {
+    btn.setAttribute("aria-pressed", "true");
+    btn.classList.add("active");
+  }
+}
 function closePanel(): void {
   panel.classList.add("hidden");
   if (videoEl && !videoEl.paused) videoEl.pause();
+  
+  // Synchroniser avec le bouton du menu dropdown unifié
+  const btn = document.getElementById("menu-iptv-toggle-btn");
+  if (btn) {
+    btn.setAttribute("aria-pressed", "false");
+    btn.classList.remove("active");
+  }
 }
 
 // ── File & URL Handlers ────────────────────────────────────────────────────

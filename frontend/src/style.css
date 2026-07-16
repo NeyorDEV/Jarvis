@@ -39,19 +39,21 @@ body {
 /* Ã¢â€â‚¬Ã¢â€â‚¬ Status text Ã¢â‚¬â€ "listeningÃ¢â‚¬Â¦" / "thinkingÃ¢â‚¬Â¦" Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */
 #status-text {
   position: fixed;
-  bottom: 12px;
+  bottom: 160px; /* Évite complètement le dock de boutons et la flèche */
   left: 50%;
   transform: translateX(-50%);
-  color: rgba(76, 168, 232, 0.6);
+  color: #00e5ff;
+  text-shadow: 0 0 10px rgba(0, 229, 255, 0.65), 0 0 20px rgba(0, 229, 255, 0.25);
+  font-family: var(--font-title);
   font-size: 13px;
-  letter-spacing: 2.5px;
-  text-transform: lowercase;
-  font-weight: 300;
+  font-weight: 700;
+  letter-spacing: 3px;
+  text-transform: uppercase; /* Majuscules techniques */
   white-space: nowrap;
   pointer-events: none;
-  z-index: 10;
+  z-index: 1000;
 
-  /* Smooth fade when text changes */
+  /* Transition de fondu douce */
   transition: opacity 0.4s ease;
 }
 
@@ -176,8 +178,8 @@ body {
 
 #fullscreen-btn {
   position: fixed;
-  top: 52px;
-  right: 18px;
+  top: 56px;
+  right: 62px; /* Placé à gauche du "?" et sous le badge de connexion */
   background: transparent;
   border: none;
   color: rgba(76, 168, 232, 0.3);
@@ -579,7 +581,7 @@ body {
 }
 
 #boot-logo-text {
-  font-family: 'Courier New', monospace;
+  font-family: var(--font-mono);
   font-size: 68px;
   font-weight: 900;
   color: #00e5ff;
@@ -599,7 +601,7 @@ body {
 }
 
 #boot-logo-sub {
-  font-family: 'Courier New', monospace;
+  font-family: var(--font-mono);
   font-size: 12px;
   color: rgba(0,229,255,0.5);
   letter-spacing: 5px;
@@ -607,7 +609,7 @@ body {
 }
 
 #boot-logo-version {
-  font-family: 'Courier New', monospace;
+  font-family: var(--font-mono);
   font-size: 10px;
   color: rgba(0,229,255,0.28);
   letter-spacing: 2px;
@@ -629,7 +631,7 @@ body {
 }
 
 .boot-sep-label {
-  font-family: 'Courier New', monospace;
+  font-family: var(--font-mono);
   font-size: 9px;
   letter-spacing: 3px;
   color: rgba(0,229,255,0.4);
@@ -649,7 +651,7 @@ body {
 .boot-module-line {
   display: flex;
   align-items: center;
-  font-family: 'Courier New', monospace;
+  font-family: var(--font-mono);
   font-size: 13px;
   opacity: 0;
   animation: boot-line-in 0.35s ease forwards;
@@ -736,7 +738,7 @@ body {
 }
 
 #boot-progress-label {
-  font-family: 'Courier New', monospace;
+  font-family: var(--font-mono);
   font-size: 10px;
   color: rgba(0,229,255,0.4);
   letter-spacing: 2px;
@@ -746,7 +748,7 @@ body {
 
 /* Ã¢â€â‚¬Ã¢â€â‚¬ Final ready text Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */
 #boot-final-text {
-  font-family: 'Courier New', monospace;
+  font-family: var(--font-mono);
   font-size: 15px;
   font-weight: 900;
   color: #22c55e;
@@ -766,7 +768,7 @@ body {
   right: 28px;
   display: flex;
   justify-content: space-between;
-  font-family: 'Courier New', monospace;
+  font-family: var(--font-mono);
   font-size: 10px;
   letter-spacing: 2px;
   color: rgba(0,229,255,0.3);
@@ -2786,16 +2788,13 @@ body.ar-mode-active #hand-canvas {
    ══════════════════════════════════════════════════════════════════════════════ */
 #hud-control-bar.carousel-container {
   position: fixed;
-  bottom: 24px; /* Un peu plus bas pour un aspect flottant discret */
+  bottom: 86px; /* Remonté pour loger les indicateurs en-dessous */
   left: 50%;
   transform: translateX(-50%);
   z-index: 500;
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  justify-content: center;
+  display: block !important; /* Permet au viewport de prendre 100% de la largeur */
   touch-action: none;
-  padding: 0 12px;
+  padding: 0;
   width: 680px; /* Élargi pour contenir les boutons alignés côte à côte */
   height: 52px;
   box-sizing: border-box;
@@ -2831,14 +2830,23 @@ body.ar-mode-active #hand-canvas {
   overflow: visible;
 }
 
+.carousel-viewport {
+  overflow: hidden !important;
+  width: 100% !important;
+  height: 100% !important;
+  position: relative !important;
+}
+
 .carousel-track {
-  width: 100%;
-  height: 100%;
-  position: relative;
-  display: flex; /* Passage en Flexbox pour un alignement horizontal */
-  justify-content: space-around;
-  align-items: center;
-  gap: 10px;
+  display: flex !important;
+  align-items: center !important;
+  position: absolute !important;
+  height: 100% !important;
+  left: 50% !important; /* Calé au centre du viewport horizontalement */
+  top: 0 !important;
+  transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) !important;
+  will-change: transform;
+  gap: 15px !important;
 }
 
 /* Cache le séparateur obsolète */
@@ -2848,150 +2856,170 @@ body.ar-mode-active #hand-canvas {
 
 /* Base style for ALL buttons inside the bar (Dynamic Island style) */
 .carousel-track > button {
-  position: relative !important; /* Passage en relatif pour flexbox */
+  position: relative !important;
   top: auto !important;
   left: auto !important;
-  transform: none !important; /* Annulation des translations Cover Flow */
-  opacity: 0.85 !important;
   z-index: 2 !important;
   pointer-events: auto !important;
   
-  width: 110px !important;
-  height: 32px !important;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 999px !important;
-  border: 1px solid rgba(255, 255, 255, 0.12) !important;
-  background: rgba(255, 255, 255, 0.03) !important;
-  color: rgba(255, 255, 255, 0.6) !important;
-  font-family: 'Courier New', monospace;
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 1px;
-  text-transform: uppercase;
-  cursor: pointer;
-  box-shadow: none;
-  white-space: nowrap;
-  user-select: none;
-  -webkit-user-drag: none;
-  transition: all 0.3s ease-in-out !important;
+  width: 120px !important;
+  height: 34px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border-radius: 6px !important; /* Coins légèrement adoucis style cockpit moderne */
+  border: 1px solid rgba(0, 229, 255, 0.15) !important;
+  background: rgba(8, 12, 20, 0.75) !important;
+  color: rgba(0, 229, 255, 0.55) !important;
+  font-family: var(--font-mono) !important;
+  font-size: 8.5px !important;
+  font-weight: 700 !important;
+  letter-spacing: 1px !important;
+  text-transform: uppercase !important;
+  cursor: pointer !important;
+  box-shadow: none !important;
+  white-space: nowrap !important;
+  user-select: none !important;
+  -webkit-user-drag: none !important;
+  transition: transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1), 
+              background 0.25s ease, 
+              border-color 0.25s ease, 
+              color 0.25s ease, 
+              box-shadow 0.25s ease, 
+              opacity 0.25s ease !important;
+  opacity: 0.55 !important; /* Les boutons inactifs sont discrets */
+  gap: 6px !important;
 }
 
 /* Hover effect on buttons */
 .carousel-track > button:hover {
-  opacity: 1 !important;
+  opacity: 0.95 !important;
   background: rgba(0, 229, 255, 0.08) !important;
-  border-color: rgba(0, 229, 255, 0.3) !important;
+  border-color: rgba(0, 229, 255, 0.45) !important;
   color: #00e5ff !important;
-  box-shadow: 0 0 10px rgba(0, 229, 255, 0.15) !important;
+  box-shadow: 0 0 10px rgba(0, 229, 255, 0.12) !important;
 }
 
-/* Style for active toggle buttons (any position in the carousel) */
-.carousel-track > button[aria-pressed="true"] {
+/* Style for the active/centered button in the carousel */
+.carousel-track > button.active {
   opacity: 1 !important;
+  transform: scale(1.14) !important; /* Léger zoom sur l'élément centré */
   border-color: #00e5ff !important;
-  background: rgba(0, 229, 255, 0.16) !important;
+  background: rgba(0, 229, 255, 0.14) !important;
   color: #00e5ff !important;
-  box-shadow: 0 0 14px rgba(0, 229, 255, 0.3) !important;
-  text-shadow: 0 0 5px rgba(0, 229, 255, 0.5);
+  box-shadow: 
+    0 0 20px rgba(0, 229, 255, 0.35),
+    inset 0 0 8px rgba(0, 229, 255, 0.08) !important;
+  text-shadow: 0 0 6px rgba(0, 229, 255, 0.5) !important;
+  z-index: 10 !important;
 }
 
-/* Désactivation des styles Cover Flow obsolètes */
-.carousel-track > button.active,
-.carousel-track > button.prev,
-.carousel-track > button.prev2,
-.carousel-track > button.next,
-.carousel-track > button.next2,
-.carousel-track > button.hidden {
-  /* Ces classes n'affectent plus le positionnement absolu */
+/* Pour les boutons à bascule (comme GPU boost ou HUD text), s'ils sont à true mais pas actifs au centre */
+.carousel-track > button[aria-pressed="true"]:not(.active) {
+  border-color: rgba(0, 229, 255, 0.4) !important;
+  background: rgba(0, 229, 255, 0.05) !important;
+  color: rgba(0, 229, 255, 0.8) !important;
 }
 
-/* Indicators */
+/* Indicators (pagination dots) */
 .carousel-indicators {
-  display: none !important;
+  position: absolute !important;
+  bottom: -20px !important; /* Calé juste sous la capsule du carrousel */
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  display: flex !important;
+  justify-content: center !important;
+  gap: 8px !important;
+  pointer-events: auto !important;
+  z-index: 100 !important;
 }
 
 .carousel-dot {
-  width: 10px;
-  height: 2px;
-  background: rgba(0, 229, 255, 0.2);
-  border-radius: 1px;
-  cursor: pointer;
-  transition: all 0.3s ease;
+  width: 6px !important;
+  height: 6px !important;
+  background: rgba(0, 229, 255, 0.16) !important;
+  border-radius: 50% !important;
+  cursor: pointer !important;
+  transition: all 0.3s ease !important;
 }
 
 .carousel-dot.active {
-  background: #00e5ff;
-  width: 18px;
-  box-shadow: 0 0 8px #00e5ff;
+  background: #00e5ff !important;
+  width: 14px !important;
+  border-radius: 4px !important;
+  box-shadow: 0 0 8px #00e5ff !important;
 }
 
 /* ══════════════════════════════════════════════════════════════════════════════
-   2. MIC & STOP PANEL — Centered bottom, glassmorphism pill
+   2. MIC & STOP PANEL — Positioned bottom-right above CPU HUD, compact style
    ══════════════════════════════════════════════════════════════════════════════ */
 .bottom-controls-container {
   position: fixed !important;
-  bottom: 75px !important; /* Lowered from 95px, creating space from the orb */
-  left: 50% !important;
-  transform: translateX(-50%) !important;
+  bottom: 72px !important; /* Rapproché du CPU HUD (qui est à bottom: 20px) */
+  right: 20px !important;
+  left: auto !important;
+  transform: none !important;
   z-index: 100 !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
   gap: 0 !important;
-  animation: hud20-panel-fadein 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  animation: none !important; /* Pas d'animation de centrage */
 }
 
 .mic-stop-panel {
   display: flex;
   align-items: center;
-  gap: 14px;
-  padding: 8px 18px;
-  background: rgba(0, 5, 15, 0.6);
-  backdrop-filter: blur(22px);
-  -webkit-backdrop-filter: blur(22px);
-  border: 1px solid rgba(0, 229, 255, 0.14);
-  border-radius: 50px;
+  gap: 10px; /* Plus serré pour le format compact */
+  padding: 4px 10px;
+  background: rgba(10, 16, 26, 0.45);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border: 1px solid rgba(0, 229, 255, 0.12);
+  border-radius: 20px; /* Moins large */
   box-shadow:
-    0 8px 32px rgba(0, 0, 0, 0.5),
-    inset 0 1px 0 rgba(0, 229, 255, 0.07);
+    0 8px 24px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  transition: all 0.3s ease;
 }
 
-/* Mic button — large glowing circle */
+.mic-stop-panel:hover {
+  border-color: rgba(0, 229, 255, 0.25);
+  background: rgba(10, 16, 26, 0.55);
+}
+
+/* ── Minimalist Mic Circle Button ── */
 #mic-btn {
-  width: 52px !important;
-  height: 52px !important;
+  width: 34px !important; /* Taille compacte */
+  height: 34px !important; /* Taille compacte */
   border-radius: 50% !important;
-  background: rgba(0, 229, 255, 0.07) !important;
-  border: 2px solid rgba(0, 229, 255, 0.45) !important;
+  background: rgba(0, 229, 255, 0.05) !important;
+  border: 1.2px solid rgba(0, 229, 255, 0.35) !important;
   color: #00e5ff !important;
   cursor: pointer !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
-  backdrop-filter: blur(12px) !important;
-  -webkit-backdrop-filter: blur(12px) !important;
-  transition: background 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease, transform 0.18s ease !important;
-  box-shadow: 0 0 20px rgba(0, 229, 255, 0.18), inset 0 0 18px rgba(0, 229, 255, 0.04) !important;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  box-shadow: 0 0 10px rgba(0, 229, 255, 0.1), inset 0 0 6px rgba(0, 229, 255, 0.02) !important;
   flex-shrink: 0;
   position: static !important;
-  top: unset !important; left: unset !important; right: unset !important; bottom: unset !important;
-  letter-spacing: 0 !important;
+  padding: 0 !important;
 }
 
 #mic-btn svg {
-  width: 22px;
-  height: 22px;
+  width: 14px; /* SVG plus petit */
+  height: 14px; /* SVG plus petit */
   pointer-events: none;
-  filter: drop-shadow(0 0 6px rgba(0, 229, 255, 0.5));
+  filter: drop-shadow(0 0 3px rgba(0, 229, 255, 0.35));
+  transition: transform 0.25s ease;
 }
 
 #mic-btn:hover {
-  background: rgba(0, 229, 255, 0.18) !important;
-  border-color: rgba(0, 229, 255, 0.85) !important;
-  box-shadow: 0 0 40px rgba(0, 229, 255, 0.45), inset 0 0 16px rgba(0, 229, 255, 0.08) !important;
-  transform: scale(1.08) !important;
+  background: rgba(0, 229, 255, 0.15) !important;
+  border-color: rgba(0, 229, 255, 0.8) !important;
+  box-shadow: 0 0 18px rgba(0, 229, 255, 0.3), inset 0 0 6px rgba(0, 229, 255, 0.05) !important;
+  transform: scale(1.05) !important;
 }
 
 #mic-btn:active {
@@ -3002,51 +3030,57 @@ body.ar-mode-active #hand-canvas {
 #mic-btn.active,
 #mic-btn[aria-pressed="true"] {
   border-color: rgba(0, 229, 255, 0.9) !important;
-  background: rgba(0, 229, 255, 0.14) !important;
+  background: rgba(0, 229, 255, 0.16) !important;
   animation: hud20-pulse-border 1.4s ease-in-out infinite !important;
+  box-shadow: 0 0 18px rgba(0, 229, 255, 0.4) !important;
 }
 
 #mic-btn.is-muted {
-  background: rgba(239, 68, 68, 0.12) !important;
-  border-color: rgba(239, 68, 68, 0.6) !important;
-  color: rgba(255, 100, 100, 0.9) !important;
-  box-shadow: 0 0 28px rgba(239, 68, 68, 0.32), inset 0 0 14px rgba(239, 68, 68, 0.06) !important;
+  background: rgba(239, 68, 68, 0.1) !important;
+  border-color: rgba(239, 68, 68, 0.5) !important;
+  color: rgba(255, 100, 100, 0.8) !important;
+  box-shadow: 0 0 10px rgba(239, 68, 68, 0.2) !important;
 }
 
 #mic-btn.is-muted svg {
-  filter: drop-shadow(0 0 6px rgba(239, 68, 68, 0.6));
+  filter: drop-shadow(0 0 3px rgba(239, 68, 68, 0.4));
 }
 
-/* Stop / Mute button */
+/* ── Minimalist Stop Circle Button ── */
 #mute-button {
-  width: 38px !important;
-  height: 38px !important;
-  border-radius: 12px !important;
-  background: rgba(255, 70, 50, 0.1) !important;
-  border: 1.5px solid rgba(255, 80, 60, 0.45) !important;
-  color: rgba(255, 110, 80, 0.9) !important;
+  width: 34px !important; /* Taille compacte */
+  height: 34px !important; /* Taille compacte */
+  border-radius: 50% !important;
+  background: rgba(255, 70, 50, 0.05) !important;
+  border: 1.2px solid rgba(255, 80, 60, 0.35) !important;
+  color: rgba(255, 110, 80, 0.85) !important;
   cursor: pointer !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
-  font-size: 14px !important;
-  transition: background 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease, transform 0.18s ease !important;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  box-shadow: 0 0 10px rgba(255, 80, 60, 0.1), inset 0 0 6px rgba(255, 80, 60, 0.02) !important;
   flex-shrink: 0;
   padding: 0 !important;
-  animation: hud20-stop-pulse 2.5s ease-in-out infinite !important;
-  position: static !important;
-  top: unset !important; left: unset !important; right: unset !important; bottom: unset !important;
+}
+
+#mute-button svg {
+  width: 13px; /* SVG plus petit */
+  height: 13px; /* SVG plus petit */
+  display: block;
+  flex-shrink: 0;
+  filter: drop-shadow(0 0 3px rgba(255, 80, 60, 0.35));
 }
 
 #mute-button:hover {
-  background: rgba(255, 70, 50, 0.22) !important;
+  background: rgba(255, 70, 50, 0.15) !important;
   border-color: rgba(255, 100, 70, 0.8) !important;
-  box-shadow: 0 0 24px rgba(255, 80, 60, 0.55), 0 0 6px rgba(255, 140, 0, 0.3) !important;
-  transform: scale(1.08) !important;
+  box-shadow: 0 0 18px rgba(255, 80, 60, 0.3) !important;
+  transform: scale(1.05) !important;
 }
 
 #mute-button:active {
-  transform: scale(0.93) !important;
+  transform: scale(0.95) !important;
 }
 
 /* ══════════════════════════════════════════════════════════════════════════════
@@ -3195,12 +3229,12 @@ body.ar-mode-active #hand-canvas {
 }
 
 #connection-label {
-  font-family: 'Courier New', monospace !important;
+  font-family: var(--font-title) !important;
   font-size: 10px !important;
-  letter-spacing: 1.5px !important;
-  font-weight: 400 !important;
-  color: rgba(255, 255, 255, 0.28) !important;
-  text-transform: lowercase !important;
+  letter-spacing: 2px !important;
+  font-weight: 700 !important;
+  color: rgba(255, 255, 255, 0.35) !important;
+  text-transform: uppercase !important;
   transition: color 0.4s ease !important;
 }
 
@@ -5412,14 +5446,14 @@ body.browser-open #hud-browser-controls {
 /* ── UNIFIED MENU HUD & DROPDOWN ─────────────────────────────────────────── */
 #jarvis-menu-btn {
   position: fixed;
-  top: 120px;
+  top: 140px;
   left: 20px;
   padding: 8px 18px;
   background: rgba(5, 5, 8, 0.6);
   color: #00e5ff;
   border: 1px solid rgba(0, 229, 255, 0.3);
   border-radius: 2px;
-  font-family: 'Courier New', monospace;
+  font-family: var(--font-mono);
   font-size: 11px;
   font-weight: bold;
   letter-spacing: 2.5px;
@@ -5444,10 +5478,10 @@ body.browser-open #hud-browser-controls {
 
 #jarvis-menu-dropdown {
   position: fixed;
-  top: 160px;
+  top: 180px;
   left: 20px;
   width: 300px;
-  max-height: calc(100vh - 80px);
+  max-height: calc(100vh - 210px);
   overflow-y: auto;
   background: rgba(5, 5, 8, 0.85);
   border: 1px solid rgba(0, 229, 255, 0.3);
@@ -5688,6 +5722,476 @@ body.browser-open #hud-browser-controls {
   color: #00e5ff !important;
   box-shadow: 0 0 15px rgba(0, 229, 255, 0.3) !important;
   text-shadow: 0 0 8px rgba(0, 229, 255, 0.45) !important;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   REFINED CLOCK HUD - SLEEK & MODERN (2D Version)
+   ══════════════════════════════════════════════════════════════════════════════ */
+.refined-clock-hud {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  font-family: var(--font-title);
+  user-select: none;
+  transition: all 0.5s ease;
+}
+
+.clock-time-display {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  font-size: 34px;
+  font-weight: 900;
+  letter-spacing: 2px;
+  line-height: 1;
+}
+
+.refined-sec {
+  font-size: 18px;
+  margin-left: 2px;
+  font-weight: 700;
+  opacity: 0.7;
+}
+
+.refined-colon {
+  animation: clock-blink 1s step-end infinite;
+  margin: 0 3px;
+}
+
+.refined-colon-sec {
+  opacity: 0.5;
+  margin: 0 3px;
+}
+
+@keyframes clock-blink {
+  50% { opacity: 0; }
+}
+
+.clock-decorations {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 90%;
+  margin-top: 8px;
+  opacity: 0.65;
+}
+
+.clock-line-decor {
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--clock-glow), transparent);
+}
+
+.clock-status-tag {
+  font-size: 8px;
+  font-family: var(--font-mono);
+  letter-spacing: 2px;
+  color: var(--clock-color);
+  font-weight: bold;
+  text-shadow: 0 0 5px var(--clock-glow);
+}
+
+/* ── CLOCK THEMES (Synchronized with JARVIS Orb) ── */
+/* Cyan Theme */
+.refined-clock-hud.theme-cyan {
+  --clock-color: #00e5ff;
+  --clock-glow: rgba(0, 229, 255, 0.4);
+}
+.refined-clock-hud.theme-cyan .clock-time-display {
+  color: #00e5ff;
+  text-shadow: 0 0 12px rgba(0, 229, 255, 0.5);
+}
+
+/* Green Theme */
+.refined-clock-hud.theme-green {
+  --clock-color: #00ff88;
+  --clock-glow: rgba(0, 255, 136, 0.4);
+}
+.refined-clock-hud.theme-green .clock-time-display {
+  color: #00ff88;
+  text-shadow: 0 0 12px rgba(0, 255, 136, 0.5);
+}
+
+/* Orange Theme */
+.refined-clock-hud.theme-orange {
+  --clock-color: #ff8a1a;
+  --clock-glow: rgba(255, 138, 26, 0.4);
+}
+.refined-clock-hud.theme-orange .clock-time-display {
+  color: #ff8a1a;
+  text-shadow: 0 0 12px rgba(255, 138, 26, 0.5);
+}
+
+/* Purple Theme */
+.refined-clock-hud.theme-purple {
+  --clock-color: #bd53ed;
+  --clock-glow: rgba(189, 83, 237, 0.4);
+}
+.refined-clock-hud.theme-purple .clock-time-display {
+  color: #bd53ed;
+  text-shadow: 0 0 12px rgba(189, 83, 237, 0.5);
+}
+
+/* Red Theme */
+.refined-clock-hud.theme-red {
+  --clock-color: #ff3b30;
+  --clock-glow: rgba(255, 59, 48, 0.4);
+}
+.refined-clock-hud.theme-red .clock-time-display {
+  color: #ff3b30;
+  text-shadow: 0 0 12px rgba(255, 59, 48, 0.5);
+}
+
+/* Yellow Theme */
+.refined-clock-hud.theme-yellow {
+  --clock-color: #ffd60a;
+  --clock-glow: rgba(255, 214, 10, 0.4);
+}
+.refined-clock-hud.theme-yellow .clock-time-display {
+  color: #ffd60a;
+  text-shadow: 0 0 12px rgba(255, 214, 10, 0.5);
+}
+
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   HOLOGRAPHIC MODAL SCANNER EFFECTS (Option 1)
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+/* Variables de couleur laser spécifiques par panneau */
+.uninstaller-panel {
+  --panel-laser: #ff8a1a; /* Orange */
+}
+.av-panel, #av-info-modal {
+  --panel-laser: #ff3b30; /* Rouge */
+}
+.iptv-panel {
+  --panel-laser: #00e5ff; /* Cyan */
+}
+.ha-panel {
+  --panel-laser: #00e5ff; /* Cyan */
+}
+.shopping-panel {
+  --panel-laser: #ffd60a; /* Jaune */
+}
+#api-keys-modal, #settings-modal {
+  --panel-laser: #00e5ff; /* Cyan */
+}
+
+/* Ligne de balayage laser qui traverse le panneau à l'ouverture */
+.uninstaller-panel:not(.hidden)::after,
+.av-panel:not(.hidden)::after,
+.iptv-panel:not(.hidden)::after,
+.ha-panel:not(.hidden)::after,
+.shopping-panel:not(.hidden)::after,
+#api-keys-modal.visible::after,
+#settings-modal.visible::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  width: 100%;
+  height: 4px;
+  background: linear-gradient(90deg, 
+    transparent, 
+    var(--panel-laser, #00e5ff), 
+    transparent
+  );
+  box-shadow: 0 0 8px var(--panel-laser, #00e5ff),
+              0 0 16px var(--panel-laser, #00e5ff);
+  z-index: 9999;
+  pointer-events: none;
+  animation: holo-scan-line 0.85s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+}
+
+/* Animation d'apparition avec effet de scintillement (glitch holographique) */
+.uninstaller-panel:not(.hidden),
+.av-panel:not(.hidden),
+.iptv-panel:not(.hidden),
+.ha-panel:not(.hidden),
+.shopping-panel:not(.hidden),
+#api-keys-modal.visible,
+#settings-modal.visible {
+  position: absolute; /* Garantir que le ::after absolu se cale bien */
+  animation: holo-scan-glitch 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards !important;
+}
+
+/* ── KEYFRAMES HOLOGRAPHIQUES ─────────────────────────────────────────────── */
+
+@keyframes holo-scan-line {
+  0% {
+    top: 0%;
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    top: 100%;
+    opacity: 0;
+  }
+}
+
+@keyframes holo-scan-glitch {
+  0% {
+    opacity: 0.2;
+    transform: scale(0.95) translateY(10px);
+    filter: brightness(2) contrast(1.2);
+  }
+  12% {
+    opacity: 0.8;
+    filter: brightness(1.5);
+  }
+  24% {
+    opacity: 0.4;
+    filter: brightness(0.8);
+  }
+  36% {
+    opacity: 0.9;
+    filter: brightness(1.3);
+  }
+  48% {
+    opacity: 0.6;
+    filter: brightness(1);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.01) translateY(-2px);
+    filter: brightness(1.2);
+  }
+  80% {
+    opacity: 1;
+    transform: scale(0.995) translateY(1px);
+    filter: brightness(1.05);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+    filter: brightness(1);
+  }
+}
+
+
+/* ── USER QUICK TIPS GLASS PANEL (Pliable/Dépliable) ───────────────────────── */
+.user-tip-panel {
+  position: fixed;
+  top: 52px; /* Positionné sous le badge de connexion pour éviter la superposition */
+  right: 20px; /* Positionné en haut à droite */
+  z-index: 80;
+  width: 290px;
+  height: 52px; /* Hauteur fixe pour éviter les sauts de mise en page */
+  padding: 10px 14px;
+  background: rgba(10, 16, 26, 0.55);
+  border: 1px solid rgba(0, 229, 255, 0.15);
+  border-right: 3px solid #00e5ff; /* Bordure épaisse à droite */
+  border-radius: 8px 0 0 8px; /* Arrondi à gauche */
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), 
+              0 0 20px rgba(0, 229, 255, 0.04);
+  pointer-events: auto;
+  cursor: pointer;
+  overflow: hidden;
+  display: block;
+  transition: width 0.45s cubic-bezier(0.25, 0.8, 0.25, 1),
+              height 0.45s cubic-bezier(0.25, 0.8, 0.25, 1),
+              padding 0.45s cubic-bezier(0.25, 0.8, 0.25, 1),
+              border-radius 0.45s cubic-bezier(0.25, 0.8, 0.25, 1),
+              background-color 0.3s ease,
+              border-color 0.3s ease,
+              box-shadow 0.3s ease;
+}
+
+.user-tip-panel:hover {
+  background-color: rgba(10, 16, 26, 0.75);
+  border-color: rgba(0, 229, 255, 0.35);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6), 
+              0 0 25px rgba(0, 229, 255, 0.08);
+}
+
+/* État réduit en bouton "?" clignotant */
+.user-tip-panel.collapsed {
+  width: 32px !important;
+  height: 32px !important;
+  padding: 0 !important;
+  border-radius: 50% !important;
+  border: 1px solid rgba(0, 229, 255, 0.45) !important;
+  border-right: 1px solid rgba(0, 229, 255, 0.45) !important; /* Annule la bordure droite de 3px */
+  background-color: rgba(10, 16, 26, 0.65) !important;
+  box-shadow: 0 0 15px rgba(0, 229, 255, 0.15) !important;
+  animation: tip-pulse-ring 2.5s ease-in-out infinite !important;
+  box-sizing: border-box !important;
+  position: fixed !important;
+}
+
+@keyframes tip-pulse-ring {
+  0%, 100% {
+    box-shadow: 0 0 10px rgba(0, 229, 255, 0.15);
+    border-color: rgba(0, 229, 255, 0.35);
+  }
+  50% {
+    box-shadow: 0 0 22px rgba(0, 229, 255, 0.45);
+    border-color: rgba(0, 229, 255, 0.8);
+  }
+}
+
+.user-tip-panel.collapsed .user-tip-header {
+  display: none !important;
+}
+
+.user-tip-panel.collapsed .user-tip-body {
+  position: absolute !important;
+  top: 50% !important;
+  left: 50% !important;
+  transform: translate(-50%, -50%) translate(1px, -0.5px) !important; /* Ajustement micrométrique : +1px à droite, -0.5px en haut */
+  font-size: 15px !important;
+  font-family: var(--font-title) !important; /* Utilisation de Space Grotesk pour un "?" parfaitement symétrique */
+  font-weight: 700 !important;
+  color: #00e5ff !important;
+  text-shadow: 0 0 8px rgba(0, 229, 255, 0.75) !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  display: block !important;
+  line-height: 1 !important;
+  letter-spacing: 0 !important;
+  text-indent: 0 !important;
+  box-sizing: border-box !important;
+  width: auto !important;
+  height: auto !important;
+}
+
+.user-tip-panel.collapsed .user-tip-body::after {
+  content: "" !important; /* Pas de curseur de saisie en mode bouton "?" */
+}
+
+.user-tip-header {
+  font-size: 8px;
+  font-family: var(--font-mono);
+  color: rgba(0, 229, 255, 0.5);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  font-weight: bold;
+  margin-bottom: 4px;
+}
+
+.user-tip-body {
+  font-size: 11px;
+  font-family: var(--font-mono);
+  color: rgba(0, 229, 255, 0.95);
+  line-height: 1.4;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.user-tip-body::after {
+  content: "_";
+  animation: tip-cursor-blink 0.8s step-end infinite;
+  color: #00e5ff;
+  margin-left: 2px;
+}
+
+@keyframes tip-cursor-blink {
+  50% { opacity: 0; }
+}
+
+/* ── KEYBOARD HUD OVERLAY ─────────────────────────────────────────────────── */
+.keyboard-hud-container {
+  position: fixed;
+  bottom: 160px; /* Centre en bas au-dessus du carrousel au départ */
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10005;
+  width: 420px;
+  pointer-events: auto;
+  box-sizing: border-box;
+}
+
+.keyboard-hud-inner {
+  background: rgba(10, 16, 26, 0.82) !important;
+  border: 1px solid rgba(0, 229, 255, 0.3) !important;
+  border-radius: 6px !important;
+  padding: 12px 18px !important;
+  box-shadow: 
+    0 15px 35px rgba(0, 0, 0, 0.6),
+    0 0 25px rgba(0, 229, 255, 0.12),
+    inset 0 0 15px rgba(0, 229, 255, 0.04) !important;
+  backdrop-filter: blur(15px) !important;
+  -webkit-backdrop-filter: blur(15px) !important;
+  position: relative;
+}
+
+/* Effet de scanlines subtil sur le clavier */
+.keyboard-hud-inner::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 5px;
+  background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0, 229, 255, 0.015) 2px, rgba(0, 229, 255, 0.015) 4px);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.keyboard-hud-header {
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  margin-bottom: 8px !important;
+  font-family: var(--font-mono) !important;
+  font-size: 8.5px !important;
+  letter-spacing: 1.5px !important;
+  text-transform: uppercase !important;
+  z-index: 2;
+  position: relative;
+}
+
+.keyboard-hud-title {
+  color: rgba(0, 229, 255, 0.45) !important;
+  font-weight: 700 !important;
+}
+
+.keyboard-hud-status {
+  color: #00e5ff !important;
+  text-shadow: 0 0 8px rgba(0, 229, 255, 0.45) !important;
+  font-weight: 700 !important;
+}
+
+#keyboard-input {
+  width: 100% !important;
+  height: 38px !important;
+  background: rgba(0, 229, 255, 0.04) !important;
+  border: 1px solid rgba(0, 229, 255, 0.22) !important;
+  border-radius: 4px !important;
+  padding: 0 12px !important;
+  color: #00e5ff !important;
+  font-family: var(--font-mono) !important;
+  font-size: 12px !important;
+  font-weight: bold !important;
+  letter-spacing: 1px !important;
+  outline: none !important;
+  box-sizing: border-box !important;
+  transition: border-color 0.25s ease, box-shadow 0.25s ease, background-color 0.25s ease !important;
+  text-transform: uppercase !important;
+  z-index: 2;
+  position: relative;
+  box-shadow: inset 0 0 8px rgba(0, 229, 255, 0.03);
+}
+
+#keyboard-input::placeholder {
+  color: rgba(0, 229, 255, 0.3) !important;
+  font-weight: normal;
+}
+
+#keyboard-input:focus {
+  border-color: #00e5ff !important;
+  background: rgba(0, 229, 255, 0.09) !important;
+  box-shadow: 
+    0 0 15px rgba(0, 229, 255, 0.25),
+    inset 0 0 8px rgba(0, 229, 255, 0.05) !important;
 }
 
 

@@ -7113,6 +7113,7 @@ def main():
             resizable        = True,
             min_size         = (900, 600),
             background_color = "#0a0a0f",
+            maximized        = True,
         )
 
         def _on_closed():
