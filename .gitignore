@@ -9,6 +9,11 @@ __pycache__/
 # Données sensibles & personnelles
 .env
 memory.json
+jarvis_memoire.json
+jarvis_conversations.json
+jarvis_synapses.json
+jarvis_listes.json
+jarvis_run.log
 alarmes.json
 jarvis_config.json
 token_*.json
