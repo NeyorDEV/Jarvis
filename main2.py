@@ -299,6 +299,7 @@ except Exception as e:
 # --- INITIALISATION OPENWAKEWORD (détection locale du wake word, gate STT) ---
 WAKEWORD_MODEL = None
 WAKEWORD_THRESHOLD = 0.35
+_USE_LLM_INTENT = True  # Dispatch d'intentions par function calling Gemini (fallback resolvers)
 try:
     _cfg_ww = {}
     try:
@@ -309,6 +310,8 @@ try:
                 _cfg_ww = _json_ww.load(f)
     except Exception:
         pass
+
+    _USE_LLM_INTENT = bool(_cfg_ww.get("use_llm_intent", True))
 
     if _cfg_ww.get("use_openwakeword", True):
         from core.wakeword import init_wakeword, WakeWordDetector
@@ -4830,6 +4833,29 @@ def est_action_oriented(texte):
     ]
     return any(m in t for m in mots_actions)
 
+async def _essayer_resolvers_statiques(texte):
+    """Chaîne des resolvers par mots-clés, dans l'ordre de priorité.
+
+    Appelée avec la phrase de l'utilisateur, puis éventuellement une seconde
+    fois avec la phrase canonique produite par le dispatch function calling.
+    """
+    reponse = None
+    if not reponse: reponse = await builtins.resoudre_dom_hud(texte)
+    if not reponse: reponse = await resoudre_commandes_locales(texte)
+    if not reponse: reponse = await builtins.resoudre_commandes_systeme(texte)
+    if not reponse: reponse = await builtins.resoudre_tv_localement(texte)
+    if not reponse: reponse = await builtins.resoudre_apps_localement(texte)
+    if not reponse: reponse = await builtins.resoudre_infos_systeme_localement(texte)
+    if not reponse: reponse = await builtins.resoudre_memoire_locale(texte)
+    if not reponse: reponse = await builtins.resoudre_temps_localement(texte)
+    if not reponse: reponse = await builtins.resoudre_listes_locales(texte)
+    if not reponse: reponse = await builtins.resoudre_francais_localement(texte)
+    if not reponse: reponse = await builtins.resoudre_conversion_localement(texte)
+    if not reponse: reponse = await builtins.resoudre_traduction_localement(texte)
+    if not reponse: reponse = await builtins.resoudre_globe_localement(texte)
+    if not reponse: reponse = await builtins.resoudre_extras_locaux(texte)
+    return reponse
+
 async def traiter_reponse_ia(texte_utilisateur, mobile_ws=None, from_voice=False):
     global MODE_IRON_MAN, jarvis_actif, dernier_message, _skip_pc_audio, is_thinking, _derniere_reponse_streamed, phrases_streamed, ACTIVE_SPEAKER, CHESS_GAME, CHESS_GAME_ACTIVE, STOP_PARLER
     STOP_PARLER = False
@@ -4882,22 +4908,22 @@ async def traiter_reponse_ia(texte_utilisateur, mobile_ws=None, from_voice=False
                     except Exception as e:
                         print(f"[DEBUG DYNAMIC] Erreur lors de l'appel du résolveur {attr_name} : {e}")
 
-        if not reponse: reponse = await builtins.resoudre_dom_hud(texte_utilisateur)
-        if not reponse: reponse = await builtins.resoudre_dom_hud(texte_utilisateur)
-        if not reponse: reponse = await resoudre_commandes_locales(texte_utilisateur)
-        if not reponse: reponse = await builtins.resoudre_commandes_systeme(texte_utilisateur)
-        if not reponse: reponse = await builtins.resoudre_tv_localement(texte_utilisateur)
-        if not reponse: reponse = await builtins.resoudre_apps_localement(texte_utilisateur)
-        if not reponse: reponse = await builtins.resoudre_infos_systeme_localement(texte_utilisateur)
-        if not reponse: reponse = await builtins.resoudre_memoire_locale(texte_utilisateur)
-        if not reponse: reponse = await builtins.resoudre_temps_localement(texte_utilisateur)
-        if not reponse: reponse = await builtins.resoudre_listes_locales(texte_utilisateur)
-        if not reponse: reponse = await builtins.resoudre_francais_localement(texte_utilisateur)
-        if not reponse: reponse = await builtins.resoudre_conversion_localement(texte_utilisateur)
-        if not reponse: reponse = await builtins.resoudre_traduction_localement(texte_utilisateur)
-        if not reponse: reponse = await builtins.resoudre_globe_localement(texte_utilisateur)
-        if not reponse: reponse = await builtins.resoudre_extras_locaux(texte_utilisateur)
-        
+        if not reponse: reponse = await _essayer_resolvers_statiques(texte_utilisateur)
+
+        # FUNCTION CALLING GEMINI : aucun resolver par mots-clés n'a compris la phrase.
+        # Un modèle rapide la mappe sur une intention connue (→ phrase canonique) qu'on
+        # repasse dans les resolvers. Tout échec suit le chemin historique (demander_ia).
+        if not reponse and _USE_LLM_INTENT and (est_action_oriented(texte_utilisateur) or len(texte_utilisateur.split()) <= 12):
+            try:
+                from core.intent_dispatcher import resoudre_intention_llm
+                phrase_canonique = await resoudre_intention_llm(texte_utilisateur)
+                if phrase_canonique and phrase_canonique.lower().strip() != texte_utilisateur.lower().strip():
+                    reponse = await _essayer_resolvers_statiques(phrase_canonique)
+                    if reponse:
+                        print(f"[INTENT] Résolu via phrase canonique : « {phrase_canonique} »")
+            except Exception as e:
+                print(f"[INTENT] Erreur dispatch function calling : {e}")
+
         if not reponse:
             force_skip_local = est_action_oriented(texte_utilisateur)
             reponse = await demander_ia(texte_utilisateur, skip_local=force_skip_local)
