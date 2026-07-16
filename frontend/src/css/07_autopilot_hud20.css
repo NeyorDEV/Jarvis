@@ -1,3 +1,38 @@
+/* ══ OS AUTOPILOT & VIRTUAL CURSOR STYLES ════════════════════════ */
+@keyframes vc-spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@keyframes vc-spin-reverse {
+  0% { transform: rotate(360deg); }
+  100% { transform: rotate(0deg); }
+}
+
+@keyframes vc-blink {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 1; }
+}
+
+@keyframes vc-click-pulse {
+  0% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+  100% { transform: translate(-50%, -50%) scale(2); opacity: 0; }
+}
+
+.vc-click-wave {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 40px;
+  height: 40px;
+  border: 2px solid #00e5ff;
+  border-radius: 50%;
+  box-shadow: 0 0 15px #00e5ff;
+  pointer-events: none;
+  animation: vc-click-pulse 0.6s cubic-bezier(0.1, 0.8, 0.3, 1) forwards;
+}
+
+
 /* ══════════════════════════════════════════════════════════════════════════════
    HUD REDESIGN 2.0 — Glassmorphism Premium Controls
    Override section — appended to end of style.css
@@ -30,265 +65,247 @@
 }
 
 /* ══════════════════════════════════════════════════════════════════════════════
+   CAROUSEL TOGGLE ARROW
+   ══════════════════════════════════════════════════════════════════════════════ */
+/* arrow positionné entièrement via JS dans main.ts */
+
+/* ══════════════════════════════════════════════════════════════════════════════
    1. HUD CONTROL BAR — Bottom-left glassmorphism bar
    ══════════════════════════════════════════════════════════════════════════════ */
 #hud-control-bar.carousel-container {
   position: fixed;
-  bottom: 5px; /* placed at the bottom, lowered */
+  bottom: 86px; /* Remonté pour loger les indicateurs en-dessous */
   left: 50%;
   transform: translateX(-50%);
   z-index: 500;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
+  display: block !important; /* Permet au viewport de prendre 100% de la largeur */
   touch-action: none;
   padding: 0;
-  width: 380px;
-  height: 50px; /* reduced height */
+  width: 680px; /* Élargi pour contenir les boutons alignés côte à côte */
+  height: 52px;
   box-sizing: border-box;
-  background: transparent !important;
-  border: none !important;
-  box-shadow: none !important;
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
+  background: rgba(10, 16, 24, 0.6) !important; /* Capsule de verre sombre translucide */
+  border: 1px solid rgba(0, 229, 255, 0.22) !important; /* Bordure cyan translucide style holo */
+  border-radius: 999px !important; /* Forme pilule Dynamic Island */
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 0 15px rgba(0, 229, 255, 0.1) !important; /* Lueur néon diffuse */
+  backdrop-filter: blur(18px) !important;
+  -webkit-backdrop-filter: blur(18px) !important;
   overflow: visible;
+  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
   animation: hud20-bar-fadein 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+#hud-control-bar.carousel-hidden {
+  opacity: 0 !important;
+  pointer-events: none !important;
+  transform: translateX(-50%) translateY(22px) !important; /* Glissement d'effacement vers le bas */
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+#hud-control-bar:not(.carousel-hidden) {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateX(-50%) translateY(0);
+  transition: opacity 0.3s ease, transform 0.3s ease;
 }
 
 .carousel-viewport {
   width: 100%;
-  height: 50px;
+  height: 100%;
   position: relative;
   overflow: visible;
 }
 
-.carousel-track {
-  width: 100%;
-  height: 100%;
-  position: relative;
+.carousel-viewport {
+  overflow: hidden !important;
+  width: 100% !important;
+  height: 100% !important;
+  position: relative !important;
 }
 
-/* Hide legacy separator */
+.carousel-track {
+  display: flex !important;
+  align-items: center !important;
+  position: absolute !important;
+  height: 100% !important;
+  left: 50% !important; /* Calé au centre du viewport horizontalement */
+  top: 0 !important;
+  transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) !important;
+  will-change: transform;
+  gap: 15px !important;
+}
+
+/* Cache le séparateur obsolète */
 .hud-bar-sep {
   display: none !important;
 }
 
-/* Base style for ALL buttons inside the bar */
-#gpu-button,
-#subtitle-toggle,
-#settings-button,
-#gestures-toggle,
-#holo-button,
-#vision-button {
-  position: absolute !important;
-  top: 50% !important;
-  left: 50% !important;
+/* Base style for ALL buttons inside the bar (Dynamic Island style) */
+.carousel-track > button {
+  position: relative !important;
+  top: auto !important;
+  left: auto !important;
+  z-index: 2 !important;
+  pointer-events: auto !important;
   
-  width: 125px !important;
+  width: 120px !important;
   height: 34px !important;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 8px;
-  border: 1px solid rgba(0, 229, 255, 0.25);
-  background: rgba(0, 229, 255, 0.08);
-  color: rgba(0, 229, 255, 0.85);
-  font-family: 'Courier New', monospace;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 1.5px;
-  text-transform: uppercase;
-  cursor: pointer;
-  box-shadow: 0 0 10px rgba(0, 229, 255, 0.12);
-  white-space: nowrap;
-  transition: all 0.45s cubic-bezier(0.16, 1, 0.3, 1);
-  z-index: 1;
-  user-select: none;
-  -webkit-user-drag: none;
-}
-
-/* Center active button */
-#gpu-button.active,
-#subtitle-toggle.active,
-#settings-button.active,
-#gestures-toggle.active,
-#holo-button.active,
-#vision-button.active {
-  transform: translate(-50%, -50%) scale(1.16);
-  opacity: 1;
-  z-index: 10;
-  pointer-events: auto;
-  border-color: #00e5ff !important;
-  color: #00e5ff !important;
-  background: rgba(0, 229, 255, 0.18) !important;
-  box-shadow: 0 0 20px rgba(0, 229, 255, 0.45) !important;
-  text-shadow: 0 0 5px rgba(0, 229, 255, 0.6);
-}
-
-/* Left 1 button (.prev) */
-#gpu-button.prev,
-#subtitle-toggle.prev,
-#settings-button.prev,
-#gestures-toggle.prev,
-#holo-button.prev,
-#vision-button.prev {
-  transform: translate(-166.5%, -50%) scale(0.85);
-  opacity: 0.8;
-  z-index: 5;
-  pointer-events: auto;
-}
-
-/* Left 2 button (.prev2) */
-#gpu-button.prev2,
-#subtitle-toggle.prev2,
-#settings-button.prev2,
-#gestures-toggle.prev2,
-#holo-button.prev2,
-#vision-button.prev2 {
-  transform: translate(-257.5%, -50%) scale(0.65);
-  opacity: 0.5;
-  z-index: 3;
-  pointer-events: auto;
-}
-
-/* Right 1 button (.next) */
-#gpu-button.next,
-#subtitle-toggle.next,
-#settings-button.next,
-#gestures-toggle.next,
-#holo-button.next,
-#vision-button.next {
-  transform: translate(66.5%, -50%) scale(0.85);
-  opacity: 0.8;
-  z-index: 5;
-  pointer-events: auto;
-}
-
-/* Right 2 button (.next2) */
-#gpu-button.next2,
-#subtitle-toggle.next2,
-#settings-button.next2,
-#gestures-toggle.next2,
-#holo-button.next2,
-#vision-button.next2 {
-  transform: translate(157.5%, -50%) scale(0.65);
-  opacity: 0.5;
-  z-index: 3;
-  pointer-events: auto;
-}
-
-/* Hidden buttons */
-#gpu-button.hidden,
-#subtitle-toggle.hidden,
-#settings-button.hidden,
-#gestures-toggle.hidden,
-#holo-button.hidden,
-#vision-button.hidden {
-  transform: translate(-50%, -50%) scale(0.5);
-  opacity: 0;
-  z-index: 1;
-  pointer-events: none;
-}
-
-/* OFF states (applied when inactive but in active center position) */
-#gpu-button[aria-pressed="false"].active,
-#subtitle-toggle[aria-pressed="false"].active,
-#gestures-toggle[aria-pressed="false"].active,
-#holo-button[aria-pressed="false"].active,
-#settings-button[aria-pressed="false"].active {
-  background: rgba(255, 255, 255, 0.05) !important;
-  border-color: rgba(255, 255, 255, 0.15) !important;
-  color: rgba(255, 255, 255, 0.35) !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border-radius: 6px !important; /* Coins légèrement adoucis style cockpit moderne */
+  border: 1px solid rgba(0, 229, 255, 0.15) !important;
+  background: rgba(8, 12, 20, 0.75) !important;
+  color: rgba(0, 229, 255, 0.55) !important;
+  font-family: var(--font-mono) !important;
+  font-size: 8.5px !important;
+  font-weight: 700 !important;
+  letter-spacing: 1px !important;
+  text-transform: uppercase !important;
+  cursor: pointer !important;
   box-shadow: none !important;
-  text-shadow: none !important;
+  white-space: nowrap !important;
+  user-select: none !important;
+  -webkit-user-drag: none !important;
+  transition: transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1), 
+              background 0.25s ease, 
+              border-color 0.25s ease, 
+              color 0.25s ease, 
+              box-shadow 0.25s ease, 
+              opacity 0.25s ease !important;
+  opacity: 0.55 !important; /* Les boutons inactifs sont discrets */
+  gap: 6px !important;
 }
 
-/* Indicators */
+/* Hover effect on buttons */
+.carousel-track > button:hover {
+  opacity: 0.95 !important;
+  background: rgba(0, 229, 255, 0.08) !important;
+  border-color: rgba(0, 229, 255, 0.45) !important;
+  color: #00e5ff !important;
+  box-shadow: 0 0 10px rgba(0, 229, 255, 0.12) !important;
+}
+
+/* Style for the active/centered button in the carousel */
+.carousel-track > button.active {
+  opacity: 1 !important;
+  transform: scale(1.14) !important; /* Léger zoom sur l'élément centré */
+  border-color: #00e5ff !important;
+  background: rgba(0, 229, 255, 0.14) !important;
+  color: #00e5ff !important;
+  box-shadow: 
+    0 0 20px rgba(0, 229, 255, 0.35),
+    inset 0 0 8px rgba(0, 229, 255, 0.08) !important;
+  text-shadow: 0 0 6px rgba(0, 229, 255, 0.5) !important;
+  z-index: 10 !important;
+}
+
+/* Pour les boutons à bascule (comme GPU boost ou HUD text), s'ils sont à true mais pas actifs au centre */
+.carousel-track > button[aria-pressed="true"]:not(.active) {
+  border-color: rgba(0, 229, 255, 0.4) !important;
+  background: rgba(0, 229, 255, 0.05) !important;
+  color: rgba(0, 229, 255, 0.8) !important;
+}
+
+/* Indicators (pagination dots) */
 .carousel-indicators {
-  display: none !important;
+  position: absolute !important;
+  bottom: -20px !important; /* Calé juste sous la capsule du carrousel */
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  display: flex !important;
+  justify-content: center !important;
+  gap: 8px !important;
+  pointer-events: auto !important;
+  z-index: 100 !important;
 }
 
 .carousel-dot {
-  width: 10px;
-  height: 2px;
-  background: rgba(0, 229, 255, 0.2);
-  border-radius: 1px;
-  cursor: pointer;
-  transition: all 0.3s ease;
+  width: 6px !important;
+  height: 6px !important;
+  background: rgba(0, 229, 255, 0.16) !important;
+  border-radius: 50% !important;
+  cursor: pointer !important;
+  transition: all 0.3s ease !important;
 }
 
 .carousel-dot.active {
-  background: #00e5ff;
-  width: 18px;
-  box-shadow: 0 0 8px #00e5ff;
+  background: #00e5ff !important;
+  width: 14px !important;
+  border-radius: 4px !important;
+  box-shadow: 0 0 8px #00e5ff !important;
 }
 
 /* ══════════════════════════════════════════════════════════════════════════════
-   2. MIC & STOP PANEL — Centered bottom, glassmorphism pill
+   2. MIC & STOP PANEL — Positioned bottom-right above CPU HUD, compact style
    ══════════════════════════════════════════════════════════════════════════════ */
 .bottom-controls-container {
   position: fixed !important;
-  bottom: 75px !important; /* Lowered from 95px, creating space from the orb */
-  left: 50% !important;
-  transform: translateX(-50%) !important;
+  bottom: 72px !important; /* Rapproché du CPU HUD (qui est à bottom: 20px) */
+  right: 20px !important;
+  left: auto !important;
+  transform: none !important;
   z-index: 100 !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
   gap: 0 !important;
-  animation: hud20-panel-fadein 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  animation: none !important; /* Pas d'animation de centrage */
 }
 
 .mic-stop-panel {
   display: flex;
   align-items: center;
-  gap: 14px;
-  padding: 8px 18px;
-  background: rgba(0, 5, 15, 0.6);
-  backdrop-filter: blur(22px);
-  -webkit-backdrop-filter: blur(22px);
-  border: 1px solid rgba(0, 229, 255, 0.14);
-  border-radius: 50px;
+  gap: 10px; /* Plus serré pour le format compact */
+  padding: 4px 10px;
+  background: rgba(10, 16, 26, 0.45);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border: 1px solid rgba(0, 229, 255, 0.12);
+  border-radius: 20px; /* Moins large */
   box-shadow:
-    0 8px 32px rgba(0, 0, 0, 0.5),
-    inset 0 1px 0 rgba(0, 229, 255, 0.07);
+    0 8px 24px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  transition: all 0.3s ease;
 }
 
-/* Mic button — large glowing circle */
+.mic-stop-panel:hover {
+  border-color: rgba(0, 229, 255, 0.25);
+  background: rgba(10, 16, 26, 0.55);
+}
+
+/* ── Minimalist Mic Circle Button ── */
 #mic-btn {
-  width: 52px !important;
-  height: 52px !important;
+  width: 34px !important; /* Taille compacte */
+  height: 34px !important; /* Taille compacte */
   border-radius: 50% !important;
-  background: rgba(0, 229, 255, 0.07) !important;
-  border: 2px solid rgba(0, 229, 255, 0.45) !important;
+  background: rgba(0, 229, 255, 0.05) !important;
+  border: 1.2px solid rgba(0, 229, 255, 0.35) !important;
   color: #00e5ff !important;
   cursor: pointer !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
-  backdrop-filter: blur(12px) !important;
-  -webkit-backdrop-filter: blur(12px) !important;
-  transition: background 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease, transform 0.18s ease !important;
-  box-shadow: 0 0 20px rgba(0, 229, 255, 0.18), inset 0 0 18px rgba(0, 229, 255, 0.04) !important;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  box-shadow: 0 0 10px rgba(0, 229, 255, 0.1), inset 0 0 6px rgba(0, 229, 255, 0.02) !important;
   flex-shrink: 0;
   position: static !important;
-  top: unset !important; left: unset !important; right: unset !important; bottom: unset !important;
-  letter-spacing: 0 !important;
+  padding: 0 !important;
 }
 
 #mic-btn svg {
-  width: 22px;
-  height: 22px;
+  width: 14px; /* SVG plus petit */
+  height: 14px; /* SVG plus petit */
   pointer-events: none;
-  filter: drop-shadow(0 0 6px rgba(0, 229, 255, 0.5));
+  filter: drop-shadow(0 0 3px rgba(0, 229, 255, 0.35));
+  transition: transform 0.25s ease;
 }
 
 #mic-btn:hover {
-  background: rgba(0, 229, 255, 0.18) !important;
-  border-color: rgba(0, 229, 255, 0.85) !important;
-  box-shadow: 0 0 40px rgba(0, 229, 255, 0.45), inset 0 0 16px rgba(0, 229, 255, 0.08) !important;
-  transform: scale(1.08) !important;
+  background: rgba(0, 229, 255, 0.15) !important;
+  border-color: rgba(0, 229, 255, 0.8) !important;
+  box-shadow: 0 0 18px rgba(0, 229, 255, 0.3), inset 0 0 6px rgba(0, 229, 255, 0.05) !important;
+  transform: scale(1.05) !important;
 }
 
 #mic-btn:active {
@@ -299,51 +316,57 @@
 #mic-btn.active,
 #mic-btn[aria-pressed="true"] {
   border-color: rgba(0, 229, 255, 0.9) !important;
-  background: rgba(0, 229, 255, 0.14) !important;
+  background: rgba(0, 229, 255, 0.16) !important;
   animation: hud20-pulse-border 1.4s ease-in-out infinite !important;
+  box-shadow: 0 0 18px rgba(0, 229, 255, 0.4) !important;
 }
 
 #mic-btn.is-muted {
-  background: rgba(239, 68, 68, 0.12) !important;
-  border-color: rgba(239, 68, 68, 0.6) !important;
-  color: rgba(255, 100, 100, 0.9) !important;
-  box-shadow: 0 0 28px rgba(239, 68, 68, 0.32), inset 0 0 14px rgba(239, 68, 68, 0.06) !important;
+  background: rgba(239, 68, 68, 0.1) !important;
+  border-color: rgba(239, 68, 68, 0.5) !important;
+  color: rgba(255, 100, 100, 0.8) !important;
+  box-shadow: 0 0 10px rgba(239, 68, 68, 0.2) !important;
 }
 
 #mic-btn.is-muted svg {
-  filter: drop-shadow(0 0 6px rgba(239, 68, 68, 0.6));
+  filter: drop-shadow(0 0 3px rgba(239, 68, 68, 0.4));
 }
 
-/* Stop / Mute button */
+/* ── Minimalist Stop Circle Button ── */
 #mute-button {
-  width: 38px !important;
-  height: 38px !important;
-  border-radius: 12px !important;
-  background: rgba(255, 70, 50, 0.1) !important;
-  border: 1.5px solid rgba(255, 80, 60, 0.45) !important;
-  color: rgba(255, 110, 80, 0.9) !important;
+  width: 34px !important; /* Taille compacte */
+  height: 34px !important; /* Taille compacte */
+  border-radius: 50% !important;
+  background: rgba(255, 70, 50, 0.05) !important;
+  border: 1.2px solid rgba(255, 80, 60, 0.35) !important;
+  color: rgba(255, 110, 80, 0.85) !important;
   cursor: pointer !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
-  font-size: 14px !important;
-  transition: background 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease, transform 0.18s ease !important;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  box-shadow: 0 0 10px rgba(255, 80, 60, 0.1), inset 0 0 6px rgba(255, 80, 60, 0.02) !important;
   flex-shrink: 0;
   padding: 0 !important;
-  animation: hud20-stop-pulse 2.5s ease-in-out infinite !important;
-  position: static !important;
-  top: unset !important; left: unset !important; right: unset !important; bottom: unset !important;
+}
+
+#mute-button svg {
+  width: 13px; /* SVG plus petit */
+  height: 13px; /* SVG plus petit */
+  display: block;
+  flex-shrink: 0;
+  filter: drop-shadow(0 0 3px rgba(255, 80, 60, 0.35));
 }
 
 #mute-button:hover {
-  background: rgba(255, 70, 50, 0.22) !important;
+  background: rgba(255, 70, 50, 0.15) !important;
   border-color: rgba(255, 100, 70, 0.8) !important;
-  box-shadow: 0 0 24px rgba(255, 80, 60, 0.55), 0 0 6px rgba(255, 140, 0, 0.3) !important;
-  transform: scale(1.08) !important;
+  box-shadow: 0 0 18px rgba(255, 80, 60, 0.3) !important;
+  transform: scale(1.05) !important;
 }
 
 #mute-button:active {
-  transform: scale(0.93) !important;
+  transform: scale(0.95) !important;
 }
 
 /* ══════════════════════════════════════════════════════════════════════════════
@@ -492,12 +515,12 @@
 }
 
 #connection-label {
-  font-family: 'Courier New', monospace !important;
+  font-family: var(--font-title) !important;
   font-size: 10px !important;
-  letter-spacing: 1.5px !important;
-  font-weight: 400 !important;
-  color: rgba(255, 255, 255, 0.28) !important;
-  text-transform: lowercase !important;
+  letter-spacing: 2px !important;
+  font-weight: 700 !important;
+  color: rgba(255, 255, 255, 0.35) !important;
+  text-transform: uppercase !important;
   transition: color 0.4s ease !important;
 }
 
@@ -527,7 +550,7 @@
 .hud-labels { display: none !important; }
 .hud-prefix { display: none !important; }
 
-/* ── SYS STATS HUD — bottom right ───────────────────────────────────────── */
+/* ══ SYS STATS HUD — bottom right ══════════════════ */
 #sys-stats-hud {
   position: fixed;
   bottom: 20px;
@@ -636,3 +659,6 @@
     padding: 6px 10px;
   }
 }
+
+/* ── END HUD REDESIGN 2.0 ─────────────────────────────────────────────────── */
+

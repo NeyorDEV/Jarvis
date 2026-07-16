@@ -1,6 +1,6 @@
 /* ══════════════════════════════════════════════════════
    AUGMENTED REALITY (AR) MODE & HAND TRACKING
-   ══════════════════════════════════════════════════════ */
+══════════════════════════════════════════════════════ */
 
 /* Vidéo plein écran inversée (miroir) positionnée tout au fond */
 #hand-video {
@@ -28,6 +28,7 @@
   display: none;
 }
 
+/* Style pour le bouton d'activation MODE AR */
 /* Style pour le bouton d'activation MODE AR */
 #gestures-toggle.ar-active {
   background: rgba(0, 255, 136, 0.1) !important;
@@ -110,3 +111,6 @@ body.ar-mode-active #hand-canvas {
   transition: all 0.9s cubic-bezier(0.16, 1, 0.3, 1) !important;
   pointer-events: auto !important;
 }
+
+
+

@@ -1,6 +1,7 @@
 /* ═══════════════════════════════════════════════════════════════════════════
    BOTTOM CONTROLS BAR — Mic & Stop HUD
    ═══════════════════════════════════════════════════════════════════════════ */
+
 .bottom-controls-container {
   position: fixed;
   bottom: 34px;
@@ -166,3 +167,4 @@
   background: rgba(0, 229, 255, 0.75);
   box-shadow: 0 0 25px #00e5ff, inset 0 0 12px #ffffff;
 }
+

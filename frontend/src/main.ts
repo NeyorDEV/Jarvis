@@ -30,7 +30,7 @@ import { initIPTVPlayer, handleIPTVMessage, updateIPTVWS } from "./iptv_player";
 (window as any).ChessMap = ChessMap;
 (window as any).NetworkRadar = NetworkRadar;
 
-import "./style.css";
+import "./css/index.css";
 import "./widgets.css";
 
 // ── Config ────────────────────────────────────────────────────────────────────
