@@ -52,32 +52,22 @@ def init_models():
 
 class SileroVAD:
     def __init__(self, model_path):
+        import onnxruntime as ort
         providers = ["CUDAExecutionProvider", "CPUExecutionProvider"]
         so = ort.SessionOptions()
+        so.inter_op_num_threads = 1
+        so.intra_op_num_threads = 1
         so.log_severity_level = 3
         
         self.session = ort.InferenceSession(model_path, providers=providers, sess_options=so)
-        self.input_names = [i.name for i in self.session.get_inputs()]
         self.reset_states()
         
     def reset_states(self):
-        if "state" in self.input_names:
-            state_shape = [2, 1, 64]  # valeur par défaut
-            for i in self.session.get_inputs():
-                if i.name == "state":
-                    state_shape = [s if isinstance(s, int) and s > 0 else 1 for s in i.shape]
-                    break
-            self._state = np.zeros(state_shape, dtype=np.float32)
-        else:
-            self._h = np.zeros((2, 1, 64), dtype=np.float32)
-            self._c = np.zeros((2, 1, 64), dtype=np.float32)
+        self._state = np.zeros((2, 1, 128), dtype=np.float32)
+        self._context = np.zeros((1, 64), dtype=np.float32)
         
     def __call__(self, audio_chunk_int16, sr=16000):
-        # Normalisation float32 [-1.0, 1.0]
         audio_chunk = audio_chunk_int16.astype(np.float32) / 32768.0
-        
-        # Le modèle attend des sous-chunks de 512 échantillons.
-        # Si la taille est différente, on la traite par blocs de 512.
         sub_chunk_size = 512
         probs = []
         
@@ -87,24 +77,20 @@ class SileroVAD:
                 sub_chunk = np.pad(sub_chunk, (0, sub_chunk_size - len(sub_chunk)), 'constant')
                 
             x = np.expand_dims(sub_chunk, axis=0)
+            x_with_context = np.concatenate([self._context, x], axis=1)
+            
             ort_inputs = {
-                "input": x,
-                "sr": np.array([sr], dtype=np.int64)
+                "input": x_with_context,
+                "sr": np.array(sr, dtype=np.int64),
+                "state": self._state
             }
             
-            if "state" in self.input_names:
-                ort_inputs["state"] = self._state
-                out, state = self.session.run(None, ort_inputs)
-                self._state = state
-                probs.append(out[0][0])
-            else:
-                ort_inputs["h"] = self._h
-                ort_inputs["c"] = self._c
-                out, hn, cn = self.session.run(None, ort_inputs)
-                self._h = hn
-                self._c = cn
-                probs.append(out[0][0])
-                
+            out, state = self.session.run(None, ort_inputs)
+            self._state = state
+            self._context = x_with_context[:, -64:]
+            
+            probs.append(out[0][0])
+            
         return max(probs) if probs else 0.0
 
 

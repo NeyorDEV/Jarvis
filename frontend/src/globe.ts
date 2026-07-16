@@ -29,10 +29,10 @@ let flightTarget: { lat: number, lon: number, distance: number } | null = null;
 // Configuration
 const EARTH_RADIUS = 100;
 const TEXTURES = {
-  day: "https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg",
-  night: "https://unpkg.com/three-globe/example/img/earth-night.jpg",
-  bump: "https://unpkg.com/three-globe/example/img/earth-topology.png",
-  clouds: "https://unpkg.com/three-globe/example/img/earth-clouds.png",
+  day: "/textures/earth-blue-marble.jpg",
+  night: "/textures/earth-night.jpg",
+  bump: "/textures/earth-topology.png",
+  clouds: null, // Texture non disponible dans la version actuelle de three-globe
 };
 
 export function initJarvisGlobe() {
@@ -100,15 +100,17 @@ export function initJarvisGlobe() {
   // earthMat.emissiveIntensity = 0.5;
 
   // ── Clouds ──────────────────────────────────────────────────────────────────
-  const cloudGeo = new THREE.SphereGeometry(EARTH_RADIUS + 2, 64, 64);
-  const cloudMat = new THREE.MeshStandardMaterial({
-    map: loader.load(TEXTURES.clouds),
-    transparent: true,
-    opacity: 0.4,
-    depthWrite: false,
-  });
-  clouds = new THREE.Mesh(cloudGeo, cloudMat);
-  scene.add(clouds);
+  if (TEXTURES.clouds) {
+    const cloudGeo = new THREE.SphereGeometry(EARTH_RADIUS + 2, 64, 64);
+    const cloudMat = new THREE.MeshStandardMaterial({
+      map: loader.load(TEXTURES.clouds),
+      transparent: true,
+      opacity: 0.4,
+      depthWrite: false,
+    });
+    clouds = new THREE.Mesh(cloudGeo, cloudMat);
+    scene.add(clouds);
+  }
 
   // ── Atmosphere Glow ────────────────────────────────────────────────────────
   const atmosphereGeo = new THREE.SphereGeometry(EARTH_RADIUS * 1.15, 64, 64);
@@ -167,6 +169,15 @@ export function initJarvisGlobe() {
   createStarfield();
 
   window.addEventListener("resize", onResize);
+  
+  const closeBtn = document.getElementById("globe-close");
+  if (closeBtn) {
+    closeBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      hide();
+    });
+  }
 
   isInitialized = true;
   animate();
@@ -216,8 +227,12 @@ function switchToDetailedMap() {
 
   if (intersects.length > 0) {
     const point = intersects[0].point;
-    const lat = Math.asin(point.y / EARTH_RADIUS) * (180 / Math.PI);
-    const lon = Math.atan2(point.z, -point.x) * (180 / Math.PI);
+    // Projection en coordonnées locales pour être robuste aux futures rotations de l'objet
+    const localPoint = earth.worldToLocal(point.clone());
+    const lat = Math.asin(localPoint.y / EARTH_RADIUS) * (180 / Math.PI);
+    let lon = Math.atan2(localPoint.z, -localPoint.x) * (180 / Math.PI) - 180;
+    if (lon < -180) lon += 360;
+    if (lon > 180) lon -= 360;
 
     // Dispatch event or call a function to show map
     (window as any).showDetailedMap(lat, lon);

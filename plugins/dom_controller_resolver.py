@@ -29,7 +29,11 @@ async def resoudre_dom_hud(cmd):
 
     # S'il s'agit d'une commande complexe, composée ou contenant des formulaires,
     # on renvoie None pour laisser le "cerveau" IA (LLM) s'en occuper de façon autonome.
-    if any(k in t for k in [" et ", " puis ", "prenom", "nom", "age", "saisis", "tape", "ecris", "remplace", " lien "]):
+    exclusion_patterns = [
+        r"\bet\b", r"\bpuis\b", r"\bprenom\b", r"\bnom\b", r"\bage\b", 
+        r"\bsaisis\b", r"\btape\b", r"\becris\b", r"\bremplace\b", r"\blien\b"
+    ]
+    if any(re.search(pattern, t) for pattern in exclusion_patterns):
         return None
 
     # --- 1. PARAMÈTRES / CONFIGURATION (Commandes Simples et Instantanées) ---
@@ -148,6 +152,8 @@ async def resoudre_dom_hud(cmd):
         if hasattr(builtins, "send_web_action"):
             await builtins.send_web_action("remove_class", selector="#music-hud", class_name="hud-revealed")
             return "Widget musique masqué, Monsieur."
+
+
 
     # --- 11. MODE HOLOGRAMME (HOLO) ---
     if any(k in t for k in ["holo", "mode holo", "hologramme", "mode hologramme", "active le mode hologramme", "active le mode holo", "active l'hologramme", "ouvre l'hologramme", "lance le mode hologramme", "active hologramme", "lance l'hologramme", "active holo", "ouvre holo"]):

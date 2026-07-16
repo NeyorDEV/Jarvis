@@ -7,10 +7,17 @@ interface RadarConnection {
   process: string;
   country: string;
   cc: string;
+  city?: string;
   lat: number;
   lon: number;
   isp: string;
   risk: 'normal' | 'medium' | 'high';
+  hostname?: string;
+  service?: string;
+  duration_s: number;
+  is_new: boolean;
+  is_filtered: boolean;
+  port_scan: boolean;
 }
 
 interface ArcData {
@@ -19,6 +26,7 @@ interface ArcData {
   headMesh: THREE.Mesh;
   headProgress: number;
   headSpeed: number;
+  baseColor: number;
 }
 
 const RISK_COLOR: Record<string, number> = {
@@ -95,6 +103,17 @@ export class NetworkRadar {
   private arcs: Map<string, ArcData> = new Map();
   private destDots: Map<string, THREE.Mesh> = new Map();
 
+  private _allConnections: RadarConnection[] = [];
+  private _showFiltered = false;
+  private _highlightedIp: string | null = null;
+  private _targetRotY: number | null = null;
+  private _onCanvasClick: ((e: MouseEvent) => void) | null = null;
+  private _searchQuery = '';
+  private _activeTab: 'active' | 'blocked' = 'active';
+  private _blockedIps: string[] = [];
+
+  private static readonly HL_COLOR = 0xa855f7;
+
   private readonly R = 2.2;
   private readonly LOCAL_LAT = 46.0;
   private readonly LOCAL_LON = 2.0;
@@ -112,6 +131,12 @@ export class NetworkRadar {
   private _onMouseMove: ((e: MouseEvent) => void) | null = null;
   private _onMouseUp: ((e: MouseEvent) => void) | null = null;
   private _onContextMenu: ((e: MouseEvent) => void) | null = null;
+
+  // Hand drag pour rotation globe via MediaPipe
+  private _onHandMove: ((e: any) => void) | null = null;
+  private _isHandDragging = false;
+  private _lastHandX = 0;
+  private _lastHandY = 0;
 
   constructor(scene: THREE.Scene, camera: THREE.Camera) {
     this.scene = scene;
@@ -147,6 +172,20 @@ export class NetworkRadar {
     const panel = document.getElementById('network-radar-panel');
     if (panel) panel.style.display = 'flex';
 
+    // Barre de recherche
+    const searchInput = document.getElementById('radar-search') as HTMLInputElement | null;
+    if (searchInput) {
+      searchInput.value = '';
+      this._searchQuery = '';
+      searchInput.addEventListener('input', () => {
+        this._searchQuery = searchInput.value.toLowerCase().trim();
+        this._refreshActiveList();
+      });
+    }
+
+    // Exposition globale pour les boutons inline HTML
+    (window as any)._networkRadar = this;
+
     this._setupMouseRotation();
   }
 
@@ -165,7 +204,76 @@ export class NetworkRadar {
     const panel = document.getElementById('network-radar-panel');
     if (panel) panel.style.display = 'none';
 
+    // Reset état tabs/recherche
+    this._searchQuery = '';
+    this._activeTab = 'active';
+    (window as any)._networkRadar = null;
+
     this._teardownMouseRotation();
+  }
+
+  // ── Onglets ─────────────────────────────────────────────────────────────────
+
+  public switchTab(tab: 'active' | 'blocked'): void {
+    this._activeTab = tab;
+    const listEl    = document.getElementById('radar-connections-list');
+    const blockedEl = document.getElementById('radar-blocked-list');
+    const statsBar  = document.getElementById('radar-stats-bar');
+    const searchBar = document.getElementById('radar-search-bar');
+    const tabActive  = document.getElementById('radar-tab-active');
+    const tabBlocked = document.getElementById('radar-tab-blocked');
+
+    if (tab === 'active') {
+      if (listEl)    listEl.style.display    = 'block';
+      if (blockedEl) blockedEl.style.display = 'none';
+      if (statsBar)  statsBar.style.display  = 'flex';
+      if (searchBar) searchBar.style.display = 'block';
+      if (tabActive)  { tabActive.style.background  = 'rgba(0,229,255,0.1)'; tabActive.style.color  = '#00e5ff'; }
+      if (tabBlocked) { tabBlocked.style.background = 'none';                tabBlocked.style.color = 'rgba(0,229,255,0.4)'; }
+    } else {
+      if (listEl)    listEl.style.display    = 'none';
+      if (blockedEl) blockedEl.style.display = 'block';
+      if (statsBar)  statsBar.style.display  = 'none';
+      if (searchBar) searchBar.style.display = 'none';
+      if (tabActive)  { tabActive.style.background  = 'none';                  tabActive.style.color  = 'rgba(0,229,255,0.4)'; }
+      if (tabBlocked) { tabBlocked.style.background = 'rgba(168,85,247,0.12)'; tabBlocked.style.color = '#c084fc'; }
+      // Demander la liste au backend
+      const ws = (window as any)._jarvisWs;
+      if (ws && ws.readyState === 1) ws.send(JSON.stringify({ type: 'get_blocked_ips' }));
+      this._renderBlockedList();
+    }
+  }
+
+  public handleBlockedIps(ips: string[]): void {
+    this._blockedIps = ips;
+    const countEl = document.getElementById('radar-blocked-count');
+    if (countEl) countEl.textContent = ips.length > 0 ? `(${ips.length})` : '';
+    if (this._activeTab === 'blocked') this._renderBlockedList();
+  }
+
+  private _renderBlockedList(): void {
+    const el = document.getElementById('radar-blocked-list');
+    if (!el) return;
+    if (this._blockedIps.length === 0) {
+      el.innerHTML = `<div style="padding:20px;text-align:center;color:rgba(0,229,255,0.3);font-size:10px;letter-spacing:1px;">AUCUNE IP BLOQUÉE</div>`;
+      return;
+    }
+    el.innerHTML = this._blockedIps.map(ip => `
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 12px;border-bottom:1px solid rgba(255,46,77,0.1);">
+        <span style="color:#ff2e4d;font-size:11px;font-weight:bold;">⊘ ${ip}</span>
+        <button onclick="(function(){var ws=window._jarvisWs;if(ws&&ws.readyState===1)ws.send(JSON.stringify({type:'unblock_ip',ip:'${ip}'}))})()"
+          style="background:rgba(255,46,77,0.1);border:1px solid rgba(255,46,77,0.3);color:#ff6b7a;font-family:monospace;font-size:9px;padding:2px 8px;cursor:pointer;border-radius:2px;letter-spacing:1px;">
+          DÉBLOQUER
+        </button>
+      </div>`).join('');
+  }
+
+  private _refreshActiveList(): void {
+    const filteredCount = this._allConnections.filter(c => c.is_filtered).length;
+    const visible = this._showFiltered
+      ? this._allConnections
+      : this._allConnections.filter(c => !c.is_filtered);
+    this.updatePanel(visible, filteredCount);
   }
 
   // ── Rotation souris ─────────────────────────────────────────────────────────
@@ -197,19 +305,91 @@ export class NetworkRadar {
     this._onMouseUp = () => { this._mouseRightDown = false; };
     this._onContextMenu = (e: MouseEvent) => { e.preventDefault(); e.stopPropagation(); };
 
+    this._onCanvasClick = (e: MouseEvent) => {
+      if (e.button !== 0 || this._mouseRightDown) return;
+      this._handleGlobeClick(e.clientX, e.clientY);
+    };
+
+    // Intégration geste main pour rotation globe réseau
+    this._onHandMove = (e: any) => {
+      if (!this.active) return;
+      const { x, y, pinched } = e.detail;
+      if (pinched) {
+        if (!this._isHandDragging) {
+          this._isHandDragging = true;
+          this._lastHandX = x;
+          this._lastHandY = y;
+        } else {
+          const dx = x - this._lastHandX;
+          const dy = y - this._lastHandY;
+          this.globeRotY += dx * 0.006;
+          this._globeRotX += dy * 0.006;
+          this._globeRotX = Math.max(-Math.PI / 2.2, Math.min(Math.PI / 2.2, this._globeRotX));
+          this._lastHandX = x;
+          this._lastHandY = y;
+        }
+      } else {
+        this._isHandDragging = false;
+      }
+    };
+
     canvas.addEventListener('mousedown',    this._onMouseDown);
+    canvas.addEventListener('click',        this._onCanvasClick);
     window.addEventListener('mousemove',    this._onMouseMove);
     window.addEventListener('mouseup',      this._onMouseUp);
     canvas.addEventListener('contextmenu',  this._onContextMenu);
+    document.addEventListener('jarvis-hand-move', this._onHandMove);
   }
 
   private _teardownMouseRotation(): void {
     const canvas = document.getElementById('holo-three-canvas');
-    if (this._onMouseDown) canvas?.removeEventListener('mousedown',   this._onMouseDown);
-    if (this._onMouseMove) window.removeEventListener('mousemove',    this._onMouseMove);
-    if (this._onMouseUp)   window.removeEventListener('mouseup',      this._onMouseUp);
-    if (this._onContextMenu) canvas?.removeEventListener('contextmenu', this._onContextMenu);
-    this._onMouseDown = this._onMouseMove = this._onMouseUp = this._onContextMenu = null;
+    if (this._onMouseDown)   canvas?.removeEventListener('mousedown',   this._onMouseDown);
+    if (this._onCanvasClick) canvas?.removeEventListener('click',        this._onCanvasClick);
+    if (this._onMouseMove)   window.removeEventListener('mousemove',     this._onMouseMove);
+    if (this._onMouseUp)     window.removeEventListener('mouseup',       this._onMouseUp);
+    if (this._onContextMenu) canvas?.removeEventListener('contextmenu',  this._onContextMenu);
+    if (this._onHandMove)    document.removeEventListener('jarvis-hand-move', this._onHandMove);
+    this._onMouseDown = this._onCanvasClick = this._onMouseMove = this._onMouseUp = this._onContextMenu = this._onHandMove = null;
+  }
+
+  private _handleGlobeClick(cx: number, cy: number): void {
+    const canvas = document.getElementById('holo-three-canvas') as HTMLCanvasElement | null;
+    const rect = canvas?.getBoundingClientRect();
+    if (!rect) return;
+    const cam = this.camera as THREE.PerspectiveCamera;
+    let nearestIp: string | null = null;
+    let nearestDist = 48; // seuil en pixels
+
+    const worldPos = new THREE.Vector3();
+    for (const [ip, dot] of this.destDots) {
+      dot.getWorldPosition(worldPos);
+      const proj = worldPos.clone().project(cam);
+      if (proj.z > 1) continue; // derrière la caméra
+      const sx = ((proj.x + 1) / 2) * rect.width  + rect.left;
+      const sy = ((-proj.y + 1) / 2) * rect.height + rect.top;
+      const d  = Math.hypot(cx - sx, cy - sy);
+      if (d < nearestDist) { nearestDist = d; nearestIp = ip; }
+    }
+
+    if (nearestIp) {
+      const conn = this._allConnections.find(c => c.ip === nearestIp);
+      if (conn) {
+        if (this._highlightedIp === conn.ip) {
+          // Re-clic sur le même point → déselection
+          this._highlightedIp = null;
+          this._targetRotY    = null;
+        } else {
+          const p = _ll2v(conn.lat, conn.lon, this.R);
+          this._targetRotY    = Math.atan2(-p.x, p.z);
+          this._highlightedIp = conn.ip;
+        }
+        const filteredCount = this._allConnections.filter(c => c.is_filtered).length;
+        const visible = this._showFiltered
+          ? this._allConnections
+          : this._allConnections.filter(c => !c.is_filtered);
+        this.updatePanel(visible, filteredCount);
+      }
+    }
   }
 
   // ── Globe ───────────────────────────────────────────────────────────────────
@@ -307,10 +487,23 @@ export class NetworkRadar {
 
   // ── Connexions ──────────────────────────────────────────────────────────────
 
+  public toggleFilter(): void {
+    this._showFiltered = !this._showFiltered;
+    this._applyConnections(this._allConnections);
+  }
+
   public handleRadarUpdate(connections: RadarConnection[]): void {
     if (!this.active) return;
+    this._allConnections = connections;
+    this._applyConnections(connections);
+  }
 
-    const newIps = new Set(connections.map(c => c.ip));
+  private _applyConnections(connections: RadarConnection[]): void {
+    const visible = this._showFiltered
+      ? connections
+      : connections.filter(c => !c.is_filtered);
+
+    const newIps = new Set(visible.map(c => c.ip));
 
     for (const [ip, arc] of this.arcs) {
       if (!newIps.has(ip)) {
@@ -331,11 +524,12 @@ export class NetworkRadar {
       }
     }
 
-    for (const conn of connections) {
+    for (const conn of visible) {
       if (!this.arcs.has(conn.ip)) this.addArc(conn);
     }
 
-    this.updatePanel(connections);
+    const filteredCount = connections.filter(c => c.is_filtered).length;
+    this.updatePanel(visible, filteredCount);
   }
 
   private addArc(conn: RadarConnection): void {
@@ -356,7 +550,7 @@ export class NetworkRadar {
 
     const headMesh = new THREE.Mesh(
       new THREE.SphereGeometry(0.048, 8, 8),
-      new THREE.MeshBasicMaterial({ color, blending: THREE.AdditiveBlending })
+      new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 1.0, blending: THREE.AdditiveBlending })
     );
     headMesh.position.copy(from);
     this.arcsGroup?.add(headMesh);
@@ -373,12 +567,45 @@ export class NetworkRadar {
       curve, lineMesh, headMesh,
       headProgress: Math.random(),
       headSpeed: 0.28 + Math.random() * 0.18,
+      baseColor: color,
     });
   }
 
   // ── Panel HUD ───────────────────────────────────────────────────────────────
 
-  private updatePanel(connections: RadarConnection[]): void {
+  private _applyRowHighlight(row: HTMLElement): void {
+    row.style.background    = 'rgba(140, 60, 255, 0.25)';
+    row.style.borderLeft    = '3px solid #a855f7';
+    row.style.paddingLeft   = '11px';
+    row.style.boxShadow     = 'inset 0 0 14px rgba(140,60,255,0.2)';
+    const proc = row.querySelector<HTMLElement>('.radar-proc');
+    if (proc) { proc.style.color = '#e0b8ff'; proc.style.textShadow = '0 0 8px rgba(168,85,247,0.9)'; }
+    const loc = row.querySelector<HTMLElement>('.radar-loc');
+    if (loc)  loc.style.color = '#c084fc';
+    const ip = row.querySelector<HTMLElement>('.radar-ip');
+    if (ip)   ip.style.color = 'rgba(230,210,255,0.95)';
+  }
+
+  private _clearRowHighlight(row: HTMLElement): void {
+    row.style.background    = '';
+    row.style.borderLeft    = '';
+    row.style.paddingLeft   = '';
+    row.style.boxShadow     = '';
+    const proc = row.querySelector<HTMLElement>('.radar-proc');
+    if (proc) { proc.style.color = ''; proc.style.textShadow = ''; }
+    const loc = row.querySelector<HTMLElement>('.radar-loc');
+    if (loc)  loc.style.color = '';
+    const ip = row.querySelector<HTMLElement>('.radar-ip');
+    if (ip)   ip.style.color = '';
+  }
+
+  private _fmtDuration(s: number): string {
+    if (s < 60)   return `${s}s`;
+    if (s < 3600) return `${Math.floor(s / 60)}m${String(s % 60).padStart(2,'0')}s`;
+    return `${Math.floor(s / 3600)}h${Math.floor((s % 3600) / 60)}m`;
+  }
+
+  private updatePanel(connections: RadarConnection[], filteredCount: number): void {
     const countries = new Set(connections.map(c => c.country));
     const threats   = connections.filter(c => c.risk !== 'normal');
 
@@ -387,29 +614,113 @@ export class NetworkRadar {
     const ctryEl   = el('radar-countries');
     const threatEl = el('radar-threats');
     const listEl   = el('radar-connections-list');
+    const filterBtn = el('radar-filter-btn');
 
-    if (count)    count.textContent    = String(connections.length);
-    if (ctryEl)   ctryEl.textContent   = String(countries.size);
+    if (count)    count.textContent = String(connections.length);
+    if (ctryEl)   ctryEl.textContent = String(countries.size);
     if (threatEl) {
       const n = threats.length;
       threatEl.textContent = `${n} menace${n !== 1 ? 's' : ''}`;
       threatEl.style.color = n > 0 ? '#ff2e4d' : '#00ff88';
     }
+    if (filterBtn) {
+      if (filteredCount > 0) {
+        filterBtn.style.display = 'inline-block';
+        filterBtn.textContent = this._showFiltered
+          ? `Masquer sys (${filteredCount})`
+          : `+ ${filteredCount} sys`;
+      } else {
+        filterBtn.style.display = 'none';
+      }
+    }
+
     if (!listEl) return;
     listEl.innerHTML = '';
 
-    const sorted = [...connections].sort((a, b) => {
+    const q = this._searchQuery;
+    const filtered = q
+      ? connections.filter(c =>
+          c.ip.includes(q) ||
+          c.process.toLowerCase().includes(q) ||
+          c.country.toLowerCase().includes(q) ||
+          (c.hostname ?? '').toLowerCase().includes(q) ||
+          (c.city ?? '').toLowerCase().includes(q) ||
+          c.cc.toLowerCase().includes(q)
+        )
+      : connections;
+
+    const sorted = [...filtered].sort((a, b) => {
       const o: Record<string, number> = { high: 0, medium: 1, normal: 2 };
       return (o[a.risk] ?? 2) - (o[b.risk] ?? 2);
     });
 
+    if (sorted.length === 0 && q) {
+      listEl.innerHTML = `<div style="padding:20px;text-align:center;color:rgba(0,229,255,0.3);font-size:10px;letter-spacing:1px;">AUCUN RÉSULTAT POUR "${q.toUpperCase()}"</div>`;
+      return;
+    }
+
     for (const c of sorted) {
-      const flag = FLAG[c.cc] ?? '🌐';
+      const flag     = FLAG[c.cc] ?? '🌐';
       const colorHex = '#' + (RISK_COLOR[c.risk] ?? RISK_COLOR.normal).toString(16).padStart(6, '0');
-      const dot  = `<span style="color:${colorHex};font-size:9px">●</span>`;
+      const dot      = `<span style="color:${colorHex};font-size:10px;flex-shrink:0">●</span>`;
+      const dur      = this._fmtDuration(c.duration_s ?? 0);
+      const proc     = c.process.replace(/\.exe$/i, '');
+      const svc      = c.service ? ` <span class="radar-svc">${c.service}</span>` : '';
+      const host     = c.hostname ? `<span class="radar-host">${c.hostname}</span>` : '';
+      const loc      = c.city
+        ? `${flag} ${c.city}, ${c.cc}`
+        : `${flag} ${c.country}`;
+
+      let badges = '';
+      if (c.is_new)    badges += `<span class="radar-badge-new">NEW</span>`;
+      if (c.port_scan) badges += `<span class="radar-badge-scan">SCAN</span>`;
+
+      const isHL = c.ip === this._highlightedIp;
       const row  = document.createElement('div');
       row.className = 'radar-conn-row';
-      row.innerHTML = `${dot}<span>${flag} <span style="color:rgba(200,240,255,0.6);font-size:9px">${c.cc}</span></span><span class="radar-proc">${c.process.replace(/\.exe$/i, '')}</span><span class="radar-ip">${c.ip}</span><span class="radar-port">:${c.port}</span>`;
+      row.title = `Clic : centrer sur ${c.country}`;
+      if (isHL) this._applyRowHighlight(row);
+      row.innerHTML =
+        // Ligne 1 : indicateur + badges + processus + port + service + bloquer
+        `<div class="rcr-top">` +
+          `<div class="rcr-left">` +
+            `${dot}${badges}` +
+            `<span class="radar-proc">${proc}</span>` +
+          `</div>` +
+          `<div class="rcr-right">` +
+            `<span class="radar-port">:${c.port}${svc}</span>` +
+            `<button class="radar-block-btn" title="Bloquer ${c.ip} via pare-feu" ` +
+              `onclick="event.stopPropagation();(function(){var ws=window._jarvisWs;` +
+              `if(ws&&ws.readyState===1)ws.send(JSON.stringify({type:'block_ip',ip:'${c.ip}'}))})()">⊘</button>` +
+          `</div>` +
+        `</div>` +
+        // Ligne 2 : IP + hostname + localisation + durée
+        `<div class="rcr-bot">` +
+          `<div class="rcr-left">` +
+            `<span class="radar-ip">${c.ip}${host ? ' / ' : ''}${host}</span>` +
+          `</div>` +
+          `<div class="rcr-right">` +
+            `<span class="radar-loc">${loc}</span>` +
+            `<span class="radar-dur">${dur}</span>` +
+          `</div>` +
+        `</div>`;
+
+      // Clic sur la ligne → zoom globe + surbrillance (re-clic = déselection)
+      row.addEventListener('click', () => {
+        if (this._highlightedIp === c.ip) {
+          // Déselection
+          this._highlightedIp = null;
+          this._targetRotY    = null;
+          listEl?.querySelectorAll<HTMLElement>('.radar-conn-row').forEach(r => this._clearRowHighlight(r));
+        } else {
+          const p = _ll2v(c.lat, c.lon, this.R);
+          this._targetRotY    = Math.atan2(-p.x, p.z);
+          this._highlightedIp = c.ip;
+          listEl?.querySelectorAll<HTMLElement>('.radar-conn-row').forEach(r => this._clearRowHighlight(r));
+          this._applyRowHighlight(row);
+        }
+      });
+
       listEl.appendChild(row);
     }
   }
@@ -420,20 +731,45 @@ export class NetworkRadar {
     if (!this.active) return;
     this.time += dt;
 
-    if (!this._mouseRightDown) this.globeRotY += dt * 0.04;
+    if (this._targetRotY !== null) {
+      // Interpolation angle court (chemin le plus court sur le cercle)
+      let diff = this._targetRotY - this.globeRotY;
+      while (diff >  Math.PI) diff -= Math.PI * 2;
+      while (diff < -Math.PI) diff += Math.PI * 2;
+      this.globeRotY += diff * Math.min(dt * 3.5, 1);
+      if (Math.abs(diff) < 0.008) { this.globeRotY = this._targetRotY; this._targetRotY = null; }
+    } else if (!this._mouseRightDown) {
+      this.globeRotY += dt * 0.04;
+    }
     [this.globeGroup, this.arcsGroup, this.dotsGroup].forEach(g => {
       if (g) { g.rotation.y = this.globeRotY; g.rotation.x = this._globeRotX; }
     });
 
-    for (const arc of this.arcs.values()) {
+    const HL        = NetworkRadar.HL_COLOR;
+    const hasHL     = this._highlightedIp !== null;
+    const pulse     = 0.5 + Math.sin(this.time * 3.5) * 0.35;
+
+    for (const [ip, arc] of this.arcs) {
       arc.headProgress += dt * arc.headSpeed;
       if (arc.headProgress > 1.0) arc.headProgress -= 1.0;
       arc.headMesh.position.copy(arc.curve.getPoint(arc.headProgress));
+
+      const isHL    = ip === this._highlightedIp;
+      const c       = isHL ? HL : arc.baseColor;
+      const lineMat = arc.lineMesh.material as THREE.LineBasicMaterial;
+      lineMat.color.setHex(c);
+      // Quand une sélection est active : les autres arcs s'effacent presque entièrement
+      lineMat.opacity = isHL ? 0.82 : (hasHL ? 0.05 : 0.22);
+      const headMat = arc.headMesh.material as THREE.MeshBasicMaterial;
+      headMat.color.setHex(c);
+      headMat.opacity = isHL ? 1.0 : (hasHL ? 0.08 : 1.0);
     }
 
-    const pulse = 0.5 + Math.sin(this.time * 3.5) * 0.35;
-    for (const dot of this.destDots.values()) {
-      (dot.material as THREE.MeshBasicMaterial).opacity = pulse;
+    for (const [ip, dot] of this.destDots) {
+      const mat  = dot.material as THREE.MeshBasicMaterial;
+      const isHL = ip === this._highlightedIp;
+      mat.color.setHex(isHL ? HL : (this.arcs.get(ip)?.baseColor ?? RISK_COLOR.normal));
+      mat.opacity = isHL ? Math.max(pulse, 0.85) : (hasHL ? 0.08 : pulse);
     }
 
     if (this.dotsGroup) {

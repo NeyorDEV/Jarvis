@@ -63,15 +63,18 @@ try:
             "[CLAP]": ("👏", "cyan"),
             "[CONV]": ("💬", "cyan"),
             "[WEB]": ("🌐", "cyan"),
-            "[MIC]": ("🎙", "cyan"),
-            "[METEO]": ("🌤", "cyan"),
-            "[TTS LOCAL]": ("🗣", "cyan"),
-            "[SPEECH]": ("🗣", "cyan"),
+            "[MIC]": ("🎙️", "cyan"),
+            "[METEO]": ("🌤️", "cyan"),
+            "[TTS LOCAL]": ("🗣️", "cyan"),
+            "[SPEECH]": ("🗣️", "cyan"),
             "[DÉMARRAGE]": ("🚀", "cyan"),
             "[INFO]": ("ℹ️", "cyan"),
-            "[SPEAKER]": ("🎙", "cyan"),
-            "[BIOMETRICS]": ("🎙", "cyan"),
-            "[VAD]": ("🎙", "cyan"),
+            "[SPEAKER]": ("🎙️", "cyan"),
+            "[BIOMETRICS]": ("🎙️", "cyan"),
+            "[VAD]": ("🎙️", "cyan"),
+            "[AV LIVE]": ("🛡️", "cyan"),
+            "[AV]": ("🛡️", "cyan"),
+            "[AUDIOSTREAMMANAGER]": ("🔊", "cyan"),
         }
         
         stripped = msg.lstrip()
@@ -181,7 +184,7 @@ try:
         Align.center(banner),
         border_style="cyan",
         title="[bold red]SYSTEM INITIALIZATION[/bold red]",
-        subtitle="[bold cyan]v7.5[/bold cyan]",
+        subtitle="[bold cyan]v9.0[/bold cyan]",
         expand=False,
         padding=(1, 6)
     ))
@@ -298,6 +301,7 @@ except Exception as e:
 from module.file_manager import *
 builtins.resoudre_chemin = resoudre_chemin
 from module.alarm_manager import *
+from plugins.list_manager import _charger_listes, _sauvegarder_listes
 
 from module.memory_manager import *
 from module.memory_manager import _charger_historique_recent, _sauvegarder_echange_conv
@@ -332,6 +336,10 @@ def _charger_plugins():
     import plugins.os_autopilot_resolver
     import plugins.local_mode_resolver
     import plugins.network_resolver
+    import plugins.dev_swarm_resolver
+    import plugins.image_search_resolver
+    import plugins.uninstaller_resolver
+    import plugins.iptv_resolver
     _plugins_prets.set()
 threading.Thread(target=_charger_plugins, daemon=True).start()
 
@@ -341,11 +349,13 @@ builtins._APPS_CATALOGUE = _APPS_CATALOGUE
 from module.google_services import *
 from module.vision_module import *
 from module.sports_web import *
+from module.image_search import recherche_images_web
 from module.vector_memory import ajouter_souvenir, rechercher_souvenirs
 from module.browser_service import AutonomousBrowser
 browser_agent = AutonomousBrowser()
 builtins.browser_agent = browser_agent
 from module.visual_web_agent import run_visual_agent, stop_visual_agent
+from antivirus_scanner import executer_scan_antivirus
 import pyautogui
 import webbrowser
 import subprocess
@@ -357,6 +367,14 @@ import re
 import shutil
 from pathlib import Path
 from datetime import datetime
+
+BACKGROUND_TASKS = set()
+
+def lancer_tache_arriere_plan(coro):
+    task = asyncio.create_task(coro)
+    BACKGROUND_TASKS.add(task)
+    task.add_done_callback(BACKGROUND_TASKS.discard)
+    return task
 # --- PyAudio (micro/reconnaissance vocale) : optionnel ---
 try:
     import pyaudio
@@ -392,6 +410,25 @@ class AudioStreamManager:
         self.channels = 1
         self.rate = 16000
         self.chunk = 1024
+        
+        # Paramètres d'échantillonnage adaptatif
+        self.active_rate = 16000
+        self.downsample_factor = 1
+        self.software_gain = 1.0
+
+    def _load_gain(self):
+        self.software_gain = 1.0
+        try:
+            config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "jarvis_config.json")
+            if os.path.exists(config_path):
+                import json
+                with open(config_path, "r", encoding="utf-8") as f:
+                    cfg = json.load(f)
+                    self.software_gain = float(cfg.get("mic_software_gain", 1.0))
+                # print(f"[AudioStreamManager] Gain logiciel chargé : {self.software_gain}x")
+        except Exception as e:
+            # print(f"[AudioStreamManager] Erreur lecture gain : {e}")
+            pass
 
     def subscribe(self):
         import queue
@@ -418,24 +455,47 @@ class AudioStreamManager:
                 print("[AudioStreamManager] PyAudio non disponible.")
                 return
 
+            self._load_gain()
             self.mic_index = mic_index
             self.p = pyaudio.PyAudio()
+            
+            # Essayer d'ouvrir à 48000 Hz pour contourner les bugs de rééchantillonnage matériel (BIRD UM1)
             try:
                 self.stream = self.p.open(
                     format=self.format,
                     channels=self.channels,
-                    rate=self.rate,
+                    rate=48000,
                     input=True,
-                    frames_per_buffer=self.chunk,
+                    frames_per_buffer=self.chunk * 3,
                     input_device_index=self.mic_index
                 )
+                self.active_rate = 48000
+                self.downsample_factor = 3
                 self.running = True
                 self.thread = threading.Thread(target=self._run, daemon=True)
                 self.thread.start()
-                print(f"[AudioStreamManager] Flux d'acquisition démarré (Rate: {self.rate} Hz, Micro Index: {self.mic_index})")
+                # print(f"[AudioStreamManager] Flux d'acquisition démarré à 48000 Hz (avec décimation par 3) sur Micro Index: {self.mic_index}")
             except Exception as e:
-                print(f"[AudioStreamManager] Erreur lors de l'ouverture du flux : {e}")
-                self.running = False
+                # Mode repli à 16000 Hz si 48000 Hz échoue
+                try:
+                    self.stream = self.p.open(
+                        format=self.format,
+                        channels=self.channels,
+                        rate=16000,
+                        input=True,
+                        frames_per_buffer=self.chunk,
+                        input_device_index=self.mic_index
+                    )
+                    self.active_rate = 16000
+                    self.downsample_factor = 1
+                    self.running = True
+                    self.thread = threading.Thread(target=self._run, daemon=True)
+                    self.thread.start()
+                    # print(f"[AudioStreamManager] Flux d'acquisition démarré à 16000 Hz de repli sur Micro Index: {self.mic_index}")
+                except Exception as e_fallback:
+                    # print(f"[AudioStreamManager] Erreur d'ouverture du flux (48k et 16k) : {e_fallback}")
+                    pass
+                    self.running = False
 
     def stop(self):
         with self._lock:
@@ -465,24 +525,47 @@ class AudioStreamManager:
             self._stop_unlocked()
             if not pyaudio:
                 return
+            
+            self._load_gain()
             self.mic_index = mic_index
             self.p = pyaudio.PyAudio()
+            
+            # Essayer d'ouvrir à 48000 Hz
             try:
                 self.stream = self.p.open(
                     format=self.format,
                     channels=self.channels,
-                    rate=self.rate,
+                    rate=48000,
                     input=True,
-                    frames_per_buffer=self.chunk,
+                    frames_per_buffer=self.chunk * 3,
                     input_device_index=self.mic_index
                 )
+                self.active_rate = 48000
+                self.downsample_factor = 3
                 self.running = True
                 self.thread = threading.Thread(target=self._run, daemon=True)
                 self.thread.start()
-                print(f"[AudioStreamManager] Flux d'acquisition redémarré (Rate: {self.rate} Hz, Micro Index: {self.mic_index})")
+                print(f"[AudioStreamManager] Flux d'acquisition redémarré à 48000 Hz (avec décimation par 3) sur Micro Index: {self.mic_index}")
             except Exception as e:
-                print(f"[AudioStreamManager] Erreur lors de la réouverture du flux : {e}")
-                self.running = False
+                # Repli à 16000 Hz
+                try:
+                    self.stream = self.p.open(
+                        format=self.format,
+                        channels=self.channels,
+                        rate=16000,
+                        input=True,
+                        frames_per_buffer=self.chunk,
+                        input_device_index=self.mic_index
+                    )
+                    self.active_rate = 16000
+                    self.downsample_factor = 1
+                    self.running = True
+                    self.thread = threading.Thread(target=self._run, daemon=True)
+                    self.thread.start()
+                    print(f"[AudioStreamManager] Flux d'acquisition redémarré à 16000 Hz de repli sur Micro Index: {self.mic_index}")
+                except Exception as e_fallback:
+                    print(f"[AudioStreamManager] Erreur de réouverture du flux (48k et 16k) : {e_fallback}")
+                    self.running = False
 
     def _run(self):
         while self.running:
@@ -490,12 +573,37 @@ class AudioStreamManager:
                 if not self.stream or not self.running:
                     time.sleep(0.01)
                     continue
-                data = self.stream.read(self.chunk, exception_on_overflow=False)
-                if not data:
-                    continue
+                
+                if self.downsample_factor == 3:
+                    data = self.stream.read(self.chunk * 3, exception_on_overflow=False)
+                    if not data:
+                        continue
+                    
+                    audio_chunk = np.frombuffer(data, dtype=np.int16)
+                    
+                    # Appliquer le gain logiciel si nécessaire
+                    if self.software_gain != 1.0:
+                        audio_float = audio_chunk.astype(np.float32) * self.software_gain
+                        audio_chunk = np.clip(audio_float, -32768, 32767).astype(np.int16)
+                        
+                    downsampled = audio_chunk[::3]
+                    data_to_send = downsampled.tobytes()
+                else:
+                    data = self.stream.read(self.chunk, exception_on_overflow=False)
+                    if not data:
+                        continue
+                    
+                    # Appliquer le gain logiciel si nécessaire
+                    if self.software_gain != 1.0:
+                        audio_chunk = np.frombuffer(data, dtype=np.int16)
+                        audio_float = audio_chunk.astype(np.float32) * self.software_gain
+                        data_to_send = np.clip(audio_float, -32768, 32767).astype(np.int16).tobytes()
+                    else:
+                        data_to_send = data
+                    
                 with self.subscribers_lock:
                     for q in self.subscribers:
-                        q.put(data)
+                        q.put(data_to_send)
             except Exception as e:
                 time.sleep(0.01)
 
@@ -513,6 +621,395 @@ def _safe_ws_send(msg):
         asyncio.run_coroutine_threadsafe(_send(), WS_LOOP)
     except Exception as e:
         print(f"[DEBUG WS] Erreur d'envoi: {e}")
+
+def send_web_broadcast_sync(payload: dict):
+    """Envoie un message WebSocket (dict) depuis n'importe quel thread — utilisé par secure_browser."""
+    import json as _json
+    _safe_ws_send(_json.dumps(payload))
+
+# ── Winget System Upgrade Helpers ──────────────────────────────────────────
+def _clean_winget_version(v):
+    v = v.strip().lower()
+    if v.startswith('v'):
+        v = v[1:]
+    if v.startswith('.'):
+        v = v[1:]
+    return v.strip()
+
+def _version_is_greater_or_equal(installed, available):
+    inst_clean = _clean_winget_version(installed)
+    avail_clean = _clean_winget_version(available)
+    if inst_clean == avail_clean:
+        return True
+    try:
+        import re
+        inst_parts = [int(x) for x in re.split(r'[^0-9]', inst_clean) if x]
+        avail_parts = [int(x) for x in re.split(r'[^0-9]', avail_clean) if x]
+        for i in range(max(len(inst_parts), len(avail_parts))):
+            p1 = inst_parts[i] if i < len(inst_parts) else 0
+            p2 = avail_parts[i] if i < len(avail_parts) else 0
+            if p1 > p2:
+                return True
+            elif p1 < p2:
+                return False
+        return True
+    except Exception:
+        pass
+    return inst_clean == avail_clean
+
+def lister_mises_a_jour_winget():
+    try:
+        import subprocess
+        res = subprocess.run(["winget", "upgrade", "--include-unknown"], capture_output=True, text=True, encoding="utf-8", errors="ignore", timeout=20)
+        stdout = res.stdout
+    except subprocess.TimeoutExpired:
+        print("[WINGET] winget upgrade a expiré (timeout).")
+        return []
+    except Exception as e:
+        try:
+            res = subprocess.run(["winget", "upgrade", "--include-unknown"], capture_output=True, text=True, encoding="cp1252", errors="ignore", timeout=20)
+            stdout = res.stdout
+        except Exception as e2:
+            print(f"[WINGET] Erreur d'exécution de winget: {e2}")
+            return []
+
+    lines = stdout.splitlines()
+    header_idx = -1
+    for idx, line in enumerate(lines):
+        if "-------------------" in line or "======" in line:
+            header_idx = idx - 1
+            break
+            
+    if header_idx == -1:
+        print("[WINGET] Aucun en-tête trouvé ou système déjà à jour.")
+        return []
+        
+    headers_line = lines[header_idx]
+    
+    idx_id = headers_line.find("ID")
+    idx_ver = headers_line.find("Version")
+    idx_disp = headers_line.find("Disponible")
+    if idx_disp == -1:
+        idx_disp = headers_line.find("Available")
+    idx_src = headers_line.find("Source")
+    
+    if idx_id == -1 or idx_ver == -1 or idx_disp == -1 or idx_src == -1:
+        print("[WINGET] Indexation des colonnes impossible.")
+        return []
+        
+    results = []
+    for line in lines[header_idx+2:]:
+        if not line.strip():
+            continue
+        if any(term in line.lower() for term in ["mise à niveau", "upgrade", "package", "numéro", "version"]):
+            continue
+            
+        name = line[:idx_id].strip()
+        pkg_id = line[idx_id:idx_ver].strip()
+        version = line[idx_ver:idx_disp].strip()
+        available = line[idx_disp:idx_src].strip()
+        source = line[idx_src:].strip()
+        
+        if pkg_id and available:
+            if _version_is_greater_or_equal(version, available):
+                continue
+            results.append({
+                "name": name,
+                "id": pkg_id,
+                "version": version,
+                "available": available,
+                "source": source
+            })
+            
+    return results
+
+def run_winget_upgrade_sync(args, loop, websocket_client):
+    try:
+        import subprocess
+        import ctypes
+        import json
+        
+        try:
+            is_admin = ctypes.windll.shell32.IsUserAnAdmin()
+        except Exception:
+            is_admin = False
+            
+        if not is_admin:
+            # Reconstruct the arguments for Start-Process
+            winget_args = " ".join([f'"{a}"' if " " in a else a for a in args[1:]])
+            elevated_cmd = f"Start-Process winget -ArgumentList '{winget_args}' -Verb RunAs -Wait"
+            
+            asyncio.run_coroutine_threadsafe(
+                websocket_client.send(json.dumps({
+                    "type": "winget_upgrade_progress",
+                    "status": "running",
+                    "log": "[JARVIS] Demande d'élévation Administrateur (UAC) en cours...\n[JARVIS] Une fenêtre de commande administrateur va s'ouvrir pour effectuer l'installation.\n"
+                })),
+                loop
+            )
+            
+            proc = subprocess.Popen(
+                ["powershell", "-NoProfile", "-Command", elevated_cmd],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                encoding='utf-8',
+                errors='ignore'
+            )
+            proc.wait()
+            return_code = proc.returncode
+        else:
+            proc = subprocess.Popen(
+                args,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                encoding='utf-8',
+                bufsize=1,
+                errors='ignore'
+            )
+            for line in proc.stdout:
+                text = line.strip()
+                if text:
+                    asyncio.run_coroutine_threadsafe(
+                        websocket_client.send(json.dumps({
+                            "type": "winget_upgrade_progress",
+                            "status": "running",
+                            "log": text + "\n"
+                        })),
+                        loop
+                    )
+            proc.wait()
+            return_code = proc.returncode
+            
+        asyncio.run_coroutine_threadsafe(
+            websocket_client.send(json.dumps({
+                "type": "winget_upgrade_progress",
+                "status": "complete",
+                "returncode": return_code
+            })),
+            loop
+        )
+        return return_code == 0
+    except Exception as e:
+        print(f"[WINGET] Erreur d'exécution de winget upgrade: {e}")
+        asyncio.run_coroutine_threadsafe(
+            websocket_client.send(json.dumps({
+                "type": "winget_upgrade_progress",
+                "status": "complete",
+                "returncode": -1,
+                "log": f"Erreur: {str(e)}\n"
+            })),
+            loop
+        )
+
+
+
+
+# ── ANIMATION VISUELLE & SYSTEME DE COMPETENCES AUTONOMES ─────────────────────
+
+def _effet_visuel_iron_man(stop_event):
+    """Affiche un effet de défilement de code et logs style Iron Man HUD dans la console et sur l'écran web."""
+    import random
+    import time
+
+    # Passer l'orbe en état thinking immédiatement pour l'animer à l'écran
+    send_web_broadcast_sync({"action": "set_state", "state": "thinking"})
+
+    logs_fictifs = [
+        ">System: Allocating compilation segment on core_0...",
+        ">Connecting to Gemini Neural Correlator (Model: gemini-3.5-flash)...",
+        ">Enabling thinking mode (Budget: 2048)...",
+        ">Synchronizing thought matrix constraints...",
+        ">Heap alloc: 0x7ffa4c9e0000 [64mb]",
+        "[System] Loading libraries: importlib.util, os, time, sys",
+        "[Compile] Generating function signature: def executer(texte_utilisateur=None)",
+        "[Parser] Enforcing raw python rules: no markdown tags, pure source...",
+        "[Compiler] Building AST Nodes...",
+        "[System] Compiling resource: plugins/competence_*.py",
+        ">Compacting source code buffer...",
+        ">Injecting voice output return strings...",
+        ">Shield power stability: 98.4%",
+        ">Scanning corrupted sectors... OK",
+        "[Log] Dynamic loader thread instantiated.",
+        "[Info] Code integrity check: 100% compliant.",
+        "[Debug] Temperature: 0.1 | Top-P: 0.95 | Top-K: 40",
+    ]
+    caracteres = "0123456789ABCDEFghijklmnopqrstuvwxyz[]{}()$#@!*&%^-_=+"
+
+    print("\n\033[93m" + "="*60)
+    print("   J.A.R.V.I.S — PLUGINS SYSTEM: COMPILING NEW SKILL")
+    print("="*60 + "\033[0m\n")
+
+    iteration = 0
+    while not stop_event.is_set():
+        val = random.random()
+        log_texte = ""
+        if val < 0.3:
+            log_texte = random.choice(logs_fictifs)
+            print(f"\033[94m[HUD_LOG] {log_texte}\033[0m")
+        elif val < 0.6:
+            addr = f"0x{random.randint(0x10000000, 0xFFFFFFFF):X}"
+            data = "".join(random.choice(caracteres) for _ in range(40))
+            log_texte = f"{addr} : {data}"
+            print(f"\033[92m[MATRICE] {log_texte}\033[0m")
+        else:
+            progress = random.randint(0, 100)
+            bar = "=" * (progress // 5) + " " * (20 - (progress // 5))
+            log_texte = f"COMPILING: [{bar}] {progress}%"
+            print(f"\033[96m[SYSTEM] {log_texte}\033[0m")
+            
+        # Toutes les 2 itérations (~80ms), envoyer le log actuel au HUD web pour le défilement
+        if iteration % 2 == 0:
+            send_web_broadcast_sync({"action": "jarvis_text", "text": f"[HUD] {log_texte}"})
+            
+        iteration += 1
+        time.sleep(0.04)
+
+    print("\n\033[92m" + "="*60)
+    print("   J.A.R.V.I.S — SKILL SUCCESSFULLY INTEGRATED")
+    print("="*60 + "\033[0m\n")
+
+    # Restaurer l'état d'origine de l'orbe et du texte
+    send_web_broadcast_sync({"action": "set_state", "state": "idle"})
+    send_web_broadcast_sync({"action": "jarvis_text", "text": "COMPILATION TERMINÉE — COMPÉTENCE CHARGÉE"})
+
+
+def jarvis_creer_competence(nom_competence: str, description_demande: str) -> str:
+    """
+    Appelle Gemini-3.5-flash avec thinking activé pour générer une compétence Python autonome.
+    Sauvegarde le code généré dans le dossier plugins/ sous competence_<nom>.py.
+    """
+    import re
+    import threading
+    import os
+    import builtins
+    from google.genai import types as _gtypes
+
+    # Valider le client API
+    if not hasattr(builtins, "client") or not builtins.client:
+        return "Erreur : le client Gemini n'est pas initialisé ou la clé API est invalide."
+
+    nom_formate = re.sub(r'[^a-zA-Z0-9_]', '', nom_competence.lower().replace(" ", "_"))
+    dossier_plugins = os.path.join(os.path.dirname(os.path.abspath(__file__)), "plugins")
+    if not os.path.exists(dossier_plugins):
+        os.makedirs(dossier_plugins, exist_ok=True)
+    
+    filename = os.path.join(dossier_plugins, f"competence_{nom_formate}.py")
+
+    # Animation Iron Man
+    stop_event = threading.Event()
+    thread_anim = threading.Thread(target=_effet_visuel_iron_man, args=(stop_event,), daemon=True)
+    thread_anim.start()
+
+    try:
+        system_instruction = (
+            "Tu es l'agent de génération de compétences autonomes de JARVIS.\n"
+            "Tu dois écrire du code Python strict, propre et valide.\n\n"
+            "RÈGLES CRITIQUES :\n"
+            "1. Renvoie UNIQUEMENT le code Python pur. Ne mets AUCUNE balise de code markdown comme ```python ou ```. Pas de texte explicatif en dehors du code.\n"
+            "2. Le script doit être entièrement autonome.\n"
+            "3. Tu dois obligatoirement implémenter une fonction principale nommée `executer(texte_utilisateur=None)` qui prend un argument optionnel (string) et qui RETOURNE obligatoirement une string (le texte formaté que JARVIS lira à voix haute).\n"
+            "4. Évite tout appel externe nécessitant des credentials non fournis (clés d'APIs tierces) à moins que ce ne soit faisable via des APIs publiques ou des mocks. Tu peux utiliser des bibliothèques standards ou requests."
+        )
+
+        prompt = (
+            f"Génère le code complet pour la compétence : '{nom_competence}'.\n"
+            f"Objectif de la compétence : {description_demande}\n\n"
+            "Écris le code Python pur respectant toutes les règles de structure."
+        )
+
+        # Appel Gemini-3.5-flash avec configuration Thinking
+        response = builtins.client.models.generate_content(
+            model="gemini-3.5-flash",
+            contents=prompt,
+            config=_gtypes.GenerateContentConfig(
+                system_instruction=system_instruction,
+                temperature=0.1,
+                thinking_config=_gtypes.ThinkingConfig(thinking_budget=2048)
+            )
+        )
+
+        code_genere = response.text.strip()
+        
+        # Nettoyage de sécurité en cas de balises markdown résiduelles
+        if code_genere.startswith("```"):
+            lines = code_genere.split("\n")
+            if lines[0].startswith("```"):
+                lines = lines[1:]
+            if lines and lines[-1].startswith("```"):
+                lines = lines[:-1]
+            code_genere = "\n".join(lines).strip()
+
+        # Écriture du fichier compétence
+        with open(filename, "w", encoding="utf-8") as f:
+            f.write(code_genere)
+
+        stop_event.set()
+        thread_anim.join()
+        
+        print(f"[JARVIS PLUGINS] Nouvelle compétence écrite dans {filename}")
+        return f"La compétence '{nom_competence}' a été générée et installée avec succès. Elle est prête à être exécutée."
+
+    except Exception as e:
+        stop_event.set()
+        thread_anim.join()
+        print(f"[JARVIS PLUGINS] Erreur lors de la création de compétence : {e}")
+        return f"Désolé Mylane, la génération de la compétence a échoué. Détail de l'erreur : {e}"
+
+
+def jarvis_supprimer_competence(nom_competence: str) -> str:
+    """Supprime proprement le fichier de compétence ciblée."""
+    import re
+    import os
+    nom_formate = re.sub(r'[^a-zA-Z0-9_]', '', nom_competence.lower().replace(" ", "_"))
+    filename = os.path.join(os.path.dirname(os.path.abspath(__file__)), "plugins", f"competence_{nom_formate}.py")
+
+    if os.path.exists(filename):
+        try:
+            os.remove(filename)
+            print(f"[JARVIS PLUGINS] Compétence supprimée : {filename}")
+            return f"La compétence '{nom_competence}' a été désinstallée et son fichier a été supprimé."
+        except Exception as e:
+            return f"Erreur lors de la suppression du fichier : {e}"
+    else:
+        return f"La compétence '{nom_competence}' n'est pas installée."
+
+
+def executer_competence_vocale(nom_competence: str, texte_recu: str = None) -> str:
+    """Importe et exécute dynamiquement la compétence vocale."""
+    import re
+    import os
+    import sys
+    import importlib.util
+
+    nom_formate = re.sub(r'[^a-zA-Z0-9_]', '', nom_competence.lower().replace(" ", "_"))
+    filename = os.path.join(os.path.dirname(os.path.abspath(__file__)), "plugins", f"competence_{nom_formate}.py")
+
+    if not os.path.exists(filename):
+        return f"Désolé Mylane, la compétence '{nom_competence}' n'est pas disponible."
+
+    try:
+        # Importation à chaud
+        module_name = f"plugins.competence_{nom_formate}"
+        spec = importlib.util.spec_from_file_location(module_name, filename)
+        if spec is None or spec.loader is None:
+            return "Impossible de charger la spécification du module."
+
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[module_name] = module
+        spec.loader.exec_module(module)
+
+        if hasattr(module, "executer"):
+            res = module.executer(texte_recu)
+            return str(res)
+        else:
+            return "Erreur : cette compétence ne possède pas de point d'entrée 'executer'."
+
+    except Exception as e:
+        print(f"[JARVIS PLUGINS] Erreur lors de l'exécution de {nom_competence} : {e}")
+        return f"Erreur d'exécution dans la compétence '{nom_competence}' : {e}"
+
 
 async def envoyer_image_web(url, prompt):
     """Envoie l'URL de l'image générée au frontend via WebSocket."""
@@ -592,7 +1089,7 @@ except ImportError:
 FORCE_BROWSER_MODE = False
 
 # --- CONFIGURATION VERSION & MAJ ---
-CURRENT_VERSION = "7.5"
+CURRENT_VERSION = "9.0"
 UPDATE_JSON_URL = "https://www.techenclair.fr/updates/jarvis_update.json"
 DERNIERE_MAJ_INFO = None  # Stocke l'info si une MAJ est détectée
 
@@ -611,6 +1108,64 @@ def get_local_ip():
         return "127.0.0.1"
 
 LOCAL_IP = get_local_ip()
+
+def _sauvegarder_env(data: dict) -> None:
+    """Met à jour le fichier .env et met à jour os.environ en temps réel."""
+    env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
+    lines = []
+    existing_keys = {}
+    if os.path.exists(env_path):
+        with open(env_path, "r", encoding="utf-8") as f:
+            lines = f.readlines()
+        for idx, line in enumerate(lines):
+            line_strip = line.strip()
+            if line_strip and not line_strip.startswith("#") and "=" in line_strip:
+                key, _ = line_strip.split("=", 1)
+                existing_keys[key.strip()] = idx
+
+    for key, value in data.items():
+        os.environ[key] = str(value)
+        line_content = f"{key}={value}\n"
+        if key in existing_keys:
+            lines[existing_keys[key]] = line_content
+        else:
+            if lines and not lines[-1].endswith("\n"):
+                lines[-1] = lines[-1] + "\n"
+            lines.append(line_content)
+            existing_keys[key] = len(lines) - 1
+
+    try:
+        with open(env_path, "w", encoding="utf-8") as f:
+            f.writelines(lines)
+        print(f"[CONFIG ENV] .env mis à jour avec : {list(data.keys())}")
+    except Exception as e:
+        print(f"[CONFIG ENV] Erreur écriture .env : {e}")
+
+def recharger_clients_ia():
+    global GEMINI_API_KEY, YOUTUBE_API_KEY, XAI_API_KEY, SERPAPI_API_KEY, GROQ_API_KEY, ANTHROPIC_API_KEY, MISTRAL_API_KEY
+    global gemini_actif, client, grok_client, groq_client, anthropic_client, mistral_client
+    
+    from dotenv import load_dotenv
+    load_dotenv(override=True)
+    
+    GEMINI_API_KEY    = os.getenv("GEMINI_API_KEY", "")
+    YOUTUBE_API_KEY   = os.getenv("YOUTUBE_API_KEY", "")
+    XAI_API_KEY       = os.getenv("XAI_API_KEY", "")
+    SERPAPI_API_KEY   = os.getenv("SERPAPI_API_KEY", "")
+    GROQ_API_KEY      = os.getenv("GROQ_API_KEY", "")
+    ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
+    MISTRAL_API_KEY   = os.getenv("MISTRAL_API_KEY", "")
+    
+    gemini_actif = _cle_valide(GEMINI_API_KEY)
+    
+    # Recharger les clients de l'API
+    try:
+        if gemini_actif:
+            client = genai.Client(api_key=GEMINI_API_KEY)
+            builtins.client = client
+            print("[IA RELOAD] Gemini client rechargé.")
+    except Exception as e:
+        print(f"[IA RELOAD] Erreur rechargement Gemini client : {e}")
 
 GEMINI_API_KEY       = os.getenv("GEMINI_API_KEY")
 YOUTUBE_API_KEY      = os.getenv("YOUTUBE_API_KEY")
@@ -646,6 +1201,7 @@ from module.ha_config import (
     ha_appeler_service, ha_get_etat, ha_get_calendrier,
     ha_lumiere, ha_interrupteur, ha_thermostat, ha_scene, ha_verrou,
     geocoder_ville, get_meteo_actuelle, get_meteo_ha, get_alertes_meteo,
+    handle_ha_ws_message,
 )
 
 gemini_actif    = _cle_valide(GEMINI_API_KEY)
@@ -881,6 +1437,25 @@ async def ws_handler(websocket):
                     except Exception:
                         config_data = {}
                     
+                    # Charger les clés API de l'environnement .env
+                    config_data["api_keys"] = {
+                        "GEMINI_API_KEY": os.getenv("GEMINI_API_KEY", ""),
+                        "GROQ_API_KEY": os.getenv("GROQ_API_KEY", ""),
+                        "YOUTUBE_API_KEY": os.getenv("YOUTUBE_API_KEY", ""),
+                        "XAI_API_KEY": os.getenv("XAI_API_KEY", ""),
+                        "SERPAPI_API_KEY": os.getenv("SERPAPI_API_KEY", ""),
+                        "ANTHROPIC_API_KEY": os.getenv("ANTHROPIC_API_KEY", ""),
+                        "MISTRAL_API_KEY": os.getenv("MISTRAL_API_KEY", "")
+                    }
+                    # État d'activation des API
+                    config_data["api_gemini_enabled"] = config_data.get("api_gemini_enabled", _cle_valide(os.getenv("GEMINI_API_KEY")))
+                    config_data["api_groq_enabled"] = config_data.get("api_groq_enabled", _cle_valide(os.getenv("GROQ_API_KEY")))
+                    config_data["api_youtube_enabled"] = config_data.get("api_youtube_enabled", _cle_valide(os.getenv("YOUTUBE_API_KEY")))
+                    config_data["api_grok_enabled"] = config_data.get("api_grok_enabled", _cle_valide(os.getenv("XAI_API_KEY")))
+                    config_data["api_serpapi_enabled"] = config_data.get("api_serpapi_enabled", _cle_valide(os.getenv("SERPAPI_API_KEY")))
+                    config_data["api_anthropic_enabled"] = config_data.get("api_anthropic_enabled", _cle_valide(os.getenv("ANTHROPIC_API_KEY")))
+                    config_data["api_mistral_enabled"] = config_data.get("api_mistral_enabled", _cle_valide(os.getenv("MISTRAL_API_KEY")))
+                    
                     # Charger la liste des micros réels via pyaudio — même logique que detecter_microphone()
                     mic_list = []
                     try:
@@ -930,12 +1505,25 @@ async def ws_handler(websocket):
                             config_data = _j.load(_f)
                     except Exception:
                         config_data = {}
+                    old_mic_index = config_data.get("mic_device_index")
+                    
+                    # Séparer les clés d'API pour les enregistrer dans le fichier .env
+                    if "api_keys" in settings:
+                        api_keys = settings.pop("api_keys")
+                        # Mettre à jour le fichier .env
+                        _sauvegarder_env(api_keys)
+                        # Recharger les variables et réinitialiser les clients d'IA à chaud
+                        recharger_clients_ia()
+
                     config_data.update(settings)
                     with open(_p, "w", encoding="utf-8") as _f:
                         _j.dump(config_data, _f, ensure_ascii=False, indent=4)
                     global MIC_NEED_RELOAD
-                    if "mic_device_index" in settings:
+                    if "mic_device_index" in settings and settings["mic_device_index"] != old_mic_index:
                         MIC_NEED_RELOAD = True
+                    global AV_LIVE_PROTECTION_ENABLED
+                    if "av_live_protection" in settings:
+                        AV_LIVE_PROTECTION_ENABLED = settings["av_live_protection"]
                     # Recharger l'identité globalement
                     import builtins
                     builtins.USER_NAME = config_data.get("user_name", "mylane")
@@ -953,6 +1541,178 @@ async def ws_handler(websocket):
                         _charger_custom_ha_entities()
                     except: pass
                     print("[WEB] Parametres mis a jour avec succes.")
+                # ── Shopping List ──────────────────────────────────────────
+                elif data.get("type") == "get_shopping_list":
+                    listes = _charger_listes()
+                    await websocket.send(json.dumps({"type": "shopping_list", "items": listes.get("courses", [])}))
+                elif data.get("type") == "update_shopping_list":
+                    items = data.get("items", [])
+                    listes = _charger_listes()
+                    listes["courses"] = items
+                    _sauvegarder_listes(listes)
+                    msg = json.dumps({"type": "shopping_list", "items": items})
+                    if CONNECTED_CLIENTS:
+                        await asyncio.gather(*[ws.send(msg) for ws in CONNECTED_CLIENTS], return_exceptions=True)
+                elif data.get("type") == "get_installed_programs":
+                    from module.uninstaller_helper import list_installed_programs
+                    programs = list_installed_programs()
+                    await websocket.send(json.dumps({"type": "installed_programs", "programs": programs}))
+                elif data.get("type") == "uninstall_program":
+                    from module.uninstaller_helper import run_uninstall_process, scan_file_leftovers, scan_registry_leftovers
+                    app_name = data.get("name", "")
+                    publisher = data.get("publisher", "")
+                    install_location = data.get("install_location", "")
+                    uninstall_string = data.get("uninstall_string", "")
+                    print(f"[UNINSTALLER] Début de la désinstallation de {app_name}...")
+                    await websocket.send(json.dumps({
+                        "type": "uninstall_progress",
+                        "status": "started",
+                        "message": f"Lancement de la désinstallation officielle de {app_name}..."
+                    }))
+                    success, msg_un = await asyncio.to_thread(run_uninstall_process, uninstall_string)
+                    await websocket.send(json.dumps({
+                        "type": "uninstall_progress",
+                        "status": "scanning",
+                        "message": f"Désinstallation officielle terminée. Recherche de traces résiduelles pour {app_name}..."
+                    }))
+                    leftovers_files = await asyncio.to_thread(scan_file_leftovers, app_name, publisher, install_location)
+                    leftovers_reg = await asyncio.to_thread(scan_registry_leftovers, app_name, publisher)
+                    all_leftovers = leftovers_files + leftovers_reg
+                    print(f"[UNINSTALLER] Scan fini, {len(all_leftovers)} traces trouvées.")
+                    await websocket.send(json.dumps({
+                        "type": "uninstall_complete",
+                        "app_name": app_name,
+                        "success": success,
+                        "leftovers": all_leftovers
+                    }))
+                elif data.get("type") == "clean_leftovers":
+                    from module.uninstaller_helper import clean_leftover_item
+                    items_to_clean = data.get("items", [])
+                    cleaned_count = 0
+                    errors = []
+                    print(f"[UNINSTALLER] Nettoyage de {len(items_to_clean)} traces...")
+                    for item in items_to_clean:
+                        success_cl, msg_cl = clean_leftover_item(item)
+                        if success_cl:
+                            cleaned_count += 1
+                        else:
+                            errors.append(f"{item.get('path')} : {msg_cl}")
+                    await websocket.send(json.dumps({
+                        "type": "clean_complete",
+                        "cleaned_count": cleaned_count,
+                        "total_count": len(items_to_clean),
+                        "errors": errors
+                    }))
+                elif data.get("type") == "get_winget_upgrades":
+                    print("[WINGET] Scan des mises à jour demandé...")
+                    upgrades = await asyncio.to_thread(lister_mises_a_jour_winget)
+                    await websocket.send(json.dumps({
+                        "type": "winget_upgrades",
+                        "upgrades": upgrades
+                    }))
+                elif data.get("type") == "run_winget_upgrade":
+                    ids = data.get("ids", [])
+                    run_all = data.get("all", False)
+                    loop = asyncio.get_running_loop()
+                    if run_all:
+                        print("[WINGET] Lancement de la mise à jour globale...")
+                        args = ["winget", "upgrade", "--all", "--accept-package-agreements", "--accept-source-agreements", "--include-unknown"]
+                        lancer_tache_arriere_plan(asyncio.to_thread(run_winget_upgrade_sync, args, loop, websocket))
+                    elif ids:
+                        async def run_sequence():
+                            for idx, pkg_id in enumerate(ids):
+                                print(f"[WINGET] Mise à jour de {pkg_id} ({idx+1}/{len(ids)})...")
+                                args = ["winget", "upgrade", "--id", pkg_id, "--accept-package-agreements", "--accept-source-agreements", "--include-unknown"]
+                                await asyncio.to_thread(run_winget_upgrade_sync, args, loop, websocket)
+                        lancer_tache_arriere_plan(run_sequence())
+                elif data.get("type") in ("iptv_open", "iptv_parse_m3u", "iptv_parse_url", "iptv_open_file", "iptv_set_audio_track"):
+                    from module.iptv_player import handle_iptv_ws_message
+                    await handle_iptv_ws_message(data, websocket, CONNECTED_CLIENTS)
+                elif data.get("type") in ("ha_get_states", "ha_call_service"):
+                    # ── Home Assistant Dashboard ──────────────────────────────
+                    await handle_ha_ws_message(data, websocket, CONNECTED_CLIENTS)
+                elif data.get("type") == "block_ip":
+                    import re as _re, subprocess as _sp
+                    _ip = data.get("ip", "").strip()
+                    if _re.match(r'^\d{1,3}(\.\d{1,3}){3}$', _ip):
+                        _rule = f"JARVIS_BLOCK_{_ip.replace('.', '_')}"
+                        try:
+                            for _dir in ("out", "in"):
+                                _sp.run([
+                                    "netsh", "advfirewall", "firewall", "add", "rule",
+                                    f"name={_rule}_{_dir.upper()}", f"dir={_dir}",
+                                    "action=block", f"remoteip={_ip}", "enable=yes"
+                                ], capture_output=True, timeout=5)
+                            await websocket.send(json.dumps({
+                                "action": "ctx_card", "type": "alert", "icon": "⊘",
+                                "title": "IP Bloquée",
+                                "text": f"Règles pare-feu ajoutées pour {_ip} (entrant + sortant)."
+                            }))
+                            if hasattr(builtins, 'parler'):
+                                _r = builtins.parler(f"IP {_ip} bloquée via le pare-feu Windows, Monsieur.")
+                                if asyncio.iscoroutine(_r): await _r
+                            print(f"[RADAR] IP bloquée : {_ip}")
+                        except Exception as _e:
+                            print(f"[RADAR] Erreur blocage IP : {_e}")
+                elif data.get("type") == "get_blocked_ips":
+                    import subprocess as _sp, re as _re2
+                    try:
+                        _out = _sp.run(
+                            ["netsh", "advfirewall", "firewall", "show", "rule", "name=all"],
+                            capture_output=True, text=True, timeout=8
+                        ).stdout
+                        # Extraire les IPs des règles JARVIS_BLOCK_*
+                        _blocked = []
+                        _current_name = ""
+                        for _line in _out.splitlines():
+                            _lstrip = _line.strip()
+                            if _lstrip.startswith("Nom de la règle"):
+                                _current_name = _lstrip.split(":", 1)[-1].strip()
+                            elif _lstrip.startswith("Rule Name"):
+                                _current_name = _lstrip.split(":", 1)[-1].strip()
+                            if _re2.match(r'^JARVIS_BLOCK_\d+_\d+_\d+_\d+_OUT', _current_name):
+                                _ip_part = _current_name.replace("JARVIS_BLOCK_", "").replace("_OUT", "")
+                                _ip = ".".join(_ip_part.split("_"))
+                                if _ip not in _blocked:
+                                    _blocked.append(_ip)
+                        await websocket.send(json.dumps({"action": "blocked_ips", "ips": _blocked}))
+                    except Exception as _e:
+                        print(f"[RADAR] get_blocked_ips error: {_e}")
+                        await websocket.send(json.dumps({"action": "blocked_ips", "ips": []}))
+                elif data.get("type") == "unblock_ip":
+                    import re as _re3, subprocess as _sp2
+                    _ip = data.get("ip", "").strip()
+                    if _re3.match(r'^\d{1,3}(\.\d{1,3}){3}$', _ip):
+                        _rule = f"JARVIS_BLOCK_{_ip.replace('.', '_')}"
+                        try:
+                            for _dir in ("OUT", "IN"):
+                                _sp2.run([
+                                    "netsh", "advfirewall", "firewall", "delete", "rule",
+                                    f"name={_rule}_{_dir}"
+                                ], capture_output=True, timeout=5)
+                            await websocket.send(json.dumps({
+                                "action": "ctx_card", "type": "info", "icon": "✓",
+                                "title": "IP Débloquée",
+                                "text": f"Règles pare-feu supprimées pour {_ip}."
+                            }))
+                            # Rafraîchir la liste
+                            import subprocess as _sp3, re as _re4
+                            _out2 = _sp3.run(
+                                ["netsh", "advfirewall", "firewall", "show", "rule", "name=all"],
+                                capture_output=True, text=True, timeout=8
+                            ).stdout
+                            _blocked2 = []
+                            _cn = ""
+                            for _ln in _out2.splitlines():
+                                _ls = _ln.strip()
+                                if _ls.startswith("Nom de la règle") or _ls.startswith("Rule Name"):
+                                    _cn = _ls.split(":", 1)[-1].strip()
+                                if _re4.match(r'^JARVIS_BLOCK_\d+_\d+_\d+_\d+_OUT', _cn):
+                                    _ip2 = ".".join(_cn.replace("JARVIS_BLOCK_", "").replace("_OUT", "").split("_"))
+                                    if _ip2 not in _blocked2: _blocked2.append(_ip2)
+                            await websocket.send(json.dumps({"action": "blocked_ips", "ips": _blocked2}))
+                        except Exception as _e2:
+                            print(f"[RADAR] unblock_ip error: {_e2}")
                 elif data.get("type") == "user_input":
                     texte = data.get("text", "").strip()
                     if texte:
@@ -1069,6 +1829,236 @@ async def ws_handler(websocket):
                         import pyautogui
                         pyautogui.press("prevtrack")
                     print(f"[MUSIC] Commande recue : {act}")
+                elif data.get("type") == "detect_apps":
+                    apps = await asyncio.to_thread(lister_applications_installees)
+                    await websocket.send(json.dumps({"type": "detected_apps", "apps": apps}))
+                elif data.get("type") == "av_scan_start":
+                    import antivirus_scanner
+                    if antivirus_scanner.ACTIVE_SCAN_TASK is None or antivirus_scanner.ACTIVE_SCAN_TASK.done():
+                        async def ws_broadcast(m):
+                            if CONNECTED_CLIENTS:
+                                try:
+                                    await asyncio.gather(*[ws.send(json.dumps(m)) for ws in CONNECTED_CLIENTS], return_exceptions=True)
+                                except Exception:
+                                    pass
+                        antivirus_scanner.ACTIVE_SCAN_TASK = asyncio.create_task(
+                            antivirus_scanner.executer_scan_antivirus(ws_broadcast, parler)
+                        )
+                        print("[AV] Lancement de la tâche d'analyse antivirus...")
+                elif data.get("type") == "av_scan_cancel":
+                    import antivirus_scanner
+                    if antivirus_scanner.ACTIVE_SCAN_TASK and not antivirus_scanner.ACTIVE_SCAN_TASK.done():
+                        antivirus_scanner.ACTIVE_SCAN_TASK.cancel()
+                        print("[AV] Tâche d'analyse antivirus annulée par websocket.")
+                elif data.get("type") == "clear_cache":
+                    print("[CACHE] Nettoyage manuel demandé — reset marqueur + rechargement cache-bust...")
+                    success = vider_cache_webview_complet()
+                    await websocket.send(json.dumps({
+                        "type": "cache_cleared",
+                        "success": success
+                    }))
+                    if _WEBVIEW_OK and webview is not None:
+                        def _reload_window_cachebust():
+                            try:
+                                import time
+                                time.sleep(1.0)
+                                if webview.windows:
+                                    current_url = webview.windows[0].get_current_url()
+                                    clean_url = current_url.split('?')[0] if '?' in current_url else current_url
+                                    new_url = f"{clean_url}?cb={int(time.time())}"
+                                    webview.windows[0].load_url(new_url)
+                                    print("[CACHE] Fenêtre rechargée avec cache-bust.")
+                            except Exception as _e:
+                                print(f"[CACHE] Erreur rechargement fenêtre : {_e}")
+                        threading.Thread(target=_reload_window_cachebust, daemon=True).start()
+                elif data.get("type") == "av_threat_action":
+                    action = data.get("action")
+                    threat = data.get("threat", {})
+                    t_type = threat.get("type")
+                    target = threat.get("target")
+                    success = False
+                    msg = ""
+                    try:
+                        if action == "allow":
+                            if target:
+                                config = _charger_config()
+                                exclusions = config.get("av_exclusions", [])
+                                if target not in exclusions:
+                                    exclusions.append(target)
+                                _sauvegarder_config({"av_exclusions": exclusions})
+                                success = True
+                                msg = f"Menace autorisée et ajoutée aux exclusions : {target}"
+                            else:
+                                msg = "Cible de menace manquante pour l'exclusion."
+                        elif action == "delete":
+                            if t_type == "file":
+                                if os.path.exists(target):
+                                    os.remove(target)
+                                    success = True
+                                    msg = f"Fichier supprimé : {target}"
+                                else:
+                                    success = True
+                                    msg = "Fichier déjà supprimé."
+                            elif t_type == "process":
+                                import re
+                                match = re.search(r"PID\s+(\d+)", target)
+                                if match:
+                                    pid = int(match.group(1))
+                                    if psutil.pid_exists(pid):
+                                        p = psutil.Process(pid)
+                                        p.terminate()
+                                        success = True
+                                        msg = f"Processus arrêté (PID {pid})."
+                                    else:
+                                        success = True
+                                        msg = f"Le processus PID {pid} n'est plus actif."
+                                else:
+                                    msg = f"Cible invalide pour le processus : {target}"
+                            elif t_type == "registry":
+                                import winreg
+                                t_name = threat.get("name")
+                                is_hklm = "HKLM" in threat.get("desc", "")
+                                root_key = winreg.HKEY_LOCAL_MACHINE if is_hklm else winreg.HKEY_CURRENT_USER
+                                sub_key = r"Software\Microsoft\Windows\CurrentVersion\Run"
+                                try:
+                                    key = winreg.OpenKey(root_key, sub_key, 0, winreg.KEY_SET_VALUE)
+                                    winreg.DeleteValue(key, t_name)
+                                    winreg.CloseKey(key)
+                                    success = True
+                                    msg = f"Entrée de registre '{t_name}' supprimée."
+                                except FileNotFoundError:
+                                    success = True
+                                    msg = f"Entrée de registre '{t_name}' déjà absente."
+                                except Exception as re_err:
+                                    msg = f"Erreur suppression registre : {re_err}"
+                        elif action == "clean":
+                            if t_type == "file":
+                                if os.path.exists(target):
+                                    with open(target, 'wb') as f:
+                                        f.write(b"")
+                                    success = True
+                                    msg = f"Fichier vidé et neutralisé : {target}"
+                                else:
+                                    msg = f"Fichier introuvable : {target}"
+                            elif t_type == "process":
+                                import re
+                                match = re.search(r"PID\s+(\d+)", target)
+                                if match:
+                                    pid = int(match.group(1))
+                                    if psutil.pid_exists(pid):
+                                        p = psutil.Process(pid)
+                                        p.terminate()
+                                        success = True
+                                        msg = f"Processus stoppé (PID {pid})."
+                                    else:
+                                        success = True
+                                        msg = f"Processus déjà inactif (PID {pid})."
+                                else:
+                                    msg = f"Cible invalide : {target}"
+                            elif t_type == "registry":
+                                import winreg
+                                t_name = threat.get("name")
+                                is_hklm = "HKLM" in threat.get("desc", "")
+                                root_key = winreg.HKEY_LOCAL_MACHINE if is_hklm else winreg.HKEY_CURRENT_USER
+                                sub_key = r"Software\Microsoft\Windows\CurrentVersion\Run"
+                                try:
+                                    key = winreg.OpenKey(root_key, sub_key, 0, winreg.KEY_SET_VALUE)
+                                    winreg.DeleteValue(key, t_name)
+                                    winreg.CloseKey(key)
+                                    success = True
+                                    msg = f"Entrée de registre '{t_name}' nettoyée."
+                                except FileNotFoundError:
+                                    success = True
+                                    msg = f"Entrée de registre '{t_name}' déjà absente."
+                                except Exception as re_err:
+                                    msg = f"Erreur nettoyage registre : {re_err}"
+                        elif action == "quarantine":
+                            if t_type == "file":
+                                if os.path.exists(target):
+                                    quarantine_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "quarantine")
+                                    os.makedirs(quarantine_dir, exist_ok=True)
+                                    filename = threat.get("name", "quarantine_file")
+                                    import time
+                                    safe_name = f"{int(time.time())}_{filename}.quarantine"
+                                    dest = os.path.join(quarantine_dir, safe_name)
+                                    import shutil
+                                    shutil.move(target, dest)
+                                    success = True
+                                    msg = f"Fichier déplacé en quarantaine : {safe_name}"
+                                else:
+                                    msg = f"Fichier introuvable : {target}"
+                            elif t_type == "process":
+                                import re
+                                match = re.search(r"PID\s+(\d+)", target)
+                                if match:
+                                    pid = int(match.group(1))
+                                    if psutil.pid_exists(pid):
+                                        p = psutil.Process(pid)
+                                        p.terminate()
+                                        success = True
+                                        msg = f"Processus neutralisé (PID {pid})."
+                                    else:
+                                        success = True
+                                        msg = f"Le processus PID {pid} n'était plus actif."
+                                else:
+                                    msg = f"Cible de processus invalide : {target}"
+                            elif t_type == "registry":
+                                import winreg
+                                t_name = threat.get("name")
+                                is_hklm = "HKLM" in threat.get("desc", "")
+                                root_key = winreg.HKEY_LOCAL_MACHINE if is_hklm else winreg.HKEY_CURRENT_USER
+                                sub_key = r"Software\Microsoft\Windows\CurrentVersion\Run"
+                                try:
+                                    key = winreg.OpenKey(root_key, sub_key, 0, winreg.KEY_SET_VALUE)
+                                    winreg.DeleteValue(key, t_name)
+                                    winreg.CloseKey(key)
+                                    success = True
+                                    msg = f"Entrée de registre '{t_name}' désactivée."
+                                except FileNotFoundError:
+                                    success = True
+                                    msg = f"Entrée de registre '{t_name}' déjà absente."
+                                except Exception as re_err:
+                                    msg = f"Erreur : {re_err}"
+                    except Exception as e:
+                        msg = f"Échec de l'action {action} : {e}"
+                        print(f"[AV] Échec action {action} : {e}")
+                    await websocket.send(json.dumps({
+                        "type": "av_action_result",
+                        "success": success,
+                        "action": action,
+                        "threat_target": target,
+                        "message": msg
+                    }))
+                elif data.get("type") == "av_speak":
+                    text = data.get("text")
+                    if text:
+                        lancer_tache_arriere_plan(parler(text))
+                elif data.get("type") == "open_browser":
+                    query = data.get("query")
+                    try:
+                        import secure_browser
+                        _wv = globals().get("_WEBVIEW_WINDOW")
+                        threading.Thread(target=secure_browser.trigger_browser, args=(query, _wv), daemon=True).start()
+                    except Exception as e:
+                        print(f"[BROWSER] Erreur WebSocket open_browser : {e}")
+                elif data.get("type") == "dock_browser":
+                    try:
+                        import secure_browser
+                        secure_browser.dock_browser()
+                    except Exception as e:
+                        print(f"[BROWSER] Erreur WebSocket dock_browser : {e}")
+                elif data.get("type") == "undock_browser":
+                    try:
+                        import secure_browser
+                        secure_browser.undock_browser()
+                    except Exception as e:
+                        print(f"[BROWSER] Erreur WebSocket undock_browser : {e}")
+                elif data.get("type") == "close_browser":
+                    try:
+                        import secure_browser
+                        secure_browser.close_browser_window()
+                    except Exception as e:
+                        print(f"[BROWSER] Erreur WebSocket close_browser : {e}")
             except Exception as e:
                 print(f"[WEB] Erreur traitement message : {e}")
     except Exception:
@@ -1230,7 +2220,8 @@ def construire_system_prompt(souvenirs=""):
     
     # Le prompt principal est construit de manière 100% statique pour permettre le Prefix Caching (Ollama / Cloud)
     base = (
-        "Tu es JARVIS, une IA sophistiquée, élégante et experte mondiale. mylane est ton créateur. Sois très concis dans tes réponses. "
+        "Tu es JARVIS, une IA sophistiquée, élégante et experte mondiale. mylane est ton créateur. "
+        "CONSIGNE ABSOLUE DE CONCISION : Fais des réponses extrêmement courtes, directes et percutantes (maximum 1 à 2 phrases courtes, pas de paragraphes longs, pas d'explications de texte inutiles). Va droit au but. "
         "Tu as accès aux conversations passées avec mylane (incluses dans l'historique), ce qui te permet de te souvenir de ce qui a été dit dans les sessions précédentes — réfère-toi y naturellement quand pertinent. "
         "Tu possèdes une expertise de niveau professionnel dans les domaines suivants :\n"
         "- Mathématiques : Tu es un mathématicien hors pair. Pour les problèmes complexes, fournis des solutions détaillées étape par étape, explique les théorèmes et aide mylane à comprendre la logique mathématique.\n"
@@ -1240,6 +2231,7 @@ def construire_system_prompt(souvenirs=""):
         "- High-Tech (IA, hardware, software), Mode, Loisirs, Ingénierie et Sport (analyses tactiques, résultats).\n\n"
         "Tu es également un conseiller hors pair, capable de donner des astuces et conseils brillants pour simplifier la vie de mylane.\n\n"
         "DIRECTIVES DE RÉPONSE :\n"
+        "- LIMITATION DE TEXTE : Ne dépasse jamais 20 à 25 mots par réponse. Fais des phrases très courtes.\n"
         "- Sois direct, percutant et va à l'essentiel. Évite les détails superflus (comme les minutes exactes ou les décimales météo) sauf si mylane le demande.\n"
         "- NE DIS JAMAIS 'POINT' pour les nombres. Arrondis toujours les températures à l'unité la plus proche (ex: dis '20 degrés' au lieu de '20.3').\n"
         "- N'UTILISE JAMAIS de caractères Markdown (comme **, * ou #) dans tes réponses, car ils sont lus à voix haute par le système de synthèse vocale.\n"
@@ -1294,6 +2286,11 @@ def construire_system_prompt(souvenirs=""):
         '{"action": "ouvrir_element", "chemin": "C:\\Chemin\\complet\\fichier.txt"}\n'
         '{"action": "analyser_fichier", "nom": "fichier.txt", "question": "question facultative", "chemin": "dossier_optionnel"}\n'
         'Note: Si l\'utilisateur ne précise pas le dossier pour "analyser_fichier", ne mets pas de "chemin", je scannerai automatiquement Bureau/Documents/Downloads.\n\n'
+    )
+    base += (
+        "\n\nANALYSE ANTIVIRUS :\n"
+        '{"action": "antivirus_scan"}\n'
+        f"Instructions : Quand mylane demande d'analyser son PC, de chercher des virus, ou de lancer un scan de sécurité.\n\n"
     )
     base += (
         "\n\nMETEO & RECHERCHE :\n"
@@ -1484,6 +2481,49 @@ SCOPES = [
     "https://www.googleapis.com/auth/calendar",
 ]
 
+def lister_applications_installees():
+    """Détecte les applications installées sur le PC à partir des raccourcis du menu Démarrer."""
+    import win32com.client
+    import os
+    
+    apps = []
+    dossiers_start = [
+        os.path.join(os.environ.get("PROGRAMDATA", r"C:\ProgramData"), r"Microsoft\Windows\Start Menu\Programs"),
+        os.path.join(os.environ.get("APPDATA", ""), r"Microsoft\Windows\Start Menu\Programs")
+    ]
+    
+    try:
+        shell = win32com.client.Dispatch("WScript.Shell")
+        seen_paths = set()
+        
+        for base_dir in dossiers_start:
+            if not os.path.exists(base_dir):
+                continue
+                
+            for root, dirs, files in os.walk(base_dir):
+                for file in files:
+                    if file.lower().endswith(".lnk"):
+                        lnk_path = os.path.join(root, file)
+                        try:
+                            shortcut = shell.CreateShortcut(lnk_path)
+                            target_path = shortcut.TargetPath
+                            if target_path and target_path.lower().endswith(".exe") and os.path.exists(target_path):
+                                target_lower = target_path.lower()
+                                if target_lower not in seen_paths:
+                                    seen_paths.add(target_lower)
+                                    name = file[:-4]
+                                    apps.append({
+                                        "nom": name,
+                                        "chemin": target_path
+                                    })
+                        except Exception:
+                            pass
+        apps.sort(key=lambda x: x["nom"].lower())
+    except Exception as e:
+        print(f"[APPS SCAN] Erreur lors du scan : {e}")
+        
+    return apps
+
 def chercher_youtube(recherche):
     try:
         print(f"[YOUTUBE] Recherche de '{recherche}' via méthode alternative...")
@@ -1658,6 +2698,16 @@ async def resoudre_globe_localement(texte: str):
     """Détecte les commandes de navigation globe et déclenche CesiumJS."""
     import re
     t = texte.lower().strip()
+
+    _mots_fermer  = ["ferme la carte", "ferme le globe", "ferme globe", "cache la carte",
+                     "cache le globe", "ferme la navigation", "quitte le globe", "quitte globe",
+                     "sors du globe", "sortir du globe", "quitter le globe", "quitter globe",
+                     "retour à jarvis", "ferme la vue", "masque la carte"]
+
+    # 1. Fermer (Priorité absolue pour éviter le court-circuit de l'exclusion 'carte')
+    if any(m in t for m in _mots_fermer):
+        await send_globe_command(globe_action="hide")
+        return "Navigation fermée. Je reviens à l'interface principale, mylane."
     
     # Éviter de déclencher le globe si on cherche un fichier ou dossier local ou une info générale/HUD
     if any(k in t for k in ["dossier", "fichier", "document", "archive", "programme", "histoire", "blague", "raconte", "explique", "définition", "carte"]):
@@ -1670,7 +2720,7 @@ async def resoudre_globe_localement(texte: str):
                      "montre la planète", "affiche la planète",
                      "zoom arrière total", "dézoom total"]
 
-    _mots_ville   = ["affiche", "montre-moi", "montre moi", "survole",
+    _mots_ville   = ["affiche-moi", "affiche moi", "affiche", "montre-moi", "montre moi", "survole",
                      "navigue vers", "va vers", "zoome sur",
                      "fais un survol de", "localise", "trouve",
                      "où est", "ou est", "situe", "où se trouve", "ou se trouve"]
@@ -1679,32 +2729,21 @@ async def resoudre_globe_localement(texte: str):
                      "route de", "chemin de", "comment aller de",
                      "trace une route de", "trajet de", "trajet depuis"]
 
-    _mots_fermer  = ["ferme la carte", "ferme le globe", "cache la carte",
-                     "cache le globe", "ferme la navigation", "quitte le globe",
-                     "retour à jarvis", "ferme la vue", "masque la carte"]
-
     _mots_position = ["ma position", "où suis-je", "ou suis-je",
                       "affiche ma position", "montre ma position",
                       "localise-moi", "localise moi", "où je suis"]
-
-    # ── Fermer ───────────────────────────────────────────────────────────────
-    if any(m in t for m in _mots_fermer):
-        await send_globe_command(globe_action="hide")
-        return "Navigation fermée. Je reviens à l'interface principale, mylane."
 
     # ── Ma position ──────────────────────────────────────────────────────────
     if any(m in t for m in _mots_position):
         # On délègue la géolocalisation au navigateur (navigator.geolocation)
         # bien plus précis que l'IP — le frontend gère tout
         await send_globe_command(globe_action="my_location")
-        parler("Localisation en cours, mylane. Le globe affiche votre position en temps réel.")
-        return "[Globe] Demande de géolocalisation envoyée au navigateur."
+        return "Localisation en cours, mylane. Le globe affiche votre position."
 
     # ── Globe Terre ───────────────────────────────────────────────────────────
     if any(m in t for m in _mots_globe):
         await send_globe_command(globe_action="show_earth")
-        parler("Initialisation du globe terrestre. Vue depuis l'espace activée, mylane.")
-        return "[Globe] Vue Terre activée."
+        return "Vue depuis l'espace activée, mylane."
 
     # ── Itinéraire de X à Y ──────────────────────────────────────────────────
     if any(m in t for m in _mots_route):
@@ -1713,7 +2752,6 @@ async def resoudre_globe_localement(texte: str):
         if match:
             from_name = match.group(1).strip().title()
             to_name   = match.group(2).strip().title()
-            parler(f"Calcul de l'itinéraire de {from_name} vers {to_name}. Géolocalisation en cours...")
             lat1, lon1, _ = await geocode_lieu(from_name)
             lat2, lon2, _ = await geocode_lieu(to_name)
             if lat1 and lat2:
@@ -1722,8 +2760,7 @@ async def resoudre_globe_localement(texte: str):
                     from_lat=lat1, from_lon=lon1, from_name=from_name,
                     to_lat=lat2,   to_lon=lon2,   to_name=to_name
                 )
-                parler(f"Itinéraire tracé de {from_name} à {to_name}, mylane. La route est affichée sur le globe.")
-                return f"[Globe] Route {from_name} → {to_name} affichée."
+                return f"Itinéraire tracé de {from_name} à {to_name}, mylane."
             else:
                 return f"Je n'ai pas pu localiser les deux villes, mylane. Vérifiez les noms et réessayez."
         return None
@@ -1734,14 +2771,18 @@ async def resoudre_globe_localement(texte: str):
             # Extraire ce qui suit le mot déclencheur
             idx = t.find(mot)
             reste = t[idx + len(mot):].strip()
+            # Nettoyer les tirets initiaux s'il reste un résidu de '-moi' mal digéré
+            if reste.startswith("-"):
+                reste = reste[1:].strip()
+            if reste.startswith("moi "):
+                reste = reste[4:].strip()
             # Nettoyer les articles
             for art in ["la ville de ", "la ville ", "le ", "la ", "l'", "les ", "ma ville ", "mon pays "]:
                 if reste.startswith(art):
                     reste = reste[len(art):]
-            reste = reste.replace("?", "").replace("!", "").strip()
+            reste = reste.rstrip(".,?!;").strip()
             if len(reste) >= 2:
                 nom_lieu = reste.title()
-                parler(f"Recherche de {nom_lieu} en cours... Coordonnées en acquisition.")
                 lat, lon, display = await geocode_lieu(nom_lieu)
                 if lat:
                     # Altitude selon le type de lieu (ville proche = plus bas)
@@ -1752,13 +2793,14 @@ async def resoudre_globe_localement(texte: str):
                         target=nom_lieu,
                         altitude=altitude
                     )
-                    parler(f"Coordonnées acquises. Survol de {nom_lieu} en cours, mylane.")
-                    return f"[Globe] Survol de {nom_lieu} ({lat:.4f}°, {lon:.4f}°)"
+                    return f"Survol de {nom_lieu} en cours, mylane."
                 else:
                     return f"Je n'ai pas réussi à localiser {nom_lieu}, mylane. Essayez avec un nom plus précis."
             break
 
     return None
+
+builtins.resoudre_globe_localement = resoudre_globe_localement
 
 async def resoudre_extras_locaux(texte):
     """
@@ -1985,6 +3027,15 @@ async def resoudre_extras_locaux(texte):
         return "Toutes vos notes ont été effacées, mylane."
 
     # ══ LISTE DE COURSES ═══════════════════════════════════════
+    async def _ouvrir_panneau_courses():
+        """Ouvre le panneau shopping sur le HUD et envoie la liste à jour."""
+        if CONNECTED_CLIENTS:
+            listes = _charger_listes()
+            msg_open = json.dumps({"type": "shopping_open"})
+            msg_list = json.dumps({"type": "shopping_list", "items": listes.get("courses", [])})
+            await asyncio.gather(*[ws.send(msg_open) for ws in CONNECTED_CLIENTS], return_exceptions=True)
+            await asyncio.gather(*[ws.send(msg_list) for ws in CONNECTED_CLIENTS], return_exceptions=True)
+
     if any(k in t for k in ["ajoute", "rajoute"]) and any(k in t for k in ["liste de courses", "courses", "liste d'achats"]):
         article = t
         for pref in ["ajoute ", "rajoute ", "à ma liste de courses", "à la liste de courses",
@@ -1994,16 +3045,18 @@ async def resoudre_extras_locaux(texte):
             listes = _charger_listes()
             listes["courses"].append(article)
             _sauvegarder_listes(listes)
+            await _ouvrir_panneau_courses()
             return f"'{article}' ajouté à votre liste de courses, mylane."
 
     if any(k in t for k in ["liste de courses", "mes courses", "qu'est-ce que j'ai dans ma liste",
-                             "montre ma liste de courses", "lis ma liste de courses",
-                             "quoi dans ma liste"]):
+                             "montre ma liste de courses", "lis ma liste de courses", "ouvre ma liste",
+                             "quoi dans ma liste", "affiche ma liste de courses"]):
         listes = _charger_listes()
+        await _ouvrir_panneau_courses()
         if not listes["courses"]:
             return "Votre liste de courses est vide, mylane."
-        items = "\n".join(f"• {i}" for i in listes["courses"])
-        return f"Votre liste de courses ({len(listes['courses'])} article{'s' if len(listes['courses']) > 1 else ''}) :\n{items}"
+        items_propres = [i.replace("[x] ", "✓ ") if i.startswith("[x] ") else f"• {i}" for i in listes["courses"]]
+        return f"Votre liste de courses ({len(listes['courses'])} article{'s' if len(listes['courses']) > 1 else ''}) :\n" + "\n".join(items_propres)
 
     if any(k in t for k in ["vide la liste de courses", "efface la liste de courses",
                              "supprime la liste de courses", "clear les courses"]):
@@ -2448,6 +3501,9 @@ async def demander_ia(texte, update_hist=True, skip_local=False):
                     
                     # 2. Lecture du stream chunk par chunk avec un timeout de 5 secondes entre chaque chunk
                     while True:
+                        if get_stop_parler():
+                            print("[CERVEAU] Interruption de la génération Gemini car stop_parler=True")
+                            break
                         try:
                             chunk = await asyncio.wait_for(response_stream.__anext__(), timeout=5.0)
                         except StopAsyncIteration:
@@ -2481,7 +3537,7 @@ async def demander_ia(texte, update_hist=True, skip_local=False):
                         _sauvegarder_echange_conv(texte, full_text)
                         ajouter_souvenir(texte, full_text)
                     
-                    if not skip_local and '{' not in full_text and sentence_buffer.strip():
+                    if not skip_local and '{' not in full_text and sentence_buffer.strip() and not get_stop_parler():
                         _derniere_reponse_streamed = True
                         parler(sentence_buffer.strip())
                         phrases_streamed.append(sentence_buffer.strip())
@@ -2563,7 +3619,7 @@ async def demander_ia(texte, update_hist=True, skip_local=False):
             }
 
             # --- DOMOTIQUE (HOME ASSISTANT) ---
-            has_ha = HA_URL and "votre_ip_ha" not in HA_URL
+            has_ha = HA_URL and "votre_ip_ha" not in HA_URL.lower()
             
             if has_ha and any(m in t_low for m in _mots_meteo):
                 print("[CERVEAU] Requête météo détectée → Home Assistant weather")
@@ -2872,6 +3928,9 @@ async def demander_groq(texte, update_hist=True, skip_local=False):
         iterator = iter(stream)
 
         while True:
+            if get_stop_parler():
+                print("[CERVEAU] Interruption de la génération Groq car stop_parler=True")
+                break
             chunk = await asyncio.to_thread(safe_next, iterator)
             if chunk is None:
                 break
@@ -2905,7 +3964,7 @@ async def demander_groq(texte, update_hist=True, skip_local=False):
             ajouter_souvenir(texte, full_text)
 
         # Lire la phrase finale restante
-        if not skip_local and '{' not in full_text and sentence_buffer.strip():
+        if not skip_local and '{' not in full_text and sentence_buffer.strip() and not get_stop_parler():
             _derniere_reponse_streamed = True
             parler(sentence_buffer.strip())
             phrases_streamed.append(sentence_buffer.strip())
@@ -3003,8 +4062,17 @@ async def resoudre_echecs_localement(texte):
     global CHESS_GAME, CHESS_GAME_ACTIVE
     t = texte.lower().strip()
     
-    # 1. Commencer une partie (ouvrir le plateau sur le HUD)
-    if any(k in t for k in ["jouons aux echecs", "lance une partie d echecs", "partie d echecs", "jouer aux echecs", "commencer les echecs"]):
+    if any(k in t for k in [
+        "jouons aux echecs", "jouons aux échecs",
+        "jouer aux echecs", "jouer aux échecs",
+        "joue aux echecs", "joue aux échecs",
+        "joues aux echecs", "joues aux échecs",
+        "lance une partie d echecs", "lance une partie d'echecs", "lance une partie d'échecs",
+        "partie d echecs", "partie d'echecs", "partie d'échecs",
+        "commencer les echecs", "commencer les échecs",
+        "lance les echecs", "lance les échecs",
+        "lance le jeu d'echecs", "lance le jeu d'échecs"
+    ]):
         # Si la commande contient déjà l'intention de démarrer, on passe directement au démarrage ci-dessous
         if not any(k in t for k in ["lance la partie", "démarre la partie", "commence la partie", "lance le jeu", "démarre le jeu"]):
             CHESS_GAME = ChessGame()
@@ -3194,9 +4262,81 @@ async def resoudre_echecs_localement(texte):
 async def resoudre_commandes_locales(texte):
 
     """Détecte et exécute les commandes locales (Spotify, dossiers, apps) sans IA."""
+    import re
     global attente_nom_dossier, attente_nom_app
     t = texte.lower().strip()
     global VOIX_ACTUELLE
+
+    # ── SYSTEME DE PLUGINS DE COMPETENCES AUTONOMES ────────────────────────────
+    # 1. Création / Apprentissage de compétence
+    if "crée la compétence" in t or "cree la competence" in t or "apprends la compétence" in t or "apprends la competence" in t:
+        # Format attendu : "Crée la compétence [nom] pour [description]" ou "Apprends la compétence [nom] : [description]"
+        match = re.search(r'(?:crée|cree|apprends)\s+la\s+compétence\s+(.+?)\s+(?:pour|qui|de|:)\s+(.+)', t)
+        if match:
+            nom = match.group(1).strip()
+            desc = match.group(2).strip()
+            res = await asyncio.to_thread(jarvis_creer_competence, nom, desc)
+            return res
+        else:
+            return "Désolé Mylane, le format pour créer une compétence est : 'Crée la compétence [nom] pour [description]'."
+
+    # 2. Suppression de compétence
+    if "supprime la compétence" in t or "supprime la competence" in t or "désinstalle la compétence" in t or "desinstalle la competence" in t:
+        match = re.search(r'(?:supprime|désinstalle|desinstalle)\s+la\s+compétence\s+(.+)', t)
+        if match:
+            nom = match.group(1).strip()
+            res = jarvis_supprimer_competence(nom)
+            return res
+
+    # 3. Exécution explicite de compétence
+    if "exécute la compétence" in t or "execute la competence" in t or "lance la compétence" in t or "lance la competence" in t:
+        match = re.search(r'(?:exécute|execute|lance)\s+la\s+compétence\s+(.+?)(?:\s+avec\s+(.+))?$', t)
+        if match:
+            nom = match.group(1).strip()
+            param = match.group(2).strip() if match.group(2) else None
+            res = await asyncio.to_thread(executer_competence_vocale, nom, param)
+            return res
+
+    # 4. Liste des compétences personnalisées
+    if any(k in t for k in ["liste les compétences", "liste mes compétences", "liste tes compétences", "quelles sont mes compétences", "affiche mes compétences", "liste toutes mes compétences", "liste toutes tes compétences"]):
+        import os
+        dossier_plugins = os.path.join(os.path.dirname(os.path.abspath(__file__)), "plugins")
+        if not os.path.exists(dossier_plugins):
+            return "Vous n'avez actuellement aucune compétence personnalisée installée."
+        files = [f for f in os.listdir(dossier_plugins) if f.startswith("competence_") and f.endswith(".py")]
+        if not files:
+            return "Vous n'avez actuellement aucune compétence personnalisée installée."
+        noms = []
+        for f in files:
+            nom_skill = f[len("competence_"):-len(".py")].replace("_", " ")
+            noms.append(nom_skill)
+        noms_str = ", ".join(noms)
+        return f"Voici vos compétences personnalisées installées : {noms_str}."
+
+    # ══ MISES À JOUR LOGICIELS (WINGET) ═════════════════════════════
+    _winget_phrases = [
+        "mets à jour mes logiciels", "lance les mises à jour", "ouvre les mises à jour", 
+        "vérifie les mises à jour", "mise à jour logiciels", "ouvre winget", "lance winget"
+    ]
+    for p in _winget_phrases:
+        if p in t:
+            if CONNECTED_CLIENTS:
+                msg = json.dumps({"action": "winget_open"})
+                await asyncio.gather(*[ws.send(msg) for ws in CONNECTED_CLIENTS], return_exceptions=True)
+            return "J'ouvre le gestionnaire de mise à jour système et je lance la recherche des mises à jour disponibles, Mylane."
+
+    # ══ ANALYSE ANTIVIRUS ══════════════════════════════════════════
+    _av_phrases = [
+        "analyse mon pc", "analyse mon ordinateur", "scanne mon pc", "scanne mon ordinateur",
+        "recherche des virus", "recherche si j'ai des virus", "lance l'antivirus",
+        "lance un scan antivirus", "analyse antivirus", "vérifie les virus", "lance le scan antivirus"
+    ]
+    for p in _av_phrases:
+        if p in t:
+            if CONNECTED_CLIENTS:
+                msg = json.dumps({"type": "av_open"})
+                await asyncio.gather(*[ws.send(msg) for ws in CONNECTED_CLIENTS], return_exceptions=True)
+            return "J'ouvre la console de sécurité et j'initialise le scan antivirus de votre ordinateur, Mylane."
 
     # S'il s'agit d'une commande complexe avec des enchaînements ou des actions DOM/saisie,
     # on renvoie None pour laisser le "cerveau" IA (LLM) s'en occuper de façon autonome.
@@ -3242,6 +4382,46 @@ async def resoudre_commandes_locales(texte):
         elif t in ["ouvre l'application", "lance l'application", "ouvre le logiciel", "lance le logiciel", "ouvre", "lance"]:
             attente_nom_app = True
             return "Quelle application voulez-vous lancer, mylane ?"
+
+        # --- NAVIGATEUR SÉCURISÉ ---
+        mots_fermer_nav = ["navigateur", "internet", "la page", "le web", "la fenêtre", "la fenetre", "chrome", "edge", "firefox", "opera", "brave", "youtube", "la musique", "le navigateur"]
+        if any(k in t for k in ["ferme", "quitte", "arrête", "arrete", "fermer", "quitter", "arrêter", "arreter"]) and any(w in t for w in mots_fermer_nav):
+            # 1. Fermer le navigateur sécurisé (pywebview)
+            try:
+                import secure_browser
+                secure_browser.close_browser_window()
+            except Exception:
+                pass
+            
+            # 2. Fermer Chrome / Edge / etc. pour couper YouTube ou la musique externe
+            for proc in ["chrome.exe", "msedge.exe", "firefox.exe", "opera.exe", "brave.exe"]:
+                try:
+                    import subprocess
+                    subprocess.run(["taskkill", "/IM", proc], capture_output=True)
+                except Exception as e:
+                    print(f"[BROWSER] Erreur de fermeture douce de {proc} : {e}")
+                    
+            return "Je ferme le navigateur et j'arrête la musique, Mylane."
+
+        if any(kw in t for kw in ["ouvre le navigateur sur", "ouvre le navigateur pour", "lance le navigateur sur", "cherche sur le navigateur", "ouvre le navigateur", "lance le navigateur", "ouvre navigateur", "lance navigateur"]):
+            query = None
+            for kw in ["ouvre le navigateur sur", "ouvre le navigateur pour", "lance le navigateur sur", "cherche sur le navigateur", "ouvre le navigateur", "lance le navigateur", "ouvre navigateur", "lance navigateur"]:
+                if kw in t:
+                    query = t.split(kw)[-1].strip()
+                    if query:
+                        break
+            try:
+                import secure_browser
+                _wv = globals().get("_WEBVIEW_WINDOW")
+                threading.Thread(target=secure_browser.trigger_browser, args=(query, _wv), daemon=True).start()
+                if query:
+                    return f"J'ouvre le navigateur sécurisé sur {query}, Mylane."
+                else:
+                    return "J'ouvre le navigateur sécurisé, Mylane."
+            except Exception as e:
+                print(f"[BROWSER] Erreur d'ouverture vocale : {e}")
+                return "Désolé Mylane, je n'ai pas réussi à ouvrir le navigateur."
+
 
     # --- IDENTITE / CREATEUR (Priorite 0) ---
     _createur_questions = [
@@ -3360,6 +4540,23 @@ async def resoudre_commandes_locales(texte):
     if any(p in t for p in ["lis ce souvenir", "raconte ce souvenir", "lis la mémoire", "raconte cette mémoire", "lis le souvenir"]):
         _safe_ws_send(json.dumps({"action": "cortex_vocal_speak_request"}))
         return "C'est entendu, mylane. Lecture du souvenir actif..."
+
+    # --- TRANSFORMATION DE L'ORBE EN MOT ---
+    _mots_orbe = ["écrit le mot", "écris le mot", "ecris le mot", "écrit moi", "écris moi", "ecris moi", "écris-moi", "ecris-moi", "orbe écrit", "orbe ecris"]
+    if any(m in t for m in _mots_orbe):
+        word = ""
+        for prefix in _mots_orbe:
+            if prefix in t:
+                parts = t.split(prefix, 1)
+                if len(parts) > 1:
+                    word = parts[1].strip()
+                    if word.startswith("le mot "):
+                        word = word[7:].strip()
+                break
+        if word:
+            word = word.rstrip(".?! ")
+            _safe_ws_send(json.dumps({"action": "orb_write_word", "word": word}))
+            return f"Très bien monsieur, je reconfigure l'orbe pour dessiner le mot : {word}."
 
     # --- DECLENCHEMENT PROTOCOLE DEMONSTRATION ORBE ---
     if any(k in t for k in ["démonstration", "demonstration", "démo", "demo", "lance la démo", "lance une démo", "lance une démonstration", "lance la démonstration", "protocole de démo", "fais une démo", "fais une demo"]):
@@ -3608,7 +4805,9 @@ def est_action_oriented(texte):
     return any(m in t for m in mots_actions)
 
 async def traiter_reponse_ia(texte_utilisateur, mobile_ws=None, from_voice=False):
-    global MODE_IRON_MAN, jarvis_actif, dernier_message, _skip_pc_audio, is_thinking, _derniere_reponse_streamed, phrases_streamed, ACTIVE_SPEAKER, CHESS_GAME, CHESS_GAME_ACTIVE
+    global MODE_IRON_MAN, jarvis_actif, dernier_message, _skip_pc_audio, is_thinking, _derniere_reponse_streamed, phrases_streamed, ACTIVE_SPEAKER, CHESS_GAME, CHESS_GAME_ACTIVE, STOP_PARLER
+    STOP_PARLER = False
+    set_stop_parler(False)
     dernier_message = time.time()
     _derniere_reponse_streamed = False
     phrases_streamed = []
@@ -3637,10 +4836,14 @@ async def traiter_reponse_ia(texte_utilisateur, mobile_ws=None, from_voice=False
         # Échecs (Priorité absolue pour intercepter les coups et éviter de charger la DB vectorielle de la mémoire locale)
         if not reponse: reponse = await resoudre_echecs_localement(texte_utilisateur)
         
+        # Interception prioritaire des compétences vocales personnalisées pour éviter les conflits avec les plugins (ex: radar réseau)
+        if not reponse and any(k in texte_utilisateur.lower() for k in ["compétence", "competence"]):
+            reponse = await resoudre_commandes_locales(texte_utilisateur)
+
         # Résolution locale dynamique (Pour les résolveurs additionnels enregistrés à chaud sans redémarrage)
         if not reponse:
             for attr_name in sorted(dir(builtins)):
-                if attr_name.startswith("resoudre_") and attr_name not in ["resoudre_developpement", "resoudre_dom_hud", "resoudre_chemin", "resoudre_echecs_localement"]:
+                if attr_name.startswith("resoudre_") and attr_name not in ["resoudre_developpement", "resoudre_dom_hud", "resoudre_chemin", "resoudre_echecs_localement", "resoudre_globe_localement"]:
                     try:
                         resolver_fn = getattr(builtins, attr_name)
                         if asyncio.iscoroutinefunction(resolver_fn):
@@ -3743,10 +4946,10 @@ async def traiter_reponse_ia(texte_utilisateur, mobile_ws=None, from_voice=False
                 
                 # Sécurité mode invité : bloquer uniquement les actions définies comme sensibles (fichiers, vision/écrans, Google APIs)
                 restricted_actions = {
-                    # Fichiers
+                    # Fichiers / Sécurité
                     "ouvrir_dossier", "lister_dossier", "trier_par_type", "trier_par_date", 
                     "trier_complet", "creer_dossier", "renommer_fichier", "deplacer_fichier", 
-                    "chercher_fichier", "ouvrir_element", "analyser_fichier",
+                    "chercher_fichier", "ouvrir_element", "analyser_fichier", "antivirus_scan",
                     # Vision / Screenshots / Autopilot
                     "voir_ecran", "vision_ecrire", "vision_chercher_sur_site", "vision_navigateur",
                     "analyse_live", "web_agent_task",
@@ -4361,6 +5564,27 @@ async def traiter_reponse_ia(texte_utilisateur, mobile_ws=None, from_voice=False
                     parler(f"Je lance une recherche sur internet pour {query}.")
                     result = recherche_web_serpapi(query)
                     parler(result)
+                elif action == "recherche_images":
+                    query = data.get("query", "")
+                    nb = int(data.get("nb", 6))
+                    parler(f"Je recherche des images de {query} sur internet, un instant mylane.")
+                    cfg = _charger_config()
+                    engine = cfg.get("image_search_engine", "serpapi")
+                    urls = recherche_images_web(query, nb_images=nb, engine=engine)
+                    if urls:
+                        msg_json = json.dumps({
+                            "type": "show_images",
+                            "query": query,
+                            "images": urls,
+                        })
+                        if CONNECTED_CLIENTS:
+                            try:
+                                await asyncio.gather(*[ws.send(msg_json) for ws in CONNECTED_CLIENTS], return_exceptions=True)
+                            except Exception as e:
+                                print(f"[ERREUR WS] Broadcast images: {e}")
+                        parler(f"Voilà, j'affiche {len(urls)} image{'s' if len(urls) > 1 else ''} de {query} sur votre interface, mylane.")
+                    else:
+                        parler(f"Désolé mylane, je n'ai pas trouvé d'images pour {query}.")
                 elif action == "recherche_approfondie":
                     query = data.get("query", "")
                     parler(f"Je lance une recherche approfondie sur {query}, mylane. Cela peut prendre quelques secondes pendant que j'analyse les sources.")
@@ -4480,6 +5704,11 @@ async def traiter_reponse_ia(texte_utilisateur, mobile_ws=None, from_voice=False
                     label = data.get("label", "")
                     ok, msg = annuler_alarme(heure, label)
                     parler(msg)
+                elif action == "antivirus_scan":
+                    if CONNECTED_CLIENTS:
+                        msg = json.dumps({"type": "av_open"})
+                        await asyncio.gather(*[ws.send(msg) for ws in CONNECTED_CLIENTS], return_exceptions=True)
+                    parler("J'initialise le protocole d'analyse de sécurité de votre système, Mylane. Scan en cours.")
                 elif action in ("spotify_ouvrir", "deezer_ouvrir"):
                     parler("J'ouvre Deezer, mylane.")
                     res = await deezer_ouvrir()
@@ -4525,7 +5754,7 @@ async def traiter_reponse_ia(texte_utilisateur, mobile_ws=None, from_voice=False
 
 def nettoyer_commande(texte):
     t = texte.lower().strip()
-    for variante in ["jarvis,", "jarvis"]:
+    for variante in ["jarvis,", "jarvis", "jervis,", "jervis", "service,", "service"]:
         if t.startswith(variante):
             t = t[len(variante):].strip()
     return t
@@ -4544,7 +5773,7 @@ interface_deja_connectee = False
 #  TRANSCRIPTION AUDIO — Groq Whisper + Fallback Google STT
 # ══════════════════════════════════════════════════════════════
 
-import tempfile
+import io
 import wave
 
 def transcribe_audio_groq(raw_audio_bytes, sample_rate=16000, recognizer=None):
@@ -4562,26 +5791,24 @@ def transcribe_audio_groq(raw_audio_bytes, sample_rate=16000, recognizer=None):
     """
     # --- TENTATIVE 1 : Groq Whisper (ultra-rapide, ~150ms) ---
     if groq_client:
-        tmp_path = None
         try:
             t0 = time.time()
-            # Écriture du WAV temporaire
-            tmp_fd, tmp_path = tempfile.mkstemp(suffix=".wav")
-            os.close(tmp_fd)
-            with wave.open(tmp_path, "wb") as wf:
+            # Utilisation d'un buffer mémoire (io.BytesIO) au lieu du disque
+            audio_buffer = io.BytesIO()
+            with wave.open(audio_buffer, "wb") as wf:
                 wf.setnchannels(1)
                 wf.setsampwidth(2)  # 16-bit = 2 bytes
                 wf.setframerate(sample_rate)
                 wf.writeframes(raw_audio_bytes)
             
+            audio_buffer.seek(0)
             # Appel API Groq Whisper
-            with open(tmp_path, "rb") as audio_file:
-                transcription = groq_client.audio.transcriptions.create(
-                    file=("audio.wav", audio_file.read()),
-                    model="whisper-large-v3",
-                    language="fr",
-                    response_format="text",
-                )
+            transcription = groq_client.audio.transcriptions.create(
+                file=("audio.wav", audio_buffer.read()),
+                model="whisper-large-v3",
+                language="fr",
+                response_format="text",
+            )
             
             elapsed = time.time() - t0
             texte = transcription.strip().lower() if isinstance(transcription, str) else str(transcription).strip().lower()
@@ -4614,10 +5841,6 @@ def transcribe_audio_groq(raw_audio_bytes, sample_rate=16000, recognizer=None):
         except Exception as e:
             if jarvis_actif:
                 print(f"[STT] Groq Whisper erreur : {e} — fallback Google.")
-        finally:
-            if tmp_path and os.path.exists(tmp_path):
-                try: os.remove(tmp_path)
-                except: pass
     
     # --- TENTATIVE 2 : Google STT (fallback fiable) ---
     if recognizer:
@@ -4647,7 +5870,16 @@ def ecouter():
     CHUNK = 1024
     
     # Seuil d'énergie (ajustable dynamiquement)
-    ENERGY_THRESHOLD = 800 
+    cfg_eco = {}
+    try:
+        config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "jarvis_config.json")
+        if os.path.exists(config_path):
+            import json
+            with open(config_path, "r", encoding="utf-8") as f:
+                cfg_eco = json.load(f)
+    except Exception:
+        pass
+    ENERGY_THRESHOLD = cfg_eco.get("energy_threshold", 250)
     SILENCE_LIMIT = 0.7 if VAD_MODEL is not None else 1.0  # s de silence avant de couper
     
     audio_manager = AudioStreamManager()
@@ -4672,37 +5904,57 @@ def ecouter():
     def _envoyer_interim(audio_chunks, rate):
         """Thread non-bloquant : transcrit le buffer partiel et envoie au HUD."""
         try:
-            raw = b"".join(audio_chunks)
+            num_chunks = int((7.0 * rate) // 1024)
+            recent_chunks = audio_chunks[-num_chunks:]
+            raw = b"".join(recent_chunks)
             if len(raw) < rate:  # Moins de 0.5s d'audio (16-bit mono = 2 bytes/sample)
                 return
-            # Transcription partielle via Groq uniquement (pas de fallback pour l'interim)
-            if not groq_client:
-                return
-            tmp_path = None
-            try:
-                tmp_fd, tmp_path = tempfile.mkstemp(suffix=".wav")
-                os.close(tmp_fd)
-                with wave.open(tmp_path, "wb") as wf:
-                    wf.setnchannels(1)
-                    wf.setsampwidth(2)
-                    wf.setframerate(rate)
-                    wf.writeframes(raw)
-                
-                with open(tmp_path, "rb") as af:
+            texte = None
+            if get_is_speaking():
+                # Si Jarvis parle, on utilise Google STT (gratuit et sans limite) pour détecter le barge-in ("stop")
+                try:
+                    import speech_recognition as sr
+                    recognizer = sr.Recognizer()
+                    audio_data = sr.AudioData(raw, rate, 2)
+                    texte = recognizer.recognize_google(audio_data, language="fr-FR").lower().strip()
+                except Exception:
+                    pass
+            else:
+                # Sinon on utilise Groq Whisper pour une précision maximale
+                if not groq_client:
+                    return
+                try:
+                    audio_buffer = io.BytesIO()
+                    with wave.open(audio_buffer, "wb") as wf:
+                        wf.setnchannels(1)
+                        wf.setsampwidth(2)
+                        wf.setframerate(rate)
+                        wf.writeframes(raw)
+                    
+                    audio_buffer.seek(0)
                     result = groq_client.audio.transcriptions.create(
-                        file=("interim.wav", af.read()),
+                        file=("interim.wav", audio_buffer.read()),
                         model="whisper-large-v3",
                         language="fr",
                         response_format="text",
                     )
-                texte = result.strip() if isinstance(result, str) else str(result).strip()
-                if texte and len(texte) > 1:
-                    if jarvis_actif or (WAKE_WORD in texte.lower()):
-                        _safe_ws_send(json.dumps({"action": "interim_speech", "text": texte}))
-            finally:
-                if tmp_path and os.path.exists(tmp_path):
-                    try: os.remove(tmp_path)
-                    except: pass
+                    texte = result.strip().lower() if isinstance(result, str) else str(result).strip().lower()
+                except Exception as ex:
+                    print(f"[INTERIM] Exception Groq : {ex}")
+            
+            if texte and len(texte) > 1:
+                if jarvis_actif or (WAKE_WORD in texte.lower()):
+                    _safe_ws_send(json.dumps({"action": "interim_speech", "text": texte}))
+                
+                # Interruption immédiate si un mot-clé de stop est détecté pendant qu'il parle
+                is_speaking_active = speech.is_speaking or not speech.lecture_queue.empty() or not speech.parole_queue.empty()
+                if is_speaking_active and any(w in texte for w in ["tais-toi", "silence", "stop", "chut", "arrête-toi", "arrête toi", "stoppe"]):
+                    global STOP_PARLER
+                    STOP_PARLER = True
+                    set_stop_parler(True)
+                    speech.vider_files()
+                    ecouter._recorded_during_speech = True
+                    print("[JARVIS] Interruption forcée (barge-in interim) : File de parole vidée.")
         except Exception as e:
             pass  # Silencieux — l'interim est cosmétique, pas critique
     
@@ -4726,6 +5978,8 @@ def ecouter():
                         break
                 time.sleep(0.1)
                 continue
+
+
 
             # Synchronisation du dernier message depuis les modules/plugins
             if hasattr(builtins, "dernier_message"):
@@ -4773,7 +6027,7 @@ def ecouter():
             if VAD_MODEL is not None:
                 try:
                     speech_prob = VAD_MODEL(audio_chunk_int16, RATE)
-                    is_speech = speech_prob > 0.45
+                    is_speech = speech_prob > 0.65
                 except Exception as ev:
                     energy = np.sqrt(np.mean(audio_chunk_int16.astype(np.float64)**2))
                     is_speech = energy > ENERGY_THRESHOLD
@@ -4789,11 +6043,14 @@ def ecouter():
                     is_recording = True
                     audio_buffer = [data]
                     last_interim_time = time.time()  # Reset timer interim
+                    ecouter._recorded_during_speech = get_is_speaking()
                 else:
                     audio_buffer.append(data)
-                    # --- TRANSCRIPTION INTÉRIMAIRE EN TEMPS RÉEL ---
+                    if get_is_speaking():
+                        ecouter._recorded_during_speech = True
+                    # --- TRANSCRIPTION INTÉRIMAIRE EN TEMPS RÉEL (Active uniquement si réveillé) ---
                     now = time.time()
-                    if now - last_interim_time >= INTERIM_INTERVAL and groq_client:
+                    if jarvis_actif and (now - last_interim_time >= INTERIM_INTERVAL) and groq_client:
                         last_interim_time = now
                         # Copie du buffer pour le thread (évite les race conditions)
                         buffer_copy = list(audio_buffer)
@@ -4805,6 +6062,8 @@ def ecouter():
                 silence_start = None
             elif is_recording:
                 audio_buffer.append(data)
+                if get_is_speaking():
+                    ecouter._recorded_during_speech = True
                 if silence_start is None:
                     silence_start = time.time()
                 
@@ -4818,6 +6077,15 @@ def ecouter():
                     raw_audio = b"".join(audio_buffer)
                     
                     try:
+                        was_during_speech = getattr(ecouter, "_recorded_during_speech", False)
+                        
+                        # Si l'enregistrement a eu lieu pendant que Jarvis parlait, qu'il n'a pas été interrompu,
+                        # et qu'on est configuré pour ignorer le micro pendant la parole, on rejette directement.
+                        if was_during_speech and cfg_eco.get("ignore_mic_while_speaking", True) and not STOP_PARLER:
+                            # print("[JARVIS] Phrase complète ignorée sans transcription (auto-audition de Jarvis).")
+                            audio_buffer = []
+                            continue
+
                         # Transcription Groq Whisper avec fallback Google STT
                         texte = transcribe_audio_groq(raw_audio, RATE, r)
                         
@@ -4864,12 +6132,19 @@ def ecouter():
                                 except Exception as eb:
                                     print(f"❌  [SPEAKER] Erreur lors de l'identification : {eb}")
                             
-                            if get_is_speaking() and any(w in texte for w in ["tais-toi", "silence", "stop", "chut", "arrête-toi", "arrête toi", "stoppe"]):
+                            was_during_speech = getattr(ecouter, "_recorded_during_speech", False)
+                            
+                            if was_during_speech and any(w in texte for w in ["tais-toi", "silence", "stop", "chut", "arrête-toi", "arrête toi", "stoppe"]):
                                 STOP_PARLER = True
                                 set_stop_parler(True)
                                 speech.vider_files()
                                 audio_buffer = []
-                                print("[JARVIS] Interruption forcée : File de parole vidée.")
+                                print("[JARVIS] Interruption forcée (barge-in) : File de parole vidée.")
+                                continue
+                            
+                            if was_during_speech and cfg_eco.get("ignore_mic_while_speaking", True):
+                                print(f"[JARVIS] Commande ignorée (enregistrement pendant que Jarvis parlait) : {texte}")
+                                audio_buffer = []
                                 continue
                             
                             if WAKE_WORD in texte or jarvis_actif:
@@ -5149,18 +6424,19 @@ def detecter_microphone() -> int | None:
             # Réordonner par index croissant pour l'affichage console final
             filtered_devices.sort(key=lambda d: d["index"])
             
-            print("[MIC] Périphériques audio détectés (filtrés et nettoyés) :")
-            for dev in filtered_devices:
-                print(f"      [{dev['index']}] {dev['clean_name']}")
+            # print("[MIC] Périphériques audio détectés (filtrés et nettoyés) :")
+            # for dev in filtered_devices:
+            #     print(f"      [{dev['index']}] {dev['clean_name']}")
 
             if not inputs:
                 print("[MIC] ⚠ Aucun périphérique d'entrée détecté par PyAudio.")
         except Exception as e:
-            print(f"[MIC] Impossible de lister les périphériques : {e}")
-            inputs = []
+            # print(f"[MIC] Impossible de lister les périphériques : {e}")
+            pass
     else:
         inputs = []
-        print("[MIC] PyAudio absent — mode fallback speech_recognition uniquement.")
+        # print("[MIC] PyAudio absent — mode fallback speech_recognition uniquement.")
+        pass
 
     # ── Récupérer l'index mémorisé ───────────────────────────
     cfg = _charger_config()
@@ -5177,8 +6453,8 @@ def detecter_microphone() -> int | None:
                 r_test.adjust_for_ambient_noise(src, duration=0.3)
             return True
         except Exception as e:
-            label = "défaut" if idx is None else str(idx)
-            print(f"[MIC]   Index {label} → KO ({e})")
+            # label = "défaut" if idx is None else str(idx)
+            # print(f"[MIC]   Index {label} → KO ({e})")
             return False
 
     # ── Priorité 1 : index mémorisé ──────────────────────────
@@ -5188,10 +6464,11 @@ def detecter_microphone() -> int | None:
             print(f"[MIC] [OK] Micro retenu (mémorisé et présent) : [{index_memo}] {nom_memo}")
             return index_memo
         else:
-            print(f"[MIC] Micro mémorisé [{index_memo}] introuvable, recherche d'un remplaçant…")
+            # print(f"[MIC] Micro mémorisé [{index_memo}] introuvable, recherche d'un remplaçant…")
+            pass
 
     # ── Priorité 2 : micro par défaut OS ─────────────────────
-    print("[MIC] Test du micro par défaut système…")
+    # print("[MIC] Test du micro par défaut système…")
     if _tester_index(None):
         # Identifier son index réel si possible
         idx_reel = None
@@ -5208,9 +6485,9 @@ def detecter_microphone() -> int | None:
         return idx_reel
 
     # ── Priorité 3 : parcourir tous les périphériques ────────
-    print("[MIC] Recherche sur tous les périphériques disponibles…")
+    # print("[MIC] Recherche sur tous les périphériques disponibles…")
     for idx, nom in inputs:
-        print(f"[MIC]   Test [{idx}] {nom}…")
+        # print(f"[MIC]   Test [{idx}] {nom}…")
         if _tester_index(idx):
             print(f"[MIC] [OK] Micro retenu (fallback) : [{idx}] {nom}")
             _sauvegarder_config({"mic_device_index": idx})
@@ -5362,6 +6639,196 @@ def verifier_mises_a_jour_loop():
         time.sleep(14400)
         verifier_mises_a_jour()
 
+def _charger_config():
+    import json as _j
+    _p = os.path.join(os.path.dirname(os.path.abspath(__file__)), "jarvis_config.json")
+    try:
+        with open(_p, "r", encoding="utf-8") as _f:
+            return _j.load(_f)
+    except Exception:
+        return {}
+
+# ── Protection Antivirus en temps réel (LIVE) ───────────────────────────────
+AV_LIVE_PROTECTION_ENABLED = False
+AV_LIVE_REPORTED_THREATS = set()
+
+async def boucle_antivirus_live():
+    """Surveille les dossiers sensibles et processus actifs toutes les 3 secondes."""
+    global AV_LIVE_PROTECTION_ENABLED, AV_LIVE_REPORTED_THREATS
+    import json
+    import os
+    import time
+    import stat
+    import shutil
+    import psutil
+    from antivirus_scanner import is_file_suspicious, get_exclusions, is_excluded
+
+    # Charger l'état initial depuis la config
+    try:
+        cfg = _charger_config()
+        AV_LIVE_PROTECTION_ENABLED = cfg.get("av_live_protection", False)
+    except Exception:
+        AV_LIVE_PROTECTION_ENABLED = False
+
+    print(f"[AV LIVE] Protection en temps réel initialisée : {'ACTIF' if AV_LIVE_PROTECTION_ENABLED else 'INACTIF'}")
+
+    last_check_time = time.time()
+
+    while True:
+        try:
+            if AV_LIVE_PROTECTION_ENABLED:
+                folders = [
+                    os.path.expanduser("~/Desktop"),
+                    os.path.expanduser("~/Downloads"),
+                    os.environ.get("TEMP"),
+                    os.environ.get("TMP"),
+                    os.path.dirname(os.path.abspath(__file__))
+                ]
+                folders = list(set([os.path.abspath(f) for f in folders if f and os.path.exists(f)]))
+                exclusions = get_exclusions()
+                current_time = time.time()
+
+                # 1. Surveillance des fichiers physiques
+                for folder in folders:
+                    try:
+                        for file in os.listdir(folder):
+                            filepath = os.path.join(folder, file)
+                            if os.path.isfile(filepath):
+                                try:
+                                    mtime = os.path.getmtime(filepath)
+                                    if mtime > last_check_time:
+                                        normalized_filepath = os.path.normpath(filepath).lower()
+                                        if normalized_filepath in AV_LIVE_REPORTED_THREATS:
+                                            continue
+
+                                        t_class, t_desc = is_file_suspicious(filepath)
+                                        if t_class:
+                                            if is_excluded(filepath, exclusions):
+                                                continue
+
+                                            AV_LIVE_REPORTED_THREATS.add(normalized_filepath)
+                                            print(f"[AV LIVE] Menace détectée : {filepath} ({t_class})")
+
+                                            # Tenter d'arrêter les processus verrouillant le fichier
+                                            for proc in psutil.process_iter(['pid', 'name', 'exe']):
+                                                try:
+                                                    exe_path = proc.info.get('exe')
+                                                    if exe_path and os.path.normpath(exe_path).lower() == normalized_filepath:
+                                                        print(f"[AV LIVE] Arrêt du processus {proc.info['name']} (PID {proc.info['pid']})")
+                                                        p = psutil.Process(proc.info['pid'])
+                                                        p.terminate()
+                                                        try:
+                                                            p.wait(timeout=1.0)
+                                                        except psutil.TimeoutExpired:
+                                                            p.kill()
+                                                except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+                                                    pass
+
+                                            # Rendre le fichier modifiable/supprimable
+                                            try:
+                                                os.chmod(filepath, stat.S_IWRITE)
+                                            except Exception:
+                                                pass
+
+                                            # Déplacer vers quarantaine
+                                            quarantine_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "quarantine")
+                                            os.makedirs(quarantine_dir, exist_ok=True)
+                                            safe_name = f"{int(time.time())}_{file}.quarantine"
+                                            dest = os.path.join(quarantine_dir, safe_name)
+                                            shutil.move(filepath, dest)
+
+                                            # Alerte WebSocket
+                                            msg = {
+                                                "type": "av_live_threat_intercepted",
+                                                "threat": {
+                                                    "type": "file",
+                                                    "name": file,
+                                                    "target": filepath,
+                                                    "class": t_class,
+                                                    "desc": f"INTERCEPTÉ & SÉCURISÉ. {t_desc}"
+                                                },
+                                                "quarantine_file": safe_name
+                                            }
+                                            if CONNECTED_CLIENTS:
+                                                asyncio.ensure_future(asyncio.gather(*[ws.send(json.dumps(msg)) for ws in CONNECTED_CLIENTS], return_exceptions=True))
+
+                                            # Notification vocale
+                                            try:
+                                                u_name = cfg.get("user_name", "mylane")
+                                                asyncio.create_task(parler(f"Alerte sécurité, {u_name}. J'ai détecté et neutralisé une menace en temps réel : {file}. Le fichier suspect a été placé en quarantaine."))
+                                            except: pass
+                                except OSError:
+                                    pass
+                    except Exception as e:
+                        print(f"[AV LIVE] Erreur dossier {folder} : {e}")
+
+                # 2. Surveillance des processus actifs suspects
+                for proc in psutil.process_iter(['pid', 'name', 'exe']):
+                    try:
+                        pid = proc.info.get('pid')
+                        name = proc.info.get('name') or ''
+                        exe = proc.info.get('exe') or ''
+                        
+                        target_key = f"PID {pid} ({exe})"
+                        normalized_exe = os.path.normpath(exe).lower() if exe else ""
+                        
+                        if target_key in AV_LIVE_REPORTED_THREATS or (normalized_exe and normalized_exe in AV_LIVE_REPORTED_THREATS):
+                            continue
+                            
+                        name_lower = name.lower()
+                        exe_lower = exe.lower()
+                        
+                        detected = False
+                        desc = ""
+                        if "mimikatz" in name_lower or "miner.exe" in name_lower or "keylogger" in name_lower:
+                            detected = True
+                            desc = "Processus suspect (menace connue)"
+                        elif ("temp" in exe_lower or "tmp" in exe_lower) and name_lower.endswith((".exe", ".bat")):
+                            detected = True
+                            desc = "Processus actif lancé depuis le dossier temporaire"
+                            
+                        if detected:
+                            if is_excluded(target_key, exclusions) or (exe and is_excluded(exe, exclusions)):
+                                continue
+                                
+                            AV_LIVE_REPORTED_THREATS.add(target_key)
+                            print(f"[AV LIVE] Processus suspect neutralisé : {name} (PID {pid})")
+                            
+                            # Arrêter le processus
+                            p = psutil.Process(pid)
+                            p.terminate()
+                            try:
+                                p.wait(timeout=1.0)
+                            except psutil.TimeoutExpired:
+                                p.kill()
+                                
+                            # Alerte WebSocket
+                            msg = {
+                                "type": "av_live_threat_intercepted",
+                                "threat": {
+                                    "type": "process",
+                                    "name": name,
+                                    "target": target_key,
+                                    "class": "Suspicious.ActiveProcess",
+                                    "desc": f"PROCESSUS ARRÊTÉ & NEUTRALISÉ. {desc}"
+                                }
+                            }
+                            if CONNECTED_CLIENTS:
+                                asyncio.ensure_future(asyncio.gather(*[ws.send(json.dumps(msg)) for ws in CONNECTED_CLIENTS], return_exceptions=True))
+                                
+                            try:
+                                u_name = cfg.get("user_name", "mylane")
+                                asyncio.create_task(parler(f"Sécurité système, {u_name}. J'ai intercepté et arrêté un processus suspect actif : {name}."))
+                            except: pass
+                    except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+                        pass
+                
+                last_check_time = current_time
+        except Exception as e:
+            print(f"[AV LIVE] Erreur boucle principale : {e}")
+            
+        await asyncio.sleep(3)
+
 def start_ia():
     threading.Thread(target=monitor_claps, daemon=True).start()
     
@@ -5384,6 +6851,7 @@ def start_ia():
         asyncio.create_task(broadcast_music_stats())
         asyncio.create_task(broadcast_ha_stats())
         asyncio.create_task(update_homepods_metadata_loop())
+        asyncio.create_task(boucle_antivirus_live())
         
         # Le gestionnaire de parole est déjà lancé au démarrage du script
 
@@ -5514,6 +6982,16 @@ def main():
     frontend_process = None
     FRONTEND_URL = "http://localhost:5173"
 
+    # Nettoyage automatique des instances WebView2 orphelines pour libérer les verrous sur le dossier utilisateur
+    if sys.platform.startswith("win"):
+        try:
+            subprocess.run(
+                ["taskkill", "/F", "/IM", "msedgewebview2.exe"],
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+            )
+        except Exception:
+            pass
+
     def _port_ecoute(port, timeout=4.0):
         """Retourne True si quelque chose ecoute sur le port donne."""
         import socket
@@ -5600,6 +7078,9 @@ def main():
     threading.Thread(target=start_ia, daemon=True).start()
     threading.Thread(target=verifier_mises_a_jour_loop, daemon=True).start()
 
+    # Nettoyage automatique du cache WebView2 si version changée
+    vider_cache_webview_si_nouvelle_version()
+
     # Choisir le mode d'affichage
     use_native = _WEBVIEW_OK and webview is not None and not FORCE_BROWSER_MODE
 
@@ -5652,7 +7133,13 @@ def main():
 
         _WEBVIEW_WINDOW.events.closed += _on_closed
 
+        _jarvis_loaded_once = False
+
         def _on_loaded():
+            nonlocal _jarvis_loaded_once
+            if _jarvis_loaded_once:
+                return  # Ignorer les appels dupliqués (2ème fenêtre pywebview)
+            _jarvis_loaded_once = True
             try:
                 import ctypes
                 import os
@@ -5671,17 +7158,44 @@ def main():
             except Exception as e:
                 print(f"[JARVIS] Erreur chargement icone : {e}")
 
+            # Associer la fenetre principale pour secure_browser et ajouter le redimensionnement automatique
+            try:
+                import secure_browser
+                secure_browser._main_webview_window = _WEBVIEW_WINDOW
+                secure_browser._broadcast_fn = send_web_broadcast_sync
+                
+                def on_main_window_resized(width, height):
+                    secure_browser.resize_docked_window()
+                _WEBVIEW_WINDOW.events.resized += on_main_window_resized
+                # print("[JARVIS] Module de navigation securise connecte au redimensionnement.")
+            except Exception as ex:
+                print(f"[JARVIS] Erreur initialisation secure_browser : {ex}")
+
         _WEBVIEW_WINDOW.events.loaded += _on_loaded
 
         # webview.start() DOIT etre appele depuis le thread principal
         try:
-            # Desactive le mode prive (private_mode=False) et definit le storage_path persistant pour conserver les permissions
-            _app_data = os.getenv("APPDATA", os.path.expanduser("~"))
-            _storage_path = os.path.join(_app_data, "JARVIS")
-            webview.start(private_mode=False, storage_path=_storage_path)
+            # 1ère tentative : Edge Chromium (WebView2) par défaut
+            _app_data = os.getenv("LOCALAPPDATA", os.getenv("APPDATA", os.path.expanduser("~")))
+            _storage_path = os.path.join(_app_data, "JARVIS_Local")
+            webview.start(private_mode=False, storage_path=_storage_path, debug=False)
         except Exception as e:
-            print(f"[JARVIS] PyWebView impossible : {e} — bascule sur navigateur")
-            _ouvrir_dans_navigateur(FRONTEND_URL, frontend_process)
+            print(f"[JARVIS] PyWebView avec WebView2 impossible ({e}) — tentative avec le moteur natif EdgeHTML...")
+            try:
+                # 2ème tentative : Forcer le moteur EdgeHTML natif sans dépendance externe WebView2
+                webview.start(gui="edgehtml", private_mode=False, storage_path=_storage_path, debug=False)
+            except Exception as e2:
+                print(f"[JARVIS] Deuxieme tentative PyWebView avec EdgeHTML impossible ({e2}) — tentative de nettoyage du cache...")
+                try:
+                    import shutil
+                    eb_path = os.path.join(_storage_path, "EBWebView")
+                    if os.path.exists(eb_path):
+                        shutil.rmtree(eb_path, ignore_errors=True)
+                    # 3ème tentative : Edge Chromium après nettoyage complet du cache
+                    webview.start(private_mode=False, storage_path=_storage_path, debug=False)
+                except Exception as e3:
+                    print(f"[JARVIS] Troisieme tentative PyWebView impossible : {e3} — bascule sur navigateur")
+                    _ouvrir_dans_navigateur(FRONTEND_URL, frontend_process)
     else:
         # MODE NAVIGATEUR (fallback si pywebview absent)
         _ouvrir_dans_navigateur(FRONTEND_URL, frontend_process)
@@ -6564,6 +8078,130 @@ async def broadcast_music_stats():
             pass
         await asyncio.sleep(2)
 
+# ── NETTOYAGE CACHE WEBVIEW (anti-cache après mise à jour) ─────────────────
+def vider_cache_webview_si_nouvelle_version():
+    """
+    Supprime le cache WebView2 (EBWebView/Default/*) si la version
+    enregistrée dans un fichier marqueur est différente de CURRENT_VERSION.
+    Cela force le rechargement complet de l'interface après une mise à jour.
+    """
+    import shutil
+    app_dir = os.path.dirname(os.path.abspath(__file__))
+    marker_file = os.path.join(app_dir, ".jarvis_cache_version")
+
+    # Lire la version précédente
+    version_en_cache = None
+    try:
+        if os.path.exists(marker_file):
+            with open(marker_file, "r", encoding="utf-8") as f:
+                version_en_cache = f.read().strip()
+    except Exception:
+        pass
+
+    if version_en_cache == CURRENT_VERSION:
+        # Même version → rien à faire
+        return
+
+    # Nouvelle version ou premier lancement → vider le cache WebView2
+    print(f"[CACHE] Version changée ({version_en_cache} → {CURRENT_VERSION}) : nettoyage du cache WebView2...")
+
+    # Le cache pywebview est dans %APPDATA%\pywebview\EBWebView\Default\
+    appdata = os.environ.get("APPDATA", "")
+    webview_data_dir = os.path.join(appdata, "pywebview", "EBWebView", "Default")
+
+    # Sous-dossiers à supprimer (cache pur, pas les données utilisateur critiques)
+    cache_folders = [
+        "Cache",
+        "Code Cache",
+        "Service Worker",
+        "GPUCache",
+        "DawnGraphiteCache",
+        "DawnWebGPUCache",
+        "blob_storage",
+        "Session Storage",
+    ]
+
+    if os.path.isdir(webview_data_dir):
+        for folder in cache_folders:
+            target = os.path.join(webview_data_dir, folder)
+            if os.path.isdir(target):
+                try:
+                    shutil.rmtree(target)
+                    print(f"[CACHE]   ✓ Supprimé : {folder}")
+                except Exception as e:
+                    print(f"[CACHE]   ✗ Erreur sur {folder} : {e}")
+        print("[CACHE] Cache WebView2 nettoyé avec succès.")
+    else:
+        print("[CACHE] Dossier WebView2 introuvable — probablement premier lancement.")
+
+    # Mettre à jour le marqueur de version
+    try:
+        with open(marker_file, "w", encoding="utf-8") as f:
+            f.write(CURRENT_VERSION)
+    except Exception as e:
+        print(f"[CACHE] Impossible d'écrire le marqueur de version : {e}")
+
+
+def vider_cache_webview_complet():
+    """
+    Vide intégralement le cache WebView2 (appelé manuellement via le bouton frontend).
+    Retourne True si succès, False sinon.
+    """
+    import shutil
+    appdata = os.environ.get("APPDATA", "")
+    webview_data_dir = os.path.join(appdata, "pywebview", "EBWebView", "Default")
+    cache_folders = [
+        "Cache",
+        "Code Cache",
+        "Service Worker",
+        "GPUCache",
+        "DawnGraphiteCache",
+        "DawnWebGPUCache",
+        "blob_storage",
+        "Session Storage",
+    ]
+    success = True
+    if os.path.isdir(webview_data_dir):
+        for folder in cache_folders:
+            target = os.path.join(webview_data_dir, folder)
+            if os.path.isdir(target):
+                try:
+                    shutil.rmtree(target)
+                    print(f"[CACHE] Manuel — Supprimé : {folder}")
+                except Exception as e:
+                    print(f"[CACHE] Manuel — Erreur : {folder} : {e}")
+                    success = False
+    # Réinitialiser le marqueur pour forcer un rechargement au prochain lancement
+    app_dir = os.path.dirname(os.path.abspath(__file__))
+    marker_file = os.path.join(app_dir, ".jarvis_cache_version")
+    try:
+        if os.path.exists(marker_file):
+            os.remove(marker_file)
+    except Exception:
+        pass
+    return success
+
 builtins.demander_ia_vision = demander_ia_vision
 if __name__ == "__main__":
+    import sys
+    class TeeLogger(object):
+        def __init__(self, filename="jarvis_run.log"):
+            self.terminal = sys.stdout
+            self.log = open(filename, "w", encoding="utf-8", errors="ignore")
+        def write(self, message):
+            self.terminal.write(message)
+            try:
+                self.log.write(message)
+                self.log.flush()
+            except Exception:
+                pass
+        def flush(self):
+            self.terminal.flush()
+            try:
+                self.log.flush()
+            except Exception:
+                pass
+    sys.stdout = TeeLogger()
+    sys.stderr = sys.stdout
     main()
+

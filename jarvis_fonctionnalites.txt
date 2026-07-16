@@ -36,6 +36,7 @@ programmée dans le système J.A.R.V.I.S.
 * Clics virtuels : Pincement de doigts pour cliquer à distance sur l'interface.
 * Manipulation 3D : Lancer, tourner, déformer ou compresser des formes 3D wireframe par gestes.
 * Jeu spatial (Ball Game) : Jeu de balle physique avec multiplicateur de score et rebond sur la paume.
+* Jeu d'Échecs 3D (ChessMap) : Plateau d'échecs 3D interactif et tactile avec options vocales/HUD complets, boutons 3D flottants orientés intelligemment et suivi gestuel.
 
 ================================================================================
 5. CARTOGRAPHIE 3D DOMOTIQUE (frontend/src/domotic_map.ts, module/ha_config.py)
@@ -99,4 +100,52 @@ programmée dans le système J.A.R.V.I.S.
 * Chromecast & TV (ADB) : Allumage TV (WoL), contrôle du volume, Youtube Cast et lancement d'applications.
 * Musique (Deezer/Spotify) : Commandes multimédias Windows et récupération du titre en cours.
 * Sports & Météo : Résultats/classements de football en direct (TheSportsDB) et météo (Open-Meteo/wttr.in).
+================================================================================
+14. CONFIGURATION API À CHAUD (main2.py, frontend/)
+================================================================================
+* Sauvegarde en direct : Modification des clés d'API (Gemini, Mistral, Groq, SerpApi, etc.) depuis le HUD avec écriture asynchrone automatique dans le fichier `.env` à la racine et rechargement des clients IA à chaud.
+
+================================================================================
+15. MENU CONTROLE SYSTÈME UNIFIÉ & DIALOGUES (frontend/index.html, main.ts)
+================================================================================
+* Hub central : Regroupe l'ensemble des contrôles (GPU Boost, Hologramme, Clavier visuel, IPTV, Désinstallateur, Domotique, Vider Cache, Liste Commandes, Config API, Paramètres).
+* Liaison robuste : Liaison événementielle directe et résiliente pour basculer les écrans, masquer le clavier visuel ou fermer le menu de manière fluide.
+
+================================================================================
+16. DÉSINSTATEUR D'APPLICATIONS INTERACTIF (frontend/src/uninstaller.ts)
+================================================================================
+* Registry Scanner : Analyse en arrière-plan des logiciels Windows installés via les registres 32/64 bits.
+* UI Réactive : Filtre de recherche instantané, bouton de désinstallation et barre de progression fluide pendant le processus système.
+
+================================================================================
+17. MISE A JOUR LOGICIELLE INTÉGRÉE - WINGET (frontend/src/winget.ts)
+================================================================================
+* Détecteur d'obsolescence : Vérifie asynchronement les versions logicielles de Windows via Winget.
+* Badge de notification : Affiche sur le bouton menu le nombre de paquets à mettre à jour.
+* Console en temps réel : Log dynamique et asynchrone des étapes de téléchargement et d'installation.
+
+================================================================================
+18. LECTEUR MULTIMÉDIA IPTV FLUIDE (frontend/src/iptv_player.ts)
+================================================================================
+* Player M3U : Décodeur et lecteur vidéo intégré pour fichiers `.m3u` et flux directs (MP4, HLS).
+* Contrôles avancés : Interface néon transparente avec réglage de volume, play/pause, plein écran et navigation par liste de chaînes latérale.
+
+================================================================================
+19. ANTIVIRUS SCANNNEUR & PROTECTION RESIDENTE (antivirus_scanner.py)
+================================================================================
+* Scanner à la demande : Scan rapide de répertoires ou fichiers spécifiques avec reporting.
+* Protection en temps réel : Moniteur résident activable à chaud pour bloquer l'écriture de scripts malveillants.
+
+================================================================================
+20. MORPHING DE MOTS 3D ET ORIENTATION DE L'ORBE (frontend/src/orb.ts)
+================================================================================
+* Rejection Sampling : Algorithme d'échantillonnage de pixels haute résolution pour projeter exactement 2000 points d'un mot dans le plan 3D Three.js.
+* Stabilisation de tracé : Figeage de la caméra en position (0, 0, 75) et annulation des rotations et forces de dérives/bruits de volume de l'orbe pendant l'écriture pour un rendu 100% stable et net de gauche à droite.
+* Masquage de lignes : Désactivation totale des lignes de liaison pendant le dessin du mot pour éviter les effets de toile d'araignée rigides.
+
+================================================================================
+21. EXHAUSTIVITÉ DES COMMANDES SUGGÉRÉES (frontend/src/main.ts)
+================================================================================
+* Index Exhaustif : Liste de suggestions alimentée par la totalité des 164 commandes vocales réelles de J.A.R.V.I.S.
+* Popups Aléatoires : Affichage harmonieux de 16 exemples tirés au sort lors du clic sur le bouton "Liste Commandes".
 ================================================================================

@@ -1092,6 +1092,11 @@ class App {
       this.shapes.shapes.forEach(s => { s.group.visible = true; });
       this.ui.showGesture('EXPLORER OFF');
       if (btn) btn.classList.remove('active');
+      
+      // Si aucun autre mode n'est actif, réactiver le Cortex par défaut
+      if (!this.domoticMap?.active && !this.chessMap?.active && !this.networkRadar?.active && !this.cortexMap?.active) {
+        this.toggleCortex();
+      }
     } else {
       // Trouver le WebSocket actif
       const ws = window._jarvisWs;
@@ -1116,6 +1121,11 @@ class App {
       this.shapes.shapes.forEach(s => { s.group.visible = true; });
       this.ui.showGesture('DOMOTIQUE OFF');
       if (btn) btn.classList.remove('active');
+
+      // Si aucun autre mode n'est actif, réactiver le Cortex par défaut
+      if (!this.spatialExplorer?.active && !this.chessMap?.active && !this.networkRadar?.active && !this.cortexMap?.active) {
+        this.toggleCortex();
+      }
     } else {
       if (this.spatialExplorer?.active) {
         this.toggleExplorer();
@@ -1175,6 +1185,13 @@ class App {
       if (ws && ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify({ type: "chess_action", action: "stop" }));
       }
+
+      // Fermer complètement l'hologramme et retourner sur la page d'accueil de Jarvis
+      if (typeof window._closeHolo === 'function') {
+        window._closeHolo();
+      } else if (!this.spatialExplorer?.active && !this.domoticMap?.active && !this.networkRadar?.active && !this.cortexMap?.active) {
+        this.toggleCortex();
+      }
     } else {
       if (this.spatialExplorer?.active) {
         this.toggleExplorer();
@@ -1202,12 +1219,21 @@ class App {
     }
   }
 
+  toggleRadarFilter() {
+    if (this.networkRadar?.active) this.networkRadar.toggleFilter();
+  }
+
   toggleNetworkRadar() {
     if (this.networkRadar?.active) {
       this.networkRadar.deactivate();
       this.networkRadar = null;
       window._networkRadar = null;
       this.shapes.shapes.forEach(s => { s.group.visible = true; });
+
+      // Si aucun autre mode n'est actif, réactiver le Cortex par défaut
+      if (!this.spatialExplorer?.active && !this.domoticMap?.active && !this.chessMap?.active && !this.cortexMap?.active) {
+        this.toggleCortex();
+      }
     } else {
       if (this.spatialExplorer?.active) this.toggleExplorer();
       if (this.domoticMap?.active)      this.toggleDomotic();

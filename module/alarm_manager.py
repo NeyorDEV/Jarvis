@@ -183,7 +183,7 @@ def _surveiller_alarmes():
     """
     Thread qui vérifie toutes les 30 secondes si une alarme doit sonner.
     """
-    print("[ALARME] Démon de surveillance démarré.")
+    # print("[ALARME] Démon de surveillance démarré.")
     while True:
         time.sleep(1)
         try:

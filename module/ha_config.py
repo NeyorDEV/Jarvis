@@ -9,15 +9,39 @@ import requests
 from datetime import datetime
 from dotenv import load_dotenv
 
-load_dotenv()
+import json
+import asyncio
 
-# ── Connexion Home Assistant (chargé depuis .env) ────────────
-HA_URL    = os.getenv("HA_URL", "")
-HA_TOKEN  = os.getenv("HA_TOKEN", "")
-HA_HEADERS = {
-    "Authorization": f"Bearer {HA_TOKEN}",
-    "Content-Type" : "application/json"
-}
+def _charger_user_name():
+    try:
+        _dir = os.path.dirname(os.path.abspath(__file__))
+        _root = os.path.dirname(_dir) if os.path.basename(_dir) == "module" else _dir
+        _p = os.path.join(_root, "jarvis_config.json")
+        with open(_p, "r", encoding="utf-8") as _f:
+            return json.load(_f).get("user_name", "Mylane")
+    except Exception:
+        return "Mylane"
+
+def _update_ha_env():
+    global HA_URL, HA_TOKEN, HA_HEADERS
+    _dir = os.path.dirname(os.path.abspath(__file__))
+    _root = os.path.dirname(_dir) if os.path.basename(_dir) == "module" else _dir
+    load_dotenv(os.path.join(_root, ".env"), override=True)
+    HA_URL    = os.getenv("HA_URL", "").rstrip("/")
+    HA_TOKEN  = os.getenv("HA_TOKEN", "")
+    HA_HEADERS = {
+        "Authorization": f"Bearer {HA_TOKEN}",
+        "Content-Type" : "application/json"
+    }
+
+HA_URL = ""
+HA_TOKEN = ""
+HA_HEADERS = {}
+_update_ha_env()
+
+def ha_active() -> bool:
+    return bool(HA_URL) and "votre_ip_ha" not in HA_URL.lower()
+
 
 # ═══════════════════════════════════════════════════════════════
 #  SECTION 1 — MÉTÉO PAR DÉFAUT
@@ -186,6 +210,8 @@ CODES_METEO = {
 # ════════════════════════════════════════════════════════════════
 
 def ha_appeler_service(domaine, service, entity_id, donnees=None):
+    if not ha_active():
+        return False
     try:
         payload = {"entity_id": entity_id}
         if donnees:
@@ -202,6 +228,8 @@ def ha_appeler_service(domaine, service, entity_id, donnees=None):
         return False
 
 def ha_get_etat(entity_id, attribut=None):
+    if not ha_active():
+        return "inconnu"
     try:
         r    = requests.get(f"{HA_URL}/api/states/{entity_id}", headers=HA_HEADERS, timeout=5)
         data = r.json()
@@ -213,6 +241,8 @@ def ha_get_etat(entity_id, attribut=None):
         return "inconnu"
 
 def ha_get_calendrier(entity_id):
+    if not ha_active():
+        return []
     try:
         now   = datetime.now()
         start = now.strftime("%Y-%m-%dT00:00:00Z")
@@ -334,6 +364,8 @@ def get_meteo_actuelle(ville=None):
 
 def get_meteo_ha():
     """Lit la météo depuis Home Assistant. Fallback quand Gemini est KO."""
+    if not ha_active():
+        return None
     try:
         r = requests.get(f"{HA_URL}/api/states/weather.forecast_amilly", headers=HA_HEADERS, timeout=5)
         data = r.json()
@@ -443,3 +475,93 @@ def _charger_custom_ha_entities():
 
 # Charger au démarrage
 _charger_custom_ha_entities()
+
+
+# ════════════════════════════════════════════════════════════════
+# NOUVEAUX SERVICES - DASHBOARD CENTRAL DE DOMOTIQUE
+# ════════════════════════════════════════════════════════════════
+
+def ha_get_all_states() -> list:
+    """Récupère tous les états des entités de Home Assistant."""
+    _update_ha_env()
+    if not ha_active():
+        return []
+    try:
+        url = f"{HA_URL}/api/states"
+        print(f"[HA] Récupération de tous les états depuis {url}")
+        r = requests.get(url, headers=HA_HEADERS, timeout=10)
+        if r.status_code == 200:
+            return r.json()
+        else:
+            print(f"[HA] Échec récupération états. Code : {r.status_code}")
+            return []
+    except Exception as e:
+        print(f"[HA] Erreur lors de la récupération de tous les états : {e}")
+        return []
+
+def ha_get_etat_complet(entity_id: str) -> dict | None:
+    """Récupère l'état complet d'une entité spécifique."""
+    _update_ha_env()
+    if not ha_active():
+        return None
+    try:
+        url = f"{HA_URL}/api/states/{entity_id}"
+        r = requests.get(url, headers=HA_HEADERS, timeout=5)
+        if r.status_code == 200:
+            return r.json()
+    except Exception as e:
+        print(f"[HA] Erreur ha_get_etat_complet pour {entity_id} : {e}")
+    return None
+
+async def handle_ha_ws_message(data: dict, websocket, connected_clients: set) -> bool:
+    """Gère les messages WebSocket liés à Home Assistant."""
+    msg_type = data.get("type", "")
+
+    if msg_type == "ha_get_states":
+        states = await asyncio.to_thread(ha_get_all_states)
+        await websocket.send(json.dumps({
+            "type": "ha_states",
+            "success": len(states) > 0 or HA_URL != "",
+            "states": states
+        }))
+        return True
+
+    elif msg_type == "ha_call_service":
+        domain = data.get("domain", "")
+        service = data.get("service", "")
+        entity_id = data.get("entity_id", "")
+        service_data = data.get("service_data", None)
+
+        success = await asyncio.to_thread(ha_appeler_service, domain, service, entity_id, service_data)
+
+        updated_state = None
+        if success:
+            updated_state = await asyncio.to_thread(ha_get_etat_complet, entity_id)
+
+        await websocket.send(json.dumps({
+            "type": "ha_service_result",
+            "success": success,
+            "entity_id": entity_id,
+            "state": updated_state
+        }))
+
+        # Diffuser le changement d'état à tous les clients connectés pour synchroniser l'UI
+        if success and updated_state:
+            await _broadcast_ha(connected_clients, {
+                "type": "ha_state_changed",
+                "entity_id": entity_id,
+                "state": updated_state
+            })
+        return True
+
+    return False
+
+async def _broadcast_ha(clients: set, message: dict):
+    if not clients:
+        return
+    msg = json.dumps(message)
+    try:
+        await asyncio.gather(*[c.send(msg) for c in clients], return_exceptions=True)
+    except Exception as e:
+        print(f"[HA-WS] Erreur broadcast : {e}")
+

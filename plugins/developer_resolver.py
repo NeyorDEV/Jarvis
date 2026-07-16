@@ -13,6 +13,10 @@ from core.config import GEMINI_API_KEY, CHOSEN_MODEL
 # Initialisation du client de vision/génération Gemini
 client = genai.Client(api_key=GEMINI_API_KEY)
 
+# Détermination du dossier racine de JARVIS de manière dynamique (compatible toutes installations)
+_dir_courant = os.path.dirname(os.path.abspath(__file__))
+ROOT_DIR = os.path.dirname(_dir_courant) if os.path.basename(_dir_courant) == "plugins" else _dir_courant
+
 def nettoyer_accent(texte):
     """Supprime les accents pour faciliter la comparaison."""
     import unicodedata
@@ -107,7 +111,7 @@ def appliquer_edits(edits):
         target = edit.get("target_code", "")
         replacement = edit.get("replacement_code", "")
         
-        path = os.path.join("n:\\JARVIS", file_path)
+        path = os.path.join(ROOT_DIR, file_path)
         
         # 1. Création de fichier
         if target == "":
@@ -142,15 +146,16 @@ def compiler_et_valider():
     """Valide les modifications par compilation statique TypeScript et vérification Python."""
     # 1. Validation Frontend (TypeScript)
     print("[MUTATOR] Lancement de la validation statique TypeScript...")
-    res_ts = subprocess.run("npx tsc --noEmit", shell=True, cwd="n:\\JARVIS\\frontend", capture_output=True, text=True)
+    res_ts = subprocess.run("npx tsc --noEmit", shell=True, cwd=os.path.join(ROOT_DIR, "frontend"), capture_output=True, text=True)
     if res_ts.returncode != 0:
         return False, f"TypeScript compilation error:\n{res_ts.stderr or res_ts.stdout}"
         
     # 2. Validation Backend (Python)
     print("[MUTATOR] Lancement de la validation des modules Python...")
-    for file in os.listdir("n:\\JARVIS\\plugins"):
+    plugins_dir = os.path.join(ROOT_DIR, "plugins")
+    for file in os.listdir(plugins_dir):
         if file.endswith(".py"):
-            res_py = subprocess.run([sys.executable, "-m", "py_compile", os.path.join("n:\\JARVIS\\plugins", file)], capture_output=True, text=True)
+            res_py = subprocess.run([sys.executable, "-m", "py_compile", os.path.join(plugins_dir, file)], capture_output=True, text=True)
             if res_py.returncode != 0:
                 return False, f"Erreur de syntaxe Python dans {file} :\n{res_py.stderr}"
                 
@@ -159,7 +164,7 @@ def compiler_et_valider():
 def recharger_plugins_python():
     """Recharge dynamiquement à chaud tous les modules du package plugins et charge les nouveaux."""
     # 1. Scanner et importer les nouveaux modules plugins
-    plugins_dir = os.path.join("n:\\JARVIS", "plugins")
+    plugins_dir = os.path.join(ROOT_DIR, "plugins")
     if os.path.exists(plugins_dir):
         for file in os.listdir(plugins_dir):
             if file.endswith(".py") and not file.startswith("__"):
@@ -196,8 +201,8 @@ async def resoudre_developpement(cmd):
     if any(kw in t for kw in mots_cles_rollback):
         print("[MUTATOR] Déclenchement du protocole de rollback Git...")
         # Lancer le reset Git
-        subprocess.run(["git", "reset", "--hard", "HEAD"], cwd="n:\\JARVIS", capture_output=True)
-        subprocess.run(["git", "clean", "-fd"], cwd="n:\\JARVIS", capture_output=True)
+        subprocess.run(["git", "reset", "--hard", "HEAD"], cwd=ROOT_DIR, capture_output=True)
+        subprocess.run(["git", "clean", "-fd"], cwd=ROOT_DIR, capture_output=True)
         
         # Envoyer une carte visuelle au HUD
         if hasattr(builtins, "envoyer_carte_contextuelle"):
@@ -294,13 +299,13 @@ async def resoudre_developpement(cmd):
                 else:
                     err_prev = msg
                     # Annuler les modifications incorrectes avant la prochaine tentative
-                    subprocess.run(["git", "reset", "--hard", "HEAD"], cwd="n:\\JARVIS", capture_output=True)
-                    subprocess.run(["git", "clean", "-fd"], cwd="n:\\JARVIS", capture_output=True)
+                    subprocess.run(["git", "reset", "--hard", "HEAD"], cwd=ROOT_DIR, capture_output=True)
+                    subprocess.run(["git", "clean", "-fd"], cwd=ROOT_DIR, capture_output=True)
                     
             except Exception as ex:
                 err_prev = str(ex)
-                subprocess.run(["git", "reset", "--hard", "HEAD"], cwd="n:\\JARVIS", capture_output=True)
-                subprocess.run(["git", "clean", "-fd"], cwd="n:\\JARVIS", capture_output=True)
+                subprocess.run(["git", "reset", "--hard", "HEAD"], cwd=ROOT_DIR, capture_output=True)
+                subprocess.run(["git", "clean", "-fd"], cwd=ROOT_DIR, capture_output=True)
                 
         # D. Résultat final
         if success:
@@ -321,8 +326,8 @@ async def resoudre_developpement(cmd):
             return f"Les modifications ont été écrites, compilées avec succès, et injectées à chaud dans mes processeurs, mylane. La nouvelle fonctionnalité est active.{test_msg}"
         else:
             # Restauration finale propre en cas d'échec de toutes les tentatives (remise au dernier commit stable)
-            subprocess.run(["git", "reset", "--hard", "HEAD"], cwd="n:\\JARVIS", capture_output=True)
-            subprocess.run(["git", "clean", "-fd"], cwd="n:\\JARVIS", capture_output=True)
+            subprocess.run(["git", "reset", "--hard", "HEAD"], cwd=ROOT_DIR, capture_output=True)
+            subprocess.run(["git", "clean", "-fd"], cwd=ROOT_DIR, capture_output=True)
             
             if hasattr(builtins, "envoyer_carte_contextuelle"):
                 await builtins.envoyer_carte_contextuelle(

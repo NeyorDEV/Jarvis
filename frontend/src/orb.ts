@@ -1,20 +1,71 @@
 /**
- * Voice Assistant — Classical Multi-mode particle visualization.
+ * Voice Assistant ÔÇö Classical Multi-mode particle visualization.
  * Saved as a fallback backup.
  */
 
 import * as THREE from "three";
 
-export type OrbState = "idle" | "listening" | "thinking" | "speaking";
+export type OrbState = "idle" | "listening" | "thinking" | "speaking" | "searching";
 
 export interface Orb {
   setState(s: OrbState): void;
   setVolume(v: number): void;
   setAnalyser(a: AnalyserNode | null): void;
   triggerDemo(): void;
+  writeWord(w: string): void;
   setQuality(q: "low" | "high"): void;
   setTheme(t: string): void;
   destroy(): void;
+}
+
+function generateTextPoints(word: string, targetCount: number): THREE.Vector3[] {
+  const canvas2d = document.createElement("canvas");
+  canvas2d.width = 1024;
+  canvas2d.height = 512;
+  const ctx = canvas2d.getContext("2d");
+  if (!ctx) return [];
+  
+  // Taille dynamique pour s'adapter parfaitement à la longueur
+  const fontSize = Math.max(85, Math.min(145, Math.floor(1024 / (word.length * 0.65))));
+  
+  // Utilisation d'Arial sans-serif gras pour un contour ultra-net sans empattement
+  ctx.fillStyle = "#ffffff";
+  ctx.font = `bold ${fontSize}px Arial, Helvetica, sans-serif`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(word.toUpperCase(), 512, 256);
+  
+  const imgData = ctx.getImageData(0, 0, 1024, 512);
+  const data = imgData.data;
+  
+  // Collecter les pixels avec un seuil plus sélectif pour supprimer le flou des bords
+  const candidates: {x: number, y: number}[] = [];
+  for (let y = 0; y < 512; y += 2) {
+    for (let x = 0; x < 1024; x += 2) {
+      const idx = (y * 1024 + x) * 4;
+      if (data[idx + 3] > 60) {
+        candidates.push({ x, y });
+      }
+    }
+  }
+  
+  const points: THREE.Vector3[] = [];
+  if (candidates.length === 0) return [];
+  
+  // Tirage des points avec jitter très fin pour un contour parfaitement défini
+  for (let i = 0; i < targetCount; i++) {
+    const cand = candidates[Math.floor(Math.random() * candidates.length)];
+    
+    // Dispersion minime (netteté maximale)
+    const jitterX = (Math.random() - 0.5) * 1.5;
+    const jitterY = (Math.random() - 0.5) * 1.5;
+    
+    const px = (((cand.x + jitterX) - 512) / 1024) * 60;
+    const py = -(((cand.y + jitterY) - 256) / 512) * 30;
+    const pz = (Math.random() - 0.5) * 0.6; // Profondeur très faible pour éviter le flou de perspective
+    points.push(new THREE.Vector3(px, py, pz));
+  }
+  return points;
 }
 
 export function createOrb(canvas: HTMLCanvasElement): Orb {
@@ -23,6 +74,12 @@ export function createOrb(canvas: HTMLCanvasElement): Orb {
 
   const mouse = new THREE.Vector2(-9999, -9999);
   const raycaster = new THREE.Raycaster();
+
+  // Variables pour le morphing de texte 3D (écrit le mot)
+  let textMorphActive = false;
+  let textMorphStartTime = 0;
+  let textMorphDuration = 7.0; // Durée par défaut de 7 secondes
+  let textTargetPositions: THREE.Vector3[] = [];
 
   function onPointerMove(e: PointerEvent) {
     mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
@@ -52,7 +109,7 @@ export function createOrb(canvas: HTMLCanvasElement): Orb {
   );
   camera.position.z = 75;
 
-  // ── Particles ──────────────────────────────────────────────────────────────
+  // ÔöÇÔöÇ Particles ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
   const N_PINK = Math.floor(N * 0.03); // 60 particles
   const N_CYAN = N - N_PINK; // 1940 particles
 
@@ -106,7 +163,7 @@ export function createOrb(canvas: HTMLCanvasElement): Orb {
   const pinkPoints = new THREE.Points(pinkGeo, pinkMat);
   scene.add(pinkPoints);
 
-  // ── Connection lines ────────────────────────────────────────────────────────
+  // ÔöÇÔöÇ Connection lines ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
   const MAX_LINES = 8000;
   const linePos = new Float32Array(MAX_LINES * 6);
   const lineGeo = new THREE.BufferGeometry();
@@ -124,7 +181,7 @@ export function createOrb(canvas: HTMLCanvasElement): Orb {
   const lines = new THREE.LineSegments(lineGeo, lineMat);
   scene.add(lines);
 
-  // ── Electrons ──────────────────────────────────────────────────────────────
+  // ÔöÇÔöÇ Electrons ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
   const MAX_ELECTRONS = 200;
   const electronGeo = new THREE.BufferGeometry();
   const electronPos = new Float32Array(MAX_ELECTRONS * 3);
@@ -147,6 +204,366 @@ export function createOrb(canvas: HTMLCanvasElement): Orb {
   const electronPoints = new THREE.Points(electronGeo, electronMat);
   scene.add(electronPoints);
 
+  // ── Rings Shader (mode Anneaux) ───────────────────────────────────────────
+  const ringsGeo = new THREE.PlaneGeometry(2, 2);
+  const ringsUniforms = {
+    iTime:           { value: 0 },
+    iResolution:     { value: new THREE.Vector3(window.innerWidth, window.innerHeight, window.innerWidth / window.innerHeight) },
+    hue:             { value: 0 },
+    hover:           { value: 0 },
+    rot:             { value: 0 },
+    hoverIntensity:  { value: 0.2 },
+    backgroundColor: { value: new THREE.Vector3(0, 0, 0) },
+    audioIntensity:  { value: 0 }
+  };
+
+  const ringsVert = `
+    varying vec2 vUv;
+    void main() {
+      vUv = uv;
+      gl_Position = vec4(position.xyz, 1.0);
+    }
+  `;
+
+  const ringsFrag = `
+    precision highp float;
+    uniform float iTime;
+    uniform vec3 iResolution;
+    uniform float hue;
+    uniform float hover;
+    uniform float rot;
+    uniform float hoverIntensity;
+    uniform vec3 backgroundColor;
+    uniform float audioIntensity;
+    varying vec2 vUv;
+
+    vec3 rgb2yiq(vec3 c) {
+      float y = dot(c, vec3(0.299, 0.587, 0.114));
+      float i = dot(c, vec3(0.596, -0.274, -0.322));
+      float q = dot(c, vec3(0.211, -0.523, 0.312));
+      return vec3(y, i, q);
+    }
+    vec3 yiq2rgb(vec3 c) {
+      float r = c.x + 0.956 * c.y + 0.621 * c.z;
+      float g = c.x - 0.272 * c.y - 0.647 * c.z;
+      float b = c.x - 1.106 * c.y + 1.703 * c.z;
+      return vec3(r, g, b);
+    }
+    vec3 adjustHue(vec3 color, float hueDeg) {
+      float hueRad = hueDeg * 3.14159265 / 180.0;
+      vec3 yiq = rgb2yiq(color);
+      float cosA = cos(hueRad);
+      float sinA = sin(hueRad);
+      float i = yiq.y * cosA - yiq.z * sinA;
+      float q = yiq.y * sinA + yiq.z * cosA;
+      yiq.y = i; yiq.z = q;
+      return yiq2rgb(yiq);
+    }
+    vec3 hash33(vec3 p3) {
+      p3 = fract(p3 * vec3(0.1031, 0.11369, 0.13787));
+      p3 += dot(p3, p3.yxz + 19.19);
+      return -1.0 + 2.0 * fract(vec3(p3.x+p3.y, p3.x+p3.z, p3.y+p3.z) * p3.zyx);
+    }
+    float snoise3(vec3 p) {
+      const float K1 = 0.333333333;
+      const float K2 = 0.166666667;
+      vec3 i = floor(p + (p.x+p.y+p.z)*K1);
+      vec3 d0 = p - (i - (i.x+i.y+i.z)*K2);
+      vec3 e = step(vec3(0.0), d0 - d0.yzx);
+      vec3 i1 = e*(1.0-e.zxy);
+      vec3 i2 = 1.0-e.zxy*(1.0-e);
+      vec3 d1 = d0-(i1-K2); vec3 d2=d0-(i2-K1); vec3 d3=d0-0.5;
+      vec4 h = max(0.6-vec4(dot(d0,d0),dot(d1,d1),dot(d2,d2),dot(d3,d3)),0.0);
+      vec4 n = h*h*h*h*vec4(dot(d0,hash33(i)),dot(d1,hash33(i+i1)),dot(d2,hash33(i+i2)),dot(d3,hash33(i+1.0)));
+      return dot(vec4(31.316),n);
+    }
+    vec4 extractAlpha(vec3 colorIn) {
+      float a = max(max(colorIn.r,colorIn.g),colorIn.b);
+      return vec4(colorIn.rgb/(a+1e-5),a);
+    }
+    const vec3 baseColor1 = vec3(0.611765,0.262745,0.996078);
+    const vec3 baseColor2 = vec3(0.298039,0.760784,0.913725);
+    const vec3 baseColor3 = vec3(0.062745,0.078431,0.600000);
+    const float noiseScale = 0.28;
+    float light1(float intensity,float attenuation,float dist){return intensity/(1.0+dist*attenuation);}
+    float light2(float intensity,float attenuation,float dist){return intensity/(1.0+dist*dist*attenuation);}
+    vec4 draw(vec2 uv){
+      vec3 color1=adjustHue(baseColor1,hue);
+      vec3 color2=adjustHue(baseColor2,hue);
+      vec3 color3=adjustHue(baseColor3,hue);
+      float ang=atan(uv.y,uv.x); float len=length(uv);
+      float invLen=len>0.0?1.0/len:0.0;
+      float bgLuminance=dot(backgroundColor,vec3(0.299,0.587,0.114));
+      float n0=snoise3(vec3(uv*noiseScale,iTime*1.3))*0.5+0.5;
+      float innerRadius=0.55+audioIntensity*0.004;
+      float wobbleAmp=0.008+audioIntensity*0.04;
+      float minRadius=innerRadius+(1.0-innerRadius)*(0.5-wobbleAmp*0.5);
+      float maxRadius=innerRadius+(1.0-innerRadius)*(0.5+wobbleAmp*0.5);
+      float r0=mix(minRadius,maxRadius,n0);
+      float d0=distance(uv,(r0*invLen)*uv);
+      float v0=light1(1.0,10.0,d0);
+      v0*=smoothstep(r0*1.05,r0,len);
+      float innerFade=smoothstep(r0*0.8,r0*0.95,len);
+      v0*=mix(innerFade,1.0,bgLuminance*0.7);
+      float cl=cos(ang+iTime*2.0)*0.5+0.5;
+      float a=iTime*-1.0;
+      vec2 pos=vec2(cos(a),sin(a))*r0;
+      float d=distance(uv,pos);
+      float v1=light2(1.5,5.0,d); v1*=light1(1.0,50.0,d0);
+      float v2=smoothstep(1.0,mix(innerRadius,1.0,n0*0.5),len);
+      float v3=smoothstep(innerRadius,mix(innerRadius,1.0,0.5),len);
+      vec3 colBase=mix(color1,color2,cl);
+      float fadeAmount=mix(1.0,0.1,bgLuminance);
+      vec3 darkCol=mix(color3,colBase,v0); darkCol=(darkCol+v1)*v2*v3; darkCol=clamp(darkCol,0.0,1.0);
+      vec3 lightCol=(colBase+v1)*mix(1.0,v2*v3,fadeAmount); lightCol=mix(backgroundColor,lightCol,v0); lightCol=clamp(lightCol,0.0,1.0);
+      return extractAlpha(mix(darkCol,lightCol,bgLuminance));
+    }
+    vec4 mainImage(vec2 fragCoord){
+      vec2 center=iResolution.xy*0.5; float size=min(iResolution.x,iResolution.y);
+      vec2 uv=(fragCoord-center)/size*3.6;
+      float s=sin(rot); float c=cos(rot);
+      uv=vec2(c*uv.x-s*uv.y,s*uv.x+c*uv.y);
+      // No hover distortion on rings coordinates
+      return draw(uv);
+    }
+    void main(){
+      vec2 fragCoord=vUv*iResolution.xy;
+      vec4 col=mainImage(fragCoord);
+      gl_FragColor=vec4(col.rgb*col.a,col.a);
+    }
+  `;
+
+  const ringsMat = new THREE.ShaderMaterial({
+    vertexShader: ringsVert,
+    fragmentShader: ringsFrag,
+    uniforms: ringsUniforms,
+    transparent: true,
+    depthWrite: false,
+    depthTest: false
+  });
+  const ringsMesh = new THREE.Mesh(ringsGeo, ringsMat);
+  ringsMesh.frustumCulled = false;
+  ringsMesh.visible = false;
+  scene.add(ringsMesh);
+
+  // ── Gold Shader (mode Or — Explosion Stellaire) ────────────────────────────
+  const goldGeo = new THREE.PlaneGeometry(2, 2);
+  const goldUniforms = {
+    iTime:        { value: 0 },
+    iResolution:  { value: new THREE.Vector3(window.innerWidth, window.innerHeight, window.innerWidth / window.innerHeight) },
+    hover:        { value: 0 },
+    rot:          { value: 0 },
+    audioIntensity: { value: 0 }
+  };
+
+  const goldVert = `
+    varying vec2 vUv;
+    void main() { vUv = uv; gl_Position = vec4(position.xyz, 1.0); }
+  `;
+
+  const goldFrag = `
+    precision highp float;
+    uniform float iTime;
+    uniform vec3  iResolution;
+    uniform float hover;
+    uniform float rot;
+    uniform float audioIntensity;
+    varying vec2 vUv;
+
+    const float PI  = 3.14159265358979;
+    const float TAU = 6.28318530718;
+
+    vec2 rot2(vec2 p, float a) {
+      float c = cos(a), s = sin(a);
+      return vec2(c*p.x - s*p.y, s*p.x + c*p.y);
+    }
+
+    // ── SDF ellipse approximatif ultra-robuste (Pas de division par zéro) ──
+    float sdEllipseApprox(vec2 p, float a, float b) {
+      float k0 = length(p / vec2(a, b));
+      float k1 = length(p / vec2(a * a, b * b));
+      return k0 * (k0 - 1.0) / max(k1, 1e-6);
+    }
+
+    // ── Tube néon sur ellipse (cœur net + glow extérieur) ────────────────
+    float neonRing(vec2 p, float a, float b, float phi,
+                   float coreW, float glowW) {
+      vec2 pr  = rot2(p, -phi);
+      float d  = abs(sdEllipseApprox(pr, a, b));
+      float core = exp(-d * d / (coreW * coreW));
+      float glow = exp(-d * d / (glowW * glowW)) * 0.45;
+      return core + glow;
+    }
+
+    // ── Position noeud sur ellipse ────────────────────────────────────────
+    vec2 ellipsePoint(float t, float a, float b, float phi) {
+      return rot2(vec2(a * cos(t), b * sin(t)), phi);
+    }
+
+    // ── Noeud lumineux (point + halo doux + croix lens flare) ────────────
+    float lensNode(vec2 uv, vec2 pos, float brightness) {
+      float d    = length(uv - pos);
+      float core = exp(-d * d * 1800.0) * brightness;
+      float halo = exp(-d * d * 180.0)  * brightness * 0.4;
+      // Lens flare subtil : 4 branches fines
+      vec2  dp   = uv - pos;
+      float flare = exp(-abs(dp.x) * 60.0) * exp(-dp.y * dp.y * 400.0) * brightness * 0.25
+                  + exp(-abs(dp.y) * 60.0) * exp(-dp.x * dp.x * 400.0) * brightness * 0.20;
+      return core + halo + flare;
+    }
+
+    void main() {
+      vec2 fc     = vUv * iResolution.xy;
+      vec2 center = iResolution.xy * 0.5;
+      float sz    = min(iResolution.x, iResolution.y);
+      vec2 uv     = (fc - center) / sz * 2.0;
+
+      float sr = sin(rot), cr = cos(rot);
+      uv = vec2(cr*uv.x - sr*uv.y, sr*uv.x + cr*uv.y);
+
+
+      float r     = length(uv);
+      float audio = audioIntensity;
+      float t     = iTime;
+      float ar    = audio * 0.022;
+
+      // Palette
+      vec3 cCore  = vec3(1.00, 0.99, 0.90);
+      vec3 cGold  = vec3(1.00, 0.82, 0.14);
+      vec3 cAmber = vec3(0.85, 0.52, 0.05);
+      vec3 cDeep  = vec3(0.40, 0.22, 0.02);
+
+      vec3  col   = vec3(0.0);
+      float alpha = 0.0;
+
+      // Épaisseurs neon : coreW = demi-largeur du trait net, glowW = halo
+      float cW = 0.0045;  // trait net ~4px
+      float gW = 0.018;   // halo doux
+
+      // ── Anneau équatorial (quasi-cercle, légère ondulation) ──────────────
+      {
+        float phi = t * 0.055;
+        float tlt = 0.10 + 0.06 * sin(t * 0.16);
+        float a = 0.70 + ar, b = (0.70 + ar) * (1.0 - tlt);
+        float v = neonRing(uv, a, b, phi, cW, gW);
+        col  += mix(cDeep, cAmber, smoothstep(0.0, 1.0, v)) * v * 0.95;
+        alpha = max(alpha, min(1.0, v) * 0.80);
+      }
+
+      // ── Méridien 1 (incliné ~65°, rotation lente) ───────────────────────
+      {
+        float phi = t * -0.085 + 0.0;
+        float tlt = 0.65 + 0.08 * sin(t * 0.12 + 1.1);
+        float a = 0.66 + ar, b = (0.66 + ar) * (1.0 - tlt);
+        float v = neonRing(uv, a, b, phi, cW, gW);
+        col  += mix(cAmber, cGold, smoothstep(0.0, 1.0, v)) * v * 1.1;
+        alpha = max(alpha, min(1.0, v) * 0.88);
+      }
+
+      // ── Méridien 2 (perpendiculaire, contra-rotation) ───────────────────
+      {
+        float phi = t * 0.095 + PI * 0.5;
+        float tlt = 0.60 + 0.09 * sin(t * 0.14 + 2.4);
+        float a = 0.63 + ar, b = (0.63 + ar) * (1.0 - tlt);
+        float v = neonRing(uv, a, b, phi, cW, gW);
+        col  += mix(cAmber, cGold, smoothstep(0.0, 1.0, v)) * v * 1.1;
+        alpha = max(alpha, min(1.0, v) * 0.88);
+      }
+
+      // ── Écliptique (45°, plus brillant, intermédiaire) ──────────────────
+      {
+        float phi = t * -0.13 + PI * 0.25;
+        float tlt = 0.42 + 0.07 * sin(t * 0.18 + 0.6);
+        float a = 0.48 + ar * 0.8, b = (0.48 + ar * 0.8) * (1.0 - tlt);
+        float v = neonRing(uv, a, b, phi, cW * 1.1, gW * 1.2);
+        col  += mix(cGold, cCore, smoothstep(0.2, 1.2, v)) * v * 1.4;
+        alpha = max(alpha, min(1.0, v) * 0.94);
+      }
+
+      // ── Anneau intérieur (petit, presque circulaire) ─────────────────────
+      {
+        float phi = t * 0.21;
+        float tlt = 0.28 + 0.09 * sin(t * 0.21 + 3.0);
+        float a = 0.26 + ar * 0.5, b = (0.26 + ar * 0.5) * (1.0 - tlt);
+        float v = neonRing(uv, a, b, phi, cW * 1.2, gW);
+        col  += mix(cGold, cCore, smoothstep(0.3, 1.3, v)) * v * 1.5;
+        alpha = max(alpha, min(1.0, v) * 1.0);
+      }
+
+      // ── Noeuds avec lens flare ────────────────────────────────────────────
+
+      // 2 noeuds sur écliptique (opposition)
+      for (int i = 0; i < 2; i++) {
+        float tlt = 0.42 + 0.07 * sin(t * 0.18 + 0.6);
+        float phi = t * -0.13 + PI * 0.25;
+        float a = 0.48 + ar * 0.8, b = (0.48 + ar * 0.8) * (1.0 - tlt);
+        float sa  = t * 0.48 + float(i) * PI;
+        vec2  pos = ellipsePoint(sa, a, b, phi);
+        float nv  = lensNode(uv, pos, 1.0 + audio * 0.5);
+        col  += cCore * nv;
+        alpha = max(alpha, min(1.0, nv));
+      }
+
+      // 1 noeud sur méridien 1
+      {
+        float tlt = 0.65 + 0.08 * sin(t * 0.12 + 1.1);
+        float phi = t * -0.085;
+        float a = 0.66 + ar, b = (0.66 + ar) * (1.0 - tlt);
+        float sa  = t * 0.36;
+        vec2  pos = ellipsePoint(sa, a, b, phi);
+        float nv  = lensNode(uv, pos, 0.85);
+        col  += cGold * nv;
+        alpha = max(alpha, min(1.0, nv) * 0.95);
+      }
+
+      // 1 noeud sur méridien 2
+      {
+        float tlt = 0.60 + 0.09 * sin(t * 0.14 + 2.4);
+        float phi = t * 0.095 + PI * 0.5;
+        float a = 0.63 + ar, b = (0.63 + ar) * (1.0 - tlt);
+        float sa  = -t * 0.42 + PI * 0.7;
+        vec2  pos = ellipsePoint(sa, a, b, phi);
+        float nv  = lensNode(uv, pos, 0.85);
+        col  += cGold * nv;
+        alpha = max(alpha, min(1.0, nv) * 0.95);
+      }
+
+      // ── Noyau central (petit, net, pulse douce) ──────────────────────────
+      float pulse = 1.0 + audio * 0.38 + sin(t * 5.0) * 0.04;
+      float core  = exp(-r * r * 170.0 / pulse) * pulse * 1.3;
+      float glow  = exp(-r * r * 20.0) * 0.14;
+      col  += mix(cGold, cCore, smoothstep(0.0, 0.06, r)) * (core + glow);
+      alpha = max(alpha, min(1.0, core + glow) * 0.98);
+
+      // ── Fondu propre ──────────────────────────────────────────────────────
+      alpha *= smoothstep(0.95, 0.22, r);
+
+      gl_FragColor = vec4(col * alpha, alpha);
+    }
+  `;
+
+  const goldMat = new THREE.ShaderMaterial({
+    vertexShader: goldVert,
+    fragmentShader: goldFrag,
+    uniforms: goldUniforms,
+    transparent: true,
+    depthWrite: false,
+    depthTest: false
+  });
+  const goldMesh = new THREE.Mesh(goldGeo, goldMat);
+  goldMesh.frustumCulled = false;
+  goldMesh.visible = false;
+  scene.add(goldMesh);
+
+  let goldTime = 0;
+  let goldRot  = 0;
+  // ──────────────────────────────────────────────────────────────────────────
+
+  let ringsTime = 0;
+  let currentRingsSpeed = 0.12;
+  let currentRot = 0;
+  // ─────────────────────────────────────────────────────────────────────────
+
   interface Electron {
     sx: number; sy: number; sz: number;
     ex: number; ey: number; ez: number;
@@ -163,7 +580,7 @@ export function createOrb(canvas: HTMLCanvasElement): Orb {
     x2: number; y2: number; z2: number;
   }[] = [];
 
-  // ── Base state vars ────────────────────────────────────────────────────────
+  // ÔöÇÔöÇ Base state vars ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
   let state: OrbState = "idle";
   let targetRadius = 25, currentRadius = 25;
   let targetSpeed = 0.3, currentSpeed = 0.3;
@@ -177,7 +594,7 @@ export function createOrb(canvas: HTMLCanvasElement): Orb {
   let lastState: OrbState = "idle";
   let cloudZ = 0, cloudZVel = 0;
 
-  // ── Speaking-specific vars ─────────────────────────────────────────────────
+  // ÔöÇÔöÇ Speaking-specific vars ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
   let vortexStrength = 0, targetVortex = 0;
   let breathAmp = 0, targetBreathAmp = 0;
   let shockwave = 0;
@@ -187,7 +604,7 @@ export function createOrb(canvas: HTMLCanvasElement): Orb {
   // Delta time tracking
   let prevT = 0;
 
-  // ── Audio ──────────────────────────────────────────────────────────────────
+  // ÔöÇÔöÇ Audio ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
   let analyser: AnalyserNode | null = null;
   let externalVolume = 0;
   let freqData = new Uint8Array(64);
@@ -195,7 +612,7 @@ export function createOrb(canvas: HTMLCanvasElement): Orb {
 
   const clock = new THREE.Clock();
 
-  // ── Colour helpers ─────────────────────────────────────────────────────────
+  // ÔöÇÔöÇ Colour helpers ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
   const THEME_COLORS: Record<string, {
     primary: number;
     secondary: number;
@@ -237,6 +654,13 @@ export function createOrb(canvas: HTMLCanvasElement): Orb {
       think: 0xffe875,
       speak: 0xffde33,
       bright: 0xfff9be,
+    },
+    anneaux: {
+      primary: 0x9b42fc,   // violet electrique
+      secondary: 0x4cc2e9, // cyan complementaire
+      think: 0x4cc2e9,
+      speak: 0x9b42fc,
+      bright: 0xe3edfc,
     }
   };
 
@@ -251,13 +675,13 @@ export function createOrb(canvas: HTMLCanvasElement): Orb {
   const _tmpColor = new THREE.Color();
   const _rainbowCol = new THREE.Color();
 
-  // ── Demo state ─────────────────────────────────────────────────────────────
+  // ÔöÇÔöÇ Demo state ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
   let demoActive = false;
   let demoStartTime = 0;
   let demoBurstNextAt = 0;
   const DEMO_DURATION = 10.0;
 
-  // ── Animate ────────────────────────────────────────────────────────────────
+  // ÔöÇÔöÇ Animate ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
   function animate() {
     if (destroyed) return;
     requestAnimationFrame(animate);
@@ -270,14 +694,23 @@ export function createOrb(canvas: HTMLCanvasElement): Orb {
       demoActive = false;
     }
 
+    if (textMorphActive && t - textMorphStartTime >= textMorphDuration) {
+      textMorphActive = false;
+      textTargetPositions = [];
+    }
+
     const demoElapsed = demoActive ? (t - demoStartTime) : -1;
     const demoBigBang = demoActive && demoElapsed < 2.0;
     const demoVortex = demoActive && demoElapsed >= 2.0 && demoElapsed < 5.0;
     const demoPulse = demoActive && demoElapsed >= 5.0 && demoElapsed < 7.5;
     const demoCollapse = demoActive && demoElapsed >= 7.5;
 
-    // ── Per-state targets ───────────────────────────────────────────────────
-    if (demoActive) {
+    // ── Per-state targets ───────────────────────────────────────────────────────
+    if (textMorphActive) {
+      targetRadius = 0.0; targetSpeed = 0.08; targetBright = 1.0; targetSize = 0.5;
+      targetLineAmount = 0.12; targetElectronRate = 0;
+      targetVortex = 0; targetBreathAmp = 0;
+    } else if (demoActive) {
       if (demoBigBang) {
         targetRadius = 22.5; targetSpeed = 1.0; targetBright = 1.0; targetSize = 0.75;
         targetLineAmount = 1.0; targetElectronRate = 0.04;
@@ -333,16 +766,23 @@ export function createOrb(canvas: HTMLCanvasElement): Orb {
     vortexStrength += (targetVortex - vortexStrength) * (demoActive ? 0.08 : 0.025);
     breathAmp += (targetBreathAmp - breathAmp) * (demoActive ? 0.08 : 0.025);
 
-    if (state !== lastState) { transitionEnergy = 1.0; lastState = state; }
-    transitionEnergy *= 0.985;
-    if (transitionEnergy > 0.05) {
-      spinX += transitionEnergy * 0.012 * Math.sin(t * 1.7);
-      spinY += transitionEnergy * 0.015;
-      spinZ += transitionEnergy * 0.008 * Math.cos(t * 1.3);
-    }
-    if (demoActive) {
-      spinY += 0.008 * (demoVortex ? 3.0 : 1.0);
-      spinX += Math.sin(t * 0.7) * 0.003;
+    if (textMorphActive) {
+      // Interpolation rapide vers 0 pour figer le mot face à la caméra de manière parfaitement lisible
+      spinX += (0 - spinX) * 0.12;
+      spinY += (0 - spinY) * 0.12;
+      spinZ += (0 - spinZ) * 0.12;
+    } else {
+      if (state !== lastState) { transitionEnergy = 1.0; lastState = state; }
+      transitionEnergy *= 0.985;
+      if (transitionEnergy > 0.05) {
+        spinX += transitionEnergy * 0.012 * Math.sin(t * 1.7);
+        spinY += transitionEnergy * 0.015;
+        spinZ += transitionEnergy * 0.008 * Math.cos(t * 1.3);
+      }
+      if (demoActive) {
+        spinY += 0.008 * (demoVortex ? 3.0 : 1.0);
+        spinX += Math.sin(t * 0.7) * 0.003;
+      }
     }
 
     bass = 0; mid = 0; treble = 0;
@@ -395,12 +835,21 @@ export function createOrb(canvas: HTMLCanvasElement): Orb {
     cloudZVel *= 0.94;
     cloudZ += cloudZVel;
 
-    points.rotation.x = spinX; points.rotation.y = spinY; points.rotation.z = spinZ;
-    points.position.z = cloudZ;
-    pinkPoints.rotation.x = spinX; pinkPoints.rotation.y = spinY; pinkPoints.rotation.z = spinZ;
-    pinkPoints.position.z = cloudZ;
-    lines.rotation.x = spinX; lines.rotation.y = spinY; lines.rotation.z = spinZ;
-    lines.position.z = cloudZ;
+    if (textMorphActive) {
+      points.rotation.set(0, 0, 0);
+      points.position.z = 0;
+      pinkPoints.rotation.set(0, 0, 0);
+      pinkPoints.position.z = 0;
+      lines.rotation.set(0, 0, 0);
+      lines.position.z = 0;
+    } else {
+      points.rotation.x = spinX; points.rotation.y = spinY; points.rotation.z = spinZ;
+      points.position.z = cloudZ;
+      pinkPoints.rotation.x = spinX; pinkPoints.rotation.y = spinY; pinkPoints.rotation.z = spinZ;
+      pinkPoints.position.z = cloudZ;
+      lines.rotation.x = spinX; lines.rotation.y = spinY; lines.rotation.z = spinZ;
+      lines.position.z = cloudZ;
+    }
 
     const p = geo.getAttribute("position") as THREE.BufferAttribute;
     const pinkP = pinkGeo.getAttribute("position") as THREE.BufferAttribute;
@@ -424,7 +873,7 @@ export function createOrb(canvas: HTMLCanvasElement): Orb {
       const x = a[i3], y = a[i3 + 1], z = a[i3 + 2];
       const px = phase[i];
 
-      // ── Cursor repulsion (Piste 2) ──
+      // ÔöÇÔöÇ Cursor repulsion (Piste 2) ÔöÇÔöÇ
       if (localRayDir && localRayOrig) {
         const ox = x - localRayOrig.x;
         const oy = y - localRayOrig.y;
@@ -447,12 +896,14 @@ export function createOrb(canvas: HTMLCanvasElement): Orb {
         }
       }
 
-      vel[i3] += Math.sin(t * 0.05 + px) * 0.001 * currentSpeed;
-      vel[i3 + 1] += Math.cos(t * 0.06 + px * 1.3) * 0.001 * currentSpeed;
-      vel[i3 + 2] += Math.sin(t * 0.055 + px * 0.7) * 0.001 * currentSpeed;
-      vel[i3] += Math.sin(t * 0.02 + px * 2.1 + y * 0.1) * 0.0008 * currentSpeed;
-      vel[i3 + 1] += Math.cos(t * 0.025 + px * 1.7 + z * 0.1) * 0.0008 * currentSpeed;
-      vel[i3 + 2] += Math.sin(t * 0.022 + px * 0.9 + x * 0.1) * 0.0008 * currentSpeed;
+      if (!textMorphActive) {
+        vel[i3] += Math.sin(t * 0.05 + px) * 0.001 * currentSpeed;
+        vel[i3 + 1] += Math.cos(t * 0.06 + px * 1.3) * 0.001 * currentSpeed;
+        vel[i3 + 2] += Math.sin(t * 0.055 + px * 0.7) * 0.001 * currentSpeed;
+        vel[i3] += Math.sin(t * 0.02 + px * 2.1 + y * 0.1) * 0.0008 * currentSpeed;
+        vel[i3 + 1] += Math.cos(t * 0.025 + px * 1.7 + z * 0.1) * 0.0008 * currentSpeed;
+        vel[i3 + 2] += Math.sin(t * 0.022 + px * 0.9 + x * 0.1) * 0.0008 * currentSpeed;
+      }
 
       const dist = Math.sqrt(x * x + y * y + z * z) || 0.01;
 
@@ -460,28 +911,47 @@ export function createOrb(canvas: HTMLCanvasElement): Orb {
         ? currentRadius * (1.0 + Math.sin(t * 3.5 + px * 0.2) * 0.15 * breathAmp)
         : currentRadius;
 
-      const pullBase = demoCollapse
-        ? Math.max(0, dist - radiusTarget) * 0.015 + 0.002
-        : Math.max(0, dist - radiusTarget) * 0.002 + 0.0003;
+      // Annuler l'attraction vers la sphère si on dessine le texte
+      let pullBase = 0.0;
+      if (!textMorphActive) {
+        pullBase = demoCollapse
+          ? Math.max(0, dist - radiusTarget) * 0.015 + 0.002
+          : Math.max(0, dist - radiusTarget) * 0.002 + 0.0003;
+      }
       vel[i3] -= (x / dist) * pullBase;
       vel[i3 + 1] -= (y / dist) * pullBase;
       vel[i3 + 2] -= (z / dist) * pullBase;
 
-      if (bass > 0.05) {
+      // Force d'attraction vers le mot (sans frémissement pour être 100% stable et net)
+      if (textMorphActive && textTargetPositions.length > 0) {
+        const target = textTargetPositions[i % textTargetPositions.length];
+
+        // Attraction rapide et directe vers les coordonnées vectorielles nettes
+        vel[i3] += (target.x - x) * 0.14;
+        vel[i3 + 1] += (target.y - y) * 0.14;
+        vel[i3 + 2] += (target.z - z) * 0.14;
+
+        // Amortissement fort pour figer immédiatement le mouvement
+        vel[i3] *= 0.70;
+        vel[i3 + 1] *= 0.70;
+        vel[i3 + 2] *= 0.70;
+      }
+
+      if (bass > 0.05 && !textMorphActive) {
         const bf = (speaking || demoActive) ? bass * 0.025 : bass * 0.015;
         vel[i3] += (x / dist) * bf;
         vel[i3 + 1] += (y / dist) * bf;
         vel[i3 + 2] += (z / dist) * bf;
       }
 
-      if (mid > 0.1) {
+      if (mid > 0.1 && !textMorphActive) {
         const pulse = Math.sin(t * 8 + px);
         const mf = (speaking || demoActive) ? mid * 0.018 : mid * 0.01;
         vel[i3] += (x / dist) * mf * pulse;
         vel[i3 + 1] += (y / dist) * mf * pulse;
       }
 
-      if (speaking) {
+      if (speaking && !textMorphActive) {
         if (vortexStrength > 0.01) {
           const wave = Math.sin(dist * 0.8 - t * 12.0) * vortexStrength * 0.0035;
           vel[i3] += (x / dist) * wave;
@@ -647,12 +1117,28 @@ export function createOrb(canvas: HTMLCanvasElement): Orb {
     electronGeo.setDrawRange(0, aliveCount);
     ep.needsUpdate = true;
 
-    electronPoints.rotation.x = spinX; electronPoints.rotation.y = spinY; electronPoints.rotation.z = spinZ;
-    electronPoints.position.z = cloudZ;
+    if (textMorphActive) {
+      electronPoints.rotation.set(0, 0, 0);
+      electronPoints.position.z = 0;
+    } else {
+      electronPoints.rotation.x = spinX; electronPoints.rotation.y = spinY; electronPoints.rotation.z = spinZ;
+      electronPoints.position.z = cloudZ;
+    }
     electronMat.size = demoActive ? 1.4 + shockwave * 1.2 : speaking ? 1.0 + shockwave * 0.8 : 0.8;
     electronMat.opacity = demoActive ? 1.0 : speaking ? 1.0 + shockwave * 0.5 : 1.0;
 
-    if (demoActive) {
+    if (textMorphActive) {
+      mat.opacity = 0.72;
+      mat.size = 0.35;
+      mat.color.lerp(COL_BASE, 0.12);
+      lineMat.opacity = 0.0; // Masque complètement les lignes parasites de l'orbe pendant le texte
+      electronMat.opacity = 0.0;
+
+      pinkMat.opacity = 0.82;
+      pinkMat.size = 0.38;
+      pinkMat.color.setHex(currentSecondaryHex);
+
+    } else if (demoActive) {
       const hue = ((t - demoStartTime) * 0.2) % 1.0;
       _rainbowCol.setHSL(hue, 1.0, 0.6);
 
@@ -708,18 +1194,65 @@ export function createOrb(canvas: HTMLCanvasElement): Orb {
       pinkMat.color.setHex(currentSecondaryHex);
     }
 
-    if (demoActive) {
+    if (textMorphActive) {
+      camera.position.set(0, 0, 75);
+      camera.lookAt(0, 0, 0);
+    } else if (demoActive) {
       const demoT = demoElapsed;
       camera.position.x = Math.sin(demoT * 0.5) * 8;
       camera.position.y = Math.cos(demoT * 0.35) * 5;
       camera.position.z = 150 + Math.sin(demoT * 0.6) * 20;
+      camera.lookAt(0, 0, cloudZ * 0.2);
     } else {
       camera.position.x = Math.sin(t * 0.02) * 3;
       camera.position.y = Math.cos(t * 0.03) * 2;
       camera.position.z = 75;
+      camera.lookAt(0, 0, cloudZ * 0.2);
     }
-    camera.lookAt(0, 0, cloudZ * 0.2);
 
+
+    // ── Shader toggle (Anneaux / Gold) ──────────────────────────────────────
+    const isAnneaux = currentThemeName === "anneaux";
+    const isGold    = currentThemeName === "gold";
+    const useShader = isAnneaux || isGold;
+    points.visible         = !useShader;
+    pinkPoints.visible     = !useShader;
+    lines.visible          = !useShader;
+    electronPoints.visible = !useShader;
+    ringsMesh.visible      = isAnneaux;
+    goldMesh.visible       = isGold;
+
+    // ── Gold shader update ────────────────────────────────────────────────
+    if (isGold) {
+      goldTime += dt * (0.5 + bass * 4.0);
+      goldUniforms.iTime.value = goldTime;
+      goldUniforms.iResolution.value.set(
+        window.innerWidth * window.devicePixelRatio,
+        window.innerHeight * window.devicePixelRatio,
+        window.innerWidth / window.innerHeight
+      );
+      goldUniforms.audioIntensity.value = bass;
+      goldUniforms.hover.value = 0.0;
+      goldRot += dt * 0.12; // Vitesse de rotation lente, continue et parfaitement stable
+      goldUniforms.rot.value = goldRot;
+    }
+
+    if (isAnneaux) {
+      const targetRingsSpeed = 0.12 + bass * 2.5;
+      currentRingsSpeed += (targetRingsSpeed - currentRingsSpeed) * 0.22;
+      ringsTime += dt * currentRingsSpeed;
+      ringsUniforms.iTime.value = ringsTime;
+      ringsUniforms.iResolution.value.set(
+        window.innerWidth * window.devicePixelRatio,
+        window.innerHeight * window.devicePixelRatio,
+        window.innerWidth / window.innerHeight
+      );
+      ringsUniforms.audioIntensity.value = bass;
+      ringsUniforms.hover.value = 0.0;
+      currentRot += dt * 0.10; // Rotation stable continue sans à-coup
+      ringsUniforms.rot.value = currentRot;
+    }
+    // ────────────────────────────────────────────────────────────────────────
     renderer.render(scene, camera);
   }
 
@@ -754,6 +1287,13 @@ export function createOrb(canvas: HTMLCanvasElement): Orb {
       demoBurstNextAt = demoStartTime;
       shockwave = 1.0;
       transitionEnergy = 1.0;
+    },
+    writeWord(w: string) {
+      textTargetPositions = generateTextPoints(w, N);
+      if (textTargetPositions.length > 0) {
+        textMorphActive = true;
+        textMorphStartTime = clock.getElapsedTime();
+      }
     },
     setQuality(q: "low" | "high") {
       if (q === "high") {

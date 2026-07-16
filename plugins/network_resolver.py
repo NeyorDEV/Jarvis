@@ -8,6 +8,9 @@ import builtins
 
 _radar_active = False
 _radar_task = None
+# None = première itération (baseline), set() ensuite
+_prev_high_ips = None
+_prev_scan_ips = None
 
 
 def _clean(t: str) -> str:
@@ -26,14 +29,54 @@ async def _broadcast(data: dict) -> None:
         )
 
 
+async def _speak(text: str) -> None:
+    """Déclenche la parole TTS de façon sûre (sync ou async)."""
+    try:
+        if not hasattr(builtins, 'parler'):
+            return
+        result = builtins.parler(text)
+        if asyncio.iscoroutine(result):
+            await result
+    except Exception as e:
+        print(f"[RADAR] Speak error: {e}")
+
+
 async def _radar_loop() -> None:
-    global _radar_active
+    global _radar_active, _prev_high_ips, _prev_scan_ips
     while _radar_active:
         try:
             from module.network_radar import get_radar_data
             loop = asyncio.get_event_loop()
             data = await loop.run_in_executor(None, get_radar_data)
+
+            # ── Alerte vocale : nouvelles connexions à risque élevé ──────────
+            current_high = {c['ip'] for c in data if c['risk'] == 'high'}
+            if _prev_high_ips is not None:
+                new_high = current_high - _prev_high_ips
+                if new_high:
+                    for c in data:
+                        if c['ip'] in new_high:
+                            proc = c['process'].replace('.exe', '')
+                            asyncio.create_task(_speak(
+                                f"Alerte, Monsieur ! Connexion à risque élevé détectée "
+                                f"vers {c['country']} via {proc}."
+                            ))
+                            break
+            _prev_high_ips = current_high
+
+            # ── Alerte vocale : scan de ports ────────────────────────────────
+            current_scan = {c['ip'] for c in data if c.get('port_scan')}
+            if _prev_scan_ips is not None:
+                new_scan = current_scan - _prev_scan_ips
+                if new_scan:
+                    ip = next(iter(new_scan))
+                    asyncio.create_task(_speak(
+                        f"Attention, Monsieur. Tentative de scan de ports détectée depuis {ip}."
+                    ))
+            _prev_scan_ips = current_scan
+
             await _broadcast({"action": "network_radar_update", "connections": data})
+
         except asyncio.CancelledError:
             break
         except RuntimeError as e:
@@ -49,7 +92,7 @@ async def _radar_loop() -> None:
 
 
 async def resoudre_connexions_reseau(cmd: str):
-    global _radar_active, _radar_task
+    global _radar_active, _radar_task, _prev_high_ips, _prev_scan_ips
     t = _clean(cmd)
 
     if not any(m in t for m in ["radar", "reseau", "connexion", "connexions", "trafic"]):
@@ -64,8 +107,11 @@ async def resoudre_connexions_reseau(cmd: str):
         return "Radar réseau désactivé, Monsieur."
 
     mots_show = ["montre", "affiche", "active", "lance", "ouvre", "voir", "demarre", "radar reseau", "connexions"]
-    if any(m in t for m in mots_show) or t == "radar":
+    if any(m in t for m in mots_show) or t in ("radar", "carte reseau", "carte du reseau"):
         from module.network_radar import get_radar_data, get_radar_summary
+        # Réinitialiser : la 1ère itération de la boucle servira de baseline
+        _prev_high_ips = None
+        _prev_scan_ips = None
         loop = asyncio.get_event_loop()
         data = await loop.run_in_executor(None, get_radar_data)
         await _broadcast({"action": "network_radar_show", "connections": data})

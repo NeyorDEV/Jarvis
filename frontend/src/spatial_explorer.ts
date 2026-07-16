@@ -1308,58 +1308,61 @@ export class SpatialFileExplorer {
     const activeLevel = this.activeLevels[this.activeLevels.length - 1];
     if (!activeLevel) return;
 
-    let closestNode: SpatialNode | null = null;
-    let closestDist = Infinity;
+    // Projection de la position 3D de la main pour faire du Raycasting 2D/3D précis
+    const ndc = handWorldPos.clone().project(this.camera);
+    const ndc2d = new THREE.Vector2(ndc.x, ndc.y);
+    this.raycaster.setFromCamera(ndc2d, this.camera);
 
-    for (const node of activeLevel.nodes) {
-      const d = handWorldPos.distanceTo(node.group.position);
-      if (d < closestDist) {
-        closestDist = d;
-        closestNode = node;
-      }
+    // 1. Détecter l'élément sous la main
+    let closestNode: SpatialNode | null = null;
+    const targets: THREE.Object3D[] = [];
+    for (const n of activeLevel.nodes) {
+      targets.push(n.mesh);
+      targets.push(n.label);
+    }
+    const intersects = this.raycaster.intersectObjects(targets);
+    if (intersects.length > 0) {
+      const hitObj = intersects[0].object;
+      closestNode = activeLevel.nodes.find(n => n.mesh === hitObj || n.label === hitObj) || null;
     }
 
-    const HOVER_THRESHOLD = 1.2;
-    const GRAB_THRESHOLD = 0.8;
+    // 2. Détecter le bouton RETOUR sous la main
+    let backHovered = false;
+    if (this.backNode) {
+      const backIntersects = this.raycaster.intersectObjects([this.backNode.mesh, this.backNode.label]);
+      backHovered = backIntersects.length > 0;
+      this.backNode.hovered = backHovered;
+    }
+
+    // 3. Détecter la corbeille sous la main
+    let trashHovered = false;
+    if (this.trashZone) {
+      const trashIntersects = this.raycaster.intersectObjects([
+        this.trashZone.mesh,
+        this.trashZone.label,
+        this.trashZone.hitMesh
+      ]);
+      trashHovered = trashIntersects.length > 0;
+      this.trashZone.hovered = trashHovered;
+    }
 
     for (const n of this.nodes) n.setHover(false);
-    let backHovered = false;
-    let trashHovered = false;
-
-    if (this.backNode) {
-      const bd = handWorldPos.distanceTo(this.backNode.group.position);
-      if (bd < HOVER_THRESHOLD) {
-        backHovered = true;
-        this.backNode.hovered = true;
-      } else {
-        this.backNode.hovered = false;
-      }
-    }
-
-    if (this.trashZone) {
-      const td = handWorldPos.distanceTo(this.trashZone.group.position);
-      if (td < HOVER_THRESHOLD) {
-        trashHovered = true;
-        this.trashZone.hovered = true;
-      } else {
-        this.trashZone.hovered = false;
-      }
-    }
 
     if (this.dragNode && isPinched) {
       this.dragNode.group.position.lerp(handWorldPos, 0.3);
 
-      for (const n of activeLevel.nodes) {
-        if (n === this.dragNode) continue;
-        if (n.item.type === 'folder') {
-          const d = handWorldPos.distanceTo(n.group.position);
-          n.setHover(d < HOVER_THRESHOLD);
-        }
+      // Pour le survol des dossiers pendant le drag
+      const folderTargets: THREE.Object3D[] = [];
+      const foldersList = activeLevel.nodes.filter(n => n.item.type === 'folder' && n !== this.dragNode);
+      for (const n of foldersList) {
+        targets.push(n.mesh);
+        targets.push(n.label);
       }
-
-      if (this.trashZone) {
-        const td = handWorldPos.distanceTo(this.trashZone.group.position);
-        this.trashZone.hovered = td < HOVER_THRESHOLD;
+      const dragIntersects = this.raycaster.intersectObjects(folderTargets);
+      if (dragIntersects.length > 0) {
+        const hitObj = dragIntersects[0].object;
+        const hitNode = foldersList.find(n => n.mesh === hitObj || n.label === hitObj);
+        if (hitNode) hitNode.setHover(true);
       }
       return;
     }
@@ -1369,7 +1372,7 @@ export class SpatialFileExplorer {
       return;
     }
 
-    if (closestNode && closestDist < HOVER_THRESHOLD && !backHovered) {
+    if (closestNode && !backHovered && !trashHovered) {
       closestNode.setHover(true);
     }
 
@@ -1384,7 +1387,7 @@ export class SpatialFileExplorer {
         return;
       }
 
-      if (closestNode && closestDist < GRAB_THRESHOLD) {
+      if (closestNode) {
         if (closestNode.item.type === 'folder') {
           this.loadDirectory(closestNode.item.path);
         } else {

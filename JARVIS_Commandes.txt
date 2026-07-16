@@ -115,6 +115,14 @@
   - *Glisser Clic Gauche en zone vide (Souris)* -> Déplacement de la constellation dans l'espace 3D
   - *Glisser Clic Droit (Souris)* -> Rotation de la structure neuronale tridimensionnelle
 
+[ Jeu d'Échecs 3D (Hologramme) ]
+  - On joue aux échecs / Lance une partie d'échecs / Partie d'échecs -> Ouvre le plateau d'échecs 3D sur le HUD
+  - Lance la partie avec les [blancs/noirs] [facile/moyen/difficile] [avec/sans] chrono -> Lance et configure une nouvelle partie
+  - Recommence la partie / Réinitialise le jeu -> Réinitialise le jeu à chaud sans message de confirmation et revient à l'écran de configuration du plateau
+  - Quitte les échecs / Arrête la partie / Ferme le jeu -> Ferme proprement le plateau 3D d'échecs
+  - *Interaction tactile ou geste (Hands Interaction)* :
+    - Pincer une pièce (Index + Pouce) et la déplacer sur une case pour jouer un coup
+    - Pincer/Cliquer les boutons 3D flottants à gauche de l'échiquier (DÉMARRER, RECOMMENCER, QUITTER) pour piloter le jeu à distance (boutons orientés automatiquement face à la caméra)
 
 [ Globe Terrestre 3D ]
   - Affiche la Terre / Globe terrestre / Vue depuis l'espace -> Initialise et affiche le globe terrestre 3D en mode orbital
@@ -340,6 +348,29 @@
   - Qui es-tu ? / Quel est ton nom ? / C'est quoi JARVIS ? -> Présente son identité (Just A Rather Very Intelligent System)
   - Qui est ton créateur ? / Qui t'a fait ? -> Rend hommage à son créateur (Mylane)
   - Bonjour / Salut / Comment tu vas ? / Ça va ? -> Répond chaleureusement avec l'état de ses processeurs
+
+[ Sécurité & Mises à Jour Système ]
+  - Analyse mon PC / Scanne mon ordinateur / Lance le scan antivirus / Scanne le PC -> Ouvre la console de sécurité et exécute un scan antivirus en temps réel
+  - Active la protection en temps réel / Désactive la protection antivirus / Sécurité live -> Active ou désactive à chaud la protection antivirus résidente
+  - Mets à jour mes logiciels / Lance les mises à jour / Ouvre winget / Lance winget -> Recherche les paquets applicatifs périmés sous Windows et lance les mises à jour automatiques via Winget
+
+[ Gestion des Compétences Dynamiques ]
+  - Crée la compétence [nom] pour [description] / Apprends la compétence [nom] -> Code, intègre et compile à chaud une nouvelle compétence vocale Python dans les plugins
+  - Supprime la compétence [nom] / Désinstalle la compétence [nom] -> Désactive et supprime définitivement le script de compétence personnalisé du système
+  - Exécute la compétence [nom] [avec paramètre] / Lance la compétence [nom] -> Déclenche l'exécution manuelle d'une compétence vocale programmée
+  - Liste mes compétences / Liste toutes tes compétences / Quelles sont mes compétences -> Énonce la liste complète de vos extensions vocales installées
+
+[ Cortex Neuronal & Mémoire Avancée ]
+  - Cherche dans mon cortex [sujet] / Trouve dans le cortex [sujet] -> Lance une recherche sémantique vectorielle dans vos souvenirs et met en surbrillance les nœuds correspondants
+  - Lis ce souvenir / Raconte cette mémoire / Lis le souvenir -> Récite vocalement le contenu détaillé et la date du souvenir actuellement sélectionné dans le cortex 3D
+
+[ Protocole Démo & Orbe ]
+  - Démonstration / Lance la démo / Protocole de démo / Fais une démo -> Démarre le protocole de chorégraphie lumineuse 3D et de pulsations de l'Orbe de JARVIS
+  - Écrit le mot [MOT] / Écris le mot [MOT] / Orbe écrit le mot [MOT] -> L'Orbe Three.js se déforme et réorganise ses 2000 particules en 3D pour dessiner le mot dicté pendant 7 secondes
+
+[ Jeu d'Échecs Avancé ]
+  - Lance la partie niveau [débutant (600 Elo) / novice (800 Elo) / moyen (1000 Elo) / intermédiaire (1400 Elo) / expert (1800 Elo) / maître (2000 Elo)] -> Configure précisément le Bot IA d'échecs
+  - Lance la partie avec les [blancs / noirs] [avec / sans] chrono -> Initialise la partie d'échecs 3D avec couleur et minuteur (10 minutes de temps de jeu)
 
 [ Configuration & Flux Vocaux ]
   - Prends la voix d'homme -> Bascule sur la voix premium masculine (Habituelle / Onyx / Henri)

@@ -155,9 +155,15 @@ Ne renvoie rien d'autre que le JSON brut. Si aucune nouvelle information n'est d
             )
         )
         
-        data = json.loads(response.text)
-        updates = data.get("updates", {})
-        deletes = data.get("deletes", [])
+        data = {}
+        if response and response.text:
+            try:
+                data = json.loads(response.text)
+            except Exception as je:
+                print(f"[MEMORY MANAGER] Erreur lors du décodage du JSON de la réponse : {je}")
+        
+        updates = data.get("updates", {}) if isinstance(data, dict) else {}
+        deletes = data.get("deletes", []) if isinstance(data, dict) else []
         
         if updates or deletes:
             mem = charger_memoire()

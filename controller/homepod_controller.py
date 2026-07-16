@@ -98,15 +98,21 @@ async def get_playing_metadata(identifier: Optional[str] = None) -> Optional[str
 
         atv = await pyatv.connect(device, asyncio.get_event_loop())
         try:
-            playing = await atv.metadata.currently_playing()
-            if playing and playing.title:
-                artist = playing.artist or "Artiste inconnu"
-                return f"{artist} - {playing.title}"
+            # pyatv >= 0.10 : currently_playing() a été supprimé.
+            # On passe par le push_updater pour lire les métadonnées actuelles.
+            playing = atv.metadata
+            title  = getattr(playing, "title",  None)
+            artist = getattr(playing, "artist", None)
+            if title:
+                return f"{artist or 'Artiste inconnu'} - {title}"
+            return None
+        except AttributeError:
+            # L'interface de métadonnées n'est pas disponible sur cet appareil
             return None
         finally:
             await asyncio.gather(*atv.close())
-    except Exception as e:
-        print(f"[HOMEPOD METADATA ERROR] {e}")
+    except Exception:
+        # Erreur réseau ou appareil injoignable — on n'affiche rien pour ne pas polluer la console
         return None
 
 

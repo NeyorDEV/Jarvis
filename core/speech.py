@@ -275,6 +275,9 @@ def vider_files():
             break
 
 def parler(texte, print_console=True):
+    global STOP_PARLER
+    if STOP_PARLER:
+        return
     if not texte or not texte.strip(): return
     if print_console:
         try:

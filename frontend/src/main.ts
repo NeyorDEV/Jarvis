@@ -18,8 +18,10 @@ import { activerHolo, desactiverHolo } from "./hologramme";
 import { SpatialFileExplorer } from "./spatial_explorer";
 import { DomoticMap } from "./domotic_map";
 import { CortexMap } from "./cortex_map";
+import { initHADashboard, handleHAMessage } from "./ha_dashboard";
 import { ChessMap } from "./chess_map";
 import { NetworkRadar } from "./network_radar";
+import { initIPTVPlayer, handleIPTVMessage, updateIPTVWS } from "./iptv_player";
 
 // Expose SpatialFileExplorer class globally for hologramme.js
 (window as any).SpatialFileExplorer = SpatialFileExplorer;
@@ -49,6 +51,12 @@ const badgeLabelEl = document.getElementById(
 ) as HTMLSpanElement;
 const muteButtonEl = document.getElementById("mute-button") as HTMLButtonElement;
 const micBtnEl = document.getElementById("mic-btn") as HTMLButtonElement;
+const jarvisMenuBtn = document.getElementById("jarvis-menu-btn") as HTMLButtonElement;
+const jarvisMenuDropdown = document.getElementById("jarvis-menu-dropdown") as HTMLDivElement;
+const apiKeysButtonEl = document.getElementById("api-keys-button") as HTMLButtonElement;
+const apiKeysModalEl = document.getElementById("api-keys-modal") as HTMLDivElement;
+const apiKeysCloseBtn = document.getElementById("api-keys-close-btn") as HTMLSpanElement;
+const apiKeysSaveBtn = document.getElementById("api-keys-save-btn") as HTMLButtonElement;
 const gpuButtonEl = document.getElementById("gpu-button") as HTMLButtonElement;
 const helpOverlayEl = document.getElementById("help-overlay") as HTMLDivElement;
 const timerHudEl = document.getElementById("timer-hud") as HTMLDivElement;
@@ -63,6 +71,8 @@ const visualizerHudEl = document.getElementById("visualizer-hud") as HTMLDivElem
 const settingsButtonEl = document.getElementById("settings-button") as HTMLButtonElement;
 const settingsModalEl = document.getElementById("settings-modal") as HTMLDivElement;
 const holoButtonEl = document.getElementById("holo-button") as HTMLButtonElement;
+const haToggleBtn = document.getElementById("ha-toggle-btn") as HTMLButtonElement;
+const haPanel = document.getElementById("ha-panel") as HTMLDivElement;
 const settingsCloseBtn = document.getElementById("settings-close-btn") as HTMLSpanElement;
 const settingsNameEl = document.getElementById("settings-name") as HTMLInputElement;
 const settingsAgeEl = document.getElementById("settings-age") as HTMLInputElement;
@@ -80,12 +90,94 @@ const haAddBtn = document.getElementById("ha-add-btn") as HTMLButtonElement;
 const haAddNom = document.getElementById("ha-add-nom") as HTMLInputElement;
 const haAddEntity = document.getElementById("ha-add-entity") as HTMLInputElement;
 const haEntitiesListEl = document.getElementById("ha-entities-list") as HTMLDivElement;
+const appDetectBtn = document.getElementById("app-detect-btn") as HTMLButtonElement;
+const appDetectSelect = document.getElementById("app-detect-select") as HTMLSelectElement;
+
+// Shopping Panel DOM refs
+const shoppingPanel = document.getElementById("shopping-panel") as HTMLDivElement;
+const shoppingCloseBtn = document.getElementById("shopping-panel-close-btn") as HTMLButtonElement;
+const shoppingListContainer = document.getElementById("shopping-list-container") as HTMLDivElement;
+const shoppingAddInput = document.getElementById("shopping-add-input") as HTMLInputElement;
+const shoppingAddBtn = document.getElementById("shopping-add-btn") as HTMLButtonElement;
+const shoppingClearBtn = document.getElementById("shopping-clear-btn") as HTMLButtonElement;
+const shoppingHeader = document.getElementById("shopping-panel-header") as HTMLDivElement;
+
+// Swarm HUD DOM refs (Minimal)
+const devSwarmHud = document.getElementById("dev-swarm-hud") as HTMLDivElement;
+const swarmCloseBtn = document.getElementById("swarm-close-btn") as HTMLButtonElement;
+const swarmProgressAgent = document.getElementById("swarm-progress-agent") as HTMLSpanElement;
+const swarmProgressBarFill = document.getElementById("swarm-progress-bar-fill") as HTMLDivElement;
+const swarmProgressMsg = document.getElementById("swarm-progress-msg") as HTMLSpanElement;
+
+// ── Winget Upgrade DOM Refs ────────────────────────────────────────────────
+const wingetPanel = document.getElementById("winget-panel") as HTMLDivElement;
+const wingetToggleBtn = document.getElementById("winget-toggle-btn") as HTMLButtonElement;
+const wingetCloseBtn = document.getElementById("winget-panel-close-btn") as HTMLButtonElement;
+const wingetHeader = document.getElementById("winget-panel-header") as HTMLDivElement;
+const wingetSearchInput = document.getElementById("winget-search-input") as HTMLInputElement;
+const wingetList = document.getElementById("winget-upgrades-list") as HTMLDivElement;
+const wingetSelectAll = document.getElementById("winget-select-all") as HTMLInputElement;
+const wingetRefreshBtn = document.getElementById("winget-refresh-btn") as HTMLButtonElement;
+const wingetUpgradeSelectedBtn = document.getElementById("winget-upgrade-selected-btn") as HTMLButtonElement;
+const wingetUpgradeAllBtn = document.getElementById("winget-upgrade-all-btn") as HTMLButtonElement;
+const wingetLogsContainer = document.getElementById("winget-logs-container") as HTMLDivElement;
+const wingetConsole = document.getElementById("winget-console") as HTMLPreElement;
+const wingetCloseLogsBtn = document.getElementById("winget-close-logs-btn") as HTMLButtonElement;
+const wingetCountBadge = document.getElementById("winget-count-badge") as HTMLSpanElement;
+
+interface WingetUpgradeItem {
+  name: string;
+  id: string;
+  version: string;
+  available: string;
+  source: string;
+}
+
+let allWingetUpgrades: WingetUpgradeItem[] = [];
+
+// ── Uninstaller DOM Refs ───────────────────────────────────────────────────
+const uninstallerPanel = document.getElementById("uninstaller-panel") as HTMLDivElement;
+const uninstallerToggleBtn = document.getElementById("uninstaller-toggle-btn") as HTMLButtonElement;
+const uninstallerCloseBtn = document.getElementById("uninstaller-panel-close-btn") as HTMLButtonElement;
+const uninstallerHeader = document.getElementById("uninstaller-panel-header") as HTMLDivElement;
+const uninstallerSearchInput = document.getElementById("uninstaller-search-input") as HTMLInputElement;
+const uninstallerAppsList = document.getElementById("uninstaller-apps-list") as HTMLDivElement;
+const uninstallerListView = document.getElementById("uninstaller-list-view") as HTMLDivElement;
+const uninstallerActionView = document.getElementById("uninstaller-action-view") as HTMLDivElement;
+const uninstallerStatusMsg = document.getElementById("uninstaller-status-msg") as HTMLDivElement;
+const uninstallerRadarContainer = document.getElementById("uninstaller-radar-container") as HTMLDivElement;
+const uninstallerLeftoversContainer = document.getElementById("uninstaller-leftovers-container") as HTMLDivElement;
+const uninstallerLeftoversList = document.getElementById("uninstaller-leftovers-list") as HTMLDivElement;
+const uninstallerSelectAll = document.getElementById("uninstaller-select-all") as HTMLInputElement;
+const uninstallerCleanBtn = document.getElementById("uninstaller-clean-btn") as HTMLButtonElement;
+const uninstallerSkipBtn = document.getElementById("uninstaller-skip-btn") as HTMLButtonElement;
+
+let allInstalledPrograms: Array<{
+  name: string;
+  subkey: string;
+  publisher: string;
+  version: string;
+  uninstall_string: string;
+  install_location: string;
+  icon_path: string;
+  hive: string;
+}> = [];
+let currentLeftovers: Array<{
+  type: string;
+  path: string;
+  desc: string;
+  hive?: string;
+}> = [];
+
+let currentShoppingList: string[] = [];
+let shoppingInitialLoaded = false;
 
 let currentCustomApps: { id: string, label: string, exe_path: string }[] = [];
 let currentCustomLights: { name: string, entity_id: string }[] = [];
 let currentCustomPrises: { name: string, entity_id: string }[] = [];
 let currentCustomCapteurs: { name: string, entity_id: string }[] = [];
 let activeHaTab: "lumieres" | "prises" | "capteurs" = "lumieres";
+
 
 let subtitlesEnabled = true;
 let keyboardEnabled = false;
@@ -95,48 +187,225 @@ let timerSeconds = 0;
 let timerTotalSeconds = 0;
 
 const HELP_COMMANDS = [
-  "Affiche la terre",
-  "Où se trouve Tokyo ?",
-  "Trace l'itinéraire Paris à Lyon",
+  // Heure & Date
   "Quelle heure est-il ?",
-  "Ouvre Spotify",
-  "Mets de la musique",
+  "On est quel jour ?",
+  "Quelle date sommes-nous ?",
+  "C'est quel mois ?",
+  "Quelle année est-ce ?",
+  "J'ai quel âge ?",
+  
+  // Système PC
+  "Niveau de la batterie",
+  "Niveau de charge du PC",
+  "Utilisation du CPU",
+  "Charge du processeur",
+  "Utilisation de la RAM",
+  "Mémoire vive disponible",
+  "Allumé depuis combien de temps ?",
+  "PC allumé depuis quand ?",
+  "Uptime système",
+  "Volume monte",
+  "Volume baisse",
+  "Coupe le son",
+  "Volume à 50%",
+  "Remets le son",
   "Prends une capture d'écran",
-  "Mets en pause la lecture",
-  "Augmente le volume",
+  "Prends un screenshot",
+  "Vide la corbeille",
+  "Nettoie la corbeille",
+  "Éteins le PC dans 5 minutes",
+  "Redémarre le PC",
+  "Mets le PC en veille",
+  "Verrouille le PC",
+  "Annule l'arrêt",
+
+  // Gestion des Fichiers & Dossiers
+  "Ouvre mon Bureau",
+  "Ouvre mes Documents",
+  "Ouvre mes Téléchargements",
+  "Ouvre mes Images",
+  "Ouvre le dossier Documents",
+  "Ouvre le fichier photo.jpg",
+  "Range mes dossiers",
+  "Mosaïque dossiers",
+  "Trie mes fichiers par type",
+  "Trie mes fichiers par date",
+  "Crée le dossier Projets",
+  "Renomme ancien_dossier en nouveau_dossier",
+  "Déplace photo.jpg vers Images",
+  "Analyse le fichier de notes",
+
+  // Applications & Jeux
+  "Ouvre la calculatrice",
+  "Ouvre Notepad",
+  "Ouvre Paint",
+  "Ouvre Chrome",
+  "Ouvre le gestionnaire de tâches",
+  "Ferme la calculatrice",
+  "Mode Boulot !",
+  "Mode Gaming",
+  "On joue !",
+  "On joue à Rocket League",
+
+  // Contrôle de l'Interface Graphique (HUD)
+  "Ouvre les paramètres",
+  "Ferme les paramètres",
+  "Boost le GPU",
+  "Active l'accélération graphique",
+  "Active les sous-titres",
+  "Active le clavier",
+  "Ferme la météo",
+  "Montre le widget Calendrier",
+  "Active le mode hologramme",
+  "Active le mode AR",
+  "Active le miroir holo",
+
+  // Minuteurs Interactifs
+  "Mets un minuteur de 10 minutes",
+  "Lance un timer de 5 minutes",
+  "Ajoute 2 minutes au minuteur",
+  "Retire 1 minute au minuteur",
+  "Annule le minuteur",
+  "Combien de temps reste-t-il ?",
+
+  // Explorateur Spatial 3D & Carte 3D
+  "Ouvre l'explorateur spatial",
+  "Affiche mes fichiers en 3D",
+  "Affiche ma maison en 3D",
+  "Affiche la carte domotique 3D",
+
+  // Cortex Neuronal 3D
+  "Affiche ton cortex",
+  "Ouvre le cortex neuronal",
+  "Cherche dans mon cortex la musique",
+  "Trouve dans le cortex la météo",
+  "Lis ce souvenir",
+  "Raconte cette mémoire",
+
+  // Échecs 3D
+  "On joue aux échecs",
+  "Lance une partie d'échecs",
+  "Lance la partie avec les noirs",
+  "Réinitialise la partie d'échecs",
+  "Quitte les échecs",
+  "Lance la partie niveau moyen",
+  "Lance la partie sans chrono",
+
+  // Globe Terrestre 3D
+  "Affiche la Terre",
+  "Vue depuis l'espace",
+  "Zoom sur la Terre",
+  "Vol vers Tokyo",
+  "Affiche ma position",
+  "Où suis-je ?",
+  "Trajet de Paris à Lyon",
   "Ferme le globe",
-  "Lance une recherche sur YouTube",
-  "Quelle est la météo ?",
-  "Rappelle-moi de faire les courses",
-  "Vérifie mes e-mails",
-  "Raconte-moi une blague",
-  "Lance le mode protocole",
-  "Vérifie l'état du système",
-  "Analyse les fichiers récents",
-  "Active la vision",
-  "Ouvre mon dossier Bureau",
-  "Quel temps fait-il à New York ?",
-  "Cherche sur Wikipédia l'intelligence artificielle",
-  "Mets le volume à 50%",
-  "Quelles sont les dernières news ?",
-  "Lance le téléchargement",
-  "Convertis ce fichier en PDF",
-  "Ouvre mon TikTok",
-  "Montre-moi les photos de vacances"
+
+  // Télévision & Multimédia
+  "Allume la télé",
+  "Éteins la télé",
+  "Lance Netflix sur la télé",
+  "Mets du rock sur YouTube (Télé)",
+  "Pause la télé",
+  "Reprends la télé",
+  "Monte le son de la télé",
+
+  // Musique Spotify & Deezer
+  "Lance Spotify",
+  "Joue Billie Jean sur Spotify",
+  "Suivant sur Spotify",
+  "Volume Spotify monte",
+  "Ouvre Deezer",
+  "Recherche Michael Jackson sur Deezer",
+  "Mets de la musique sur YouTube (PC)",
+
+  // HomePod Mini & Audio Casque
+  "Passe ta voix sur le HomePod",
+  "Bascule sur le casque",
+  "Règle le volume du HomePod à 50%",
+  "Pause le HomePod",
+
+  // Autopilote Web & Vision IA
+  "Cherche un hôtel à Annecy sur Booking",
+  "Cherche une PS5 moins de 400€ à Lyon",
+  "Cherche les vols Paris-Barcelone sur Kayak",
+  "Ferme le navigateur",
+  "Lance l'autopilote OS",
+
+  // Domotique Home Assistant
+  "Allume la lumière du Salon",
+  "Éteins la lumière du Bureau",
+  "Mets la lumière en Bleu",
+  "Règle la luminosité à 80%",
+  "Quelle est la température dans le Salon ?",
+  "Quel est le taux d'humidité dans le Bureau ?",
+  "Combien d'abonnés sur TikTok ?",
+  "Anniversaires du jour",
+  "Active la scène Cinéma",
+  "Désactive l'alarme",
+  "Verrouille la porte",
+  "Aspire la maison",
+  "Retour à la base de l'aspirateur",
+
+  // Intelligence & Assistance IA
+  "Recherche approfondie sur l'intelligence artificielle",
+  "Analyse mon écran",
+  "Aide-moi",
+  "Lance la caméra",
+  "Regarde-moi",
+  "Génère une image d'un coucher de soleil",
+  "Dessine-moi une voiture de sport",
+  "Tape le texte dicté",
+  "Souviens-toi que j'aime le café",
+  "Qu'est-ce que tu sais sur moi ?",
+  "Liste ma mémoire",
+  "Cherche dans mes souvenirs l'anniversaire",
+
+  // Google Workspace
+  "Crée un Google Doc intitulé Réunion",
+  "Lis le contenu de mon Google Doc",
+  "Lis mes nouveaux emails",
+  "Lis le détail du dernier email",
+  "Envoie un email à mylane@example.com",
+  "Montre mon agenda",
+  "Quels sont mes événements ?",
+  "Ouvre mon Google Drive",
+  "Ajoute une tâche faire les courses",
+
+  // Sécurité & Mises à Jour
+  "Analyse mon PC",
+  "Lance le scan antivirus",
+  "Active la protection en temps réel",
+  "Mets à jour mes logiciels",
+  "Lance winget",
+
+  // Compétences Dynamiques / Démonstrations
+  "Crée la compétence recherche_web",
+  "Liste toutes tes compétences",
+  "Lance la démo",
+  "Écris le mot JARVIS",
+
+  // Configuration & Flux
+  "Prends la voix d'homme",
+  "Prends la voix de femme",
+  "Active le mode Iron Man",
+  "Silence !",
+  "Tais-toi !"
 ];
 
 // ── Orb ───────────────────────────────────────────────────────────────────────
 const orb = createOrb(canvas);
 initHoloClock();
 
-// Load and apply the saved color theme
-const savedTheme = localStorage.getItem("jarvis-orb-theme") || "cyan";
-orb.setTheme(savedTheme);
+// Load and apply the saved color theme / orb style
+const savedOrbStyle = localStorage.getItem("jarvis-orb-style") || "cyan";
+orb.setTheme(savedOrbStyle);
 
 // Initialize select element value
-const orbThemeSelect = document.getElementById("settings-orb-theme") as HTMLSelectElement;
-if (orbThemeSelect) {
-  orbThemeSelect.value = savedTheme;
+const orbStyleSelect = document.getElementById("settings-orb-style") as HTMLSelectElement;
+if (orbStyleSelect) {
+  orbStyleSelect.value = savedOrbStyle;
 }
 
 // ── State labels (French) ────────────────────────────────────────────────────
@@ -145,6 +414,7 @@ const STATE_LABELS: Record<OrbState, string> = {
   listening: "ecoute...",
   thinking: "reflexion...",
   speaking: "",
+  searching: "recherche..."
 };
 
 function applyState(state: OrbState): void {
@@ -269,9 +539,14 @@ function connect(): void {
 
   ws = new WebSocket(WS_URL);
   (window as any)._jarvisWs = ws;
+  updateIPTVWS(ws);
 
   ws.addEventListener("open", () => {
     setConnected(true);
+    // Demander la liste de courses courante
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: "get_shopping_list" }));
+    }
     // Notifie la séquence de boot que le serveur est prêt
     if (bootConnectedCallback) {
       bootConnectedCallback();
@@ -509,10 +784,132 @@ function connect(): void {
         return;
       }
 
+      // ── Image Search ──
+      if (data.type === "show_images") {
+        showImagePanel((data as any).query || "IMAGE_SCAN", (data as any).images || []);
+        return;
+      }
+
+      // ── Antivirus WS Messages ──
+      if (data.type === "av_open") {
+        openAntivirusPanel();
+        return;
+      }
+
+      if (data.type === "av_start" || data.type === "av_progress" || data.type === "av_threat_detected" || data.type === "av_complete" || data.type === "av_cancel" || data.type === "av_action_result") {
+        handleAntivirusWSMessage(data);
+        return;
+      }
+
+      // ── Uninstaller WS Messages ──
+      if (data.action === "uninstaller_open" || data.type === "uninstaller_open") {
+        openUninstallerPanel();
+        return;
+      }
+
+      if (data.type === "installed_programs" && (data as any).programs) {
+        allInstalledPrograms = (data as any).programs;
+        renderInstalledPrograms(allInstalledPrograms);
+        return;
+      }
+
+      if (data.type === "uninstall_progress") {
+        updateUninstallProgress(data);
+        return;
+      }
+
+      if (data.type === "uninstall_complete") {
+        showUninstallComplete(data);
+        return;
+      }
+
+      if (data.type === "clean_complete") {
+        showCleanComplete(data);
+        return;
+      }
+
+      // ── Winget WS Messages ──
+      if (data.action === "winget_open" || data.type === "winget_open") {
+        openWingetPanel();
+        return;
+      }
+
+      if (data.type === "winget_upgrades" && (data as any).upgrades) {
+        allWingetUpgrades = (data as any).upgrades;
+        renderWingetUpgrades(allWingetUpgrades);
+        return;
+      }
+
+      if (data.type === "winget_upgrade_progress") {
+        const progressData = data as any;
+        if (wingetConsole) {
+          if (progressData.status === "running") {
+            wingetConsole.textContent += progressData.log;
+            wingetConsole.scrollTop = wingetConsole.scrollHeight;
+          } else if (progressData.status === "complete") {
+            wingetConsole.textContent += `\n[JARVIS] Processus de mise à jour terminé (Code: ${progressData.returncode}).\n`;
+            wingetConsole.scrollTop = wingetConsole.scrollHeight;
+          }
+        }
+        return;
+      }
+
+
+      // —— NAVIGATEUR SÉCURISÉ ——
+      if (data.action === "browser_state" && data.state) {
+        if ((window as any).updateBrowserUIState) {
+          (window as any).updateBrowserUIState(data.state);
+        }
+        return;
+      }
+
+      // ── Autonomous Dev Swarm HUD (Minimal Progress) ──
+      if (data.action === "dev_swarm_update") {
+        const swarmData = data as any;
+        if (devSwarmHud) {
+          devSwarmHud.classList.remove("hidden");
+        }
+        if (swarmProgressAgent) {
+          swarmProgressAgent.textContent = `AGENT: ${swarmData.agent || 'SYSTEM'}`;
+        }
+        if (swarmProgressMsg) {
+          swarmProgressMsg.textContent = swarmData.message || '';
+        }
+        if (swarmProgressBarFill) {
+          let pct = 0;
+          swarmProgressBarFill.classList.remove("success", "failure");
+          if (swarmData.status === "success") {
+            pct = 100;
+            swarmProgressBarFill.classList.add("success");
+          } else if (swarmData.status === "failure") {
+            pct = 100;
+            swarmProgressBarFill.classList.add("failure");
+          } else {
+            if (swarmData.agent === "PM") {
+              pct = 20;
+            } else if (swarmData.agent === "DEV") {
+              pct = 60;
+            } else if (swarmData.agent === "QA") {
+              pct = 90;
+            } else {
+              pct = 10;
+            }
+          }
+          swarmProgressBarFill.style.width = `${pct}%`;
+        }
+        // Auto-fermeture progressive du HUD après 8 secondes si terminé
+        if (swarmData.status === "success" || swarmData.status === "failure") {
+          setTimeout(() => {
+            devSwarmHud?.classList.add("hidden");
+          }, 8000);
+        }
+        return;
+      }
+
       // ── Chess Map 3D ──
       if (data.action === "chess_start") {
         if (!_holoActive) {
-          (window as any)._openHolo?.();
+          _openHolo();
         }
         setTimeout(() => {
           const app = (window as any)._holoApp;
@@ -609,6 +1006,11 @@ function connect(): void {
         if (app?.networkRadar) app.toggleNetworkRadar?.();
         return;
       }
+      if (data.action === "blocked_ips") {
+        const radar = (window as any)._networkRadar;
+        if (radar) radar.handleBlockedIps((data as any).ips || []);
+        return;
+      }
 
       // ── Domotic Map 3D ──
 
@@ -673,7 +1075,7 @@ function connect(): void {
 
       if (data.action === "domotic_audio_route_animation") {
         if (!_holoActive) {
-          (window as any)._openHolo?.();
+          _openHolo();
         }
         setTimeout(() => {
           const app = (window as any)._holoApp;
@@ -718,6 +1120,13 @@ function connect(): void {
         return;
       }
 
+      if (data.action === "orb_write_word" && (data as any).word) {
+        if (orb) {
+          orb.writeWord((data as any).word);
+        }
+        return;
+      }
+
       if (data.action === "display_image" && data.url) {
         showImageHUD(data.url, data.prompt || "--");
         return;
@@ -738,6 +1147,47 @@ function connect(): void {
       }
       if (data.action === "music_update" && data.data) {
         updateMusicUI(data.data);
+        return;
+      }
+
+      // ── Shopping List ────────────────────────────────────────────────────
+      if (data.type === "shopping_list" && (data as any).items !== undefined) {
+        currentShoppingList = (data as any).items;
+        renderShoppingList();
+        return;
+      }
+      if (data.type === "shopping_open") {
+        if (shoppingPanel) {
+          shoppingPanel.classList.remove("hidden");
+          shoppingPanel.classList.add("visible");
+        }
+        return;
+      }
+
+      // ── IPTV Player WS Messages ──
+      if (data.type === "iptv_open" || data.type === "iptv_stream_ready" || data.type === "iptv_playlist" || data.type === "iptv_direct_stream" || data.type === "iptv_playlist_error") {
+        handleIPTVMessage(data);
+        return;
+      }
+
+      // ── Home Assistant WS Messages ──
+      if (data.type === "ha_states" || data.type === "ha_state_changed" || data.type === "ha_service_result") {
+        handleHAMessage(data);
+        return;
+      }
+
+      if (data.type === "detected_apps" && (data as any).apps) {
+        if (appDetectSelect && appDetectBtn) {
+          appDetectSelect.innerHTML = '<option value="">-- Sélectionner une application détectée --</option>';
+          const appsList = (data as any).apps as {nom: string, chemin: string}[];
+          appsList.forEach(app => {
+            const opt = document.createElement("option");
+            opt.value = app.chemin;
+            opt.textContent = app.nom;
+            appDetectSelect.appendChild(opt);
+          });
+          appDetectBtn.textContent = `🔍 APPS (${appsList.length})`;
+        }
         return;
       }
 
@@ -778,6 +1228,72 @@ function connect(): void {
         currentCustomPrises = settings.custom_prises || [];
         currentCustomCapteurs = settings.custom_capteurs || [];
         renderHaEntities();
+        // Orb Style & Antivirus Live
+        const settingsOrbStyleEl = document.getElementById("settings-orb-style") as HTMLSelectElement;
+        if (settingsOrbStyleEl) {
+          settingsOrbStyleEl.value = settings.orb_style || "default";
+          orb.setTheme(settingsOrbStyleEl.value);
+          localStorage.setItem("jarvis-orb-style", settingsOrbStyleEl.value);
+        }
+        const settingsAvLiveEl = document.getElementById("settings-av-live") as HTMLInputElement;
+        if (settingsAvLiveEl) {
+          settingsAvLiveEl.checked = settings.av_live_protection === true;
+        }
+
+        // Remplissage des clés API
+        if (settings.api_keys) {
+          const geminiKeyEl = document.getElementById("settings-api-gemini-key") as HTMLInputElement;
+          const groqKeyEl = document.getElementById("settings-api-groq-key") as HTMLInputElement;
+          const youtubeKeyEl = document.getElementById("settings-api-youtube-key") as HTMLInputElement;
+          const grokKeyEl = document.getElementById("settings-api-grok-key") as HTMLInputElement;
+          const serpapiKeyEl = document.getElementById("settings-api-serpapi-key") as HTMLInputElement;
+          const anthropicKeyEl = document.getElementById("settings-api-anthropic-key") as HTMLInputElement;
+          const mistralKeyEl = document.getElementById("settings-api-mistral-key") as HTMLInputElement;
+
+          if (geminiKeyEl) geminiKeyEl.value = settings.api_keys.GEMINI_API_KEY || "";
+          if (groqKeyEl) groqKeyEl.value = settings.api_keys.GROQ_API_KEY || "";
+          if (youtubeKeyEl) youtubeKeyEl.value = settings.api_keys.YOUTUBE_API_KEY || "";
+          if (grokKeyEl) grokKeyEl.value = settings.api_keys.XAI_API_KEY || "";
+          if (serpapiKeyEl) serpapiKeyEl.value = settings.api_keys.SERPAPI_API_KEY || "";
+          if (anthropicKeyEl) anthropicKeyEl.value = settings.api_keys.ANTHROPIC_API_KEY || "";
+          if (mistralKeyEl) mistralKeyEl.value = settings.api_keys.MISTRAL_API_KEY || "";
+        }
+        
+        // Remplissage des checkboxes d'activation API
+        const geminiEnabledEl = document.getElementById("settings-api-gemini-enabled") as HTMLInputElement;
+        const groqEnabledEl = document.getElementById("settings-api-groq-enabled") as HTMLInputElement;
+        const youtubeEnabledEl = document.getElementById("settings-api-youtube-enabled") as HTMLInputElement;
+        const grokEnabledEl = document.getElementById("settings-api-grok-enabled") as HTMLInputElement;
+        const serpapiEnabledEl = document.getElementById("settings-api-serpapi-enabled") as HTMLInputElement;
+        const anthropicEnabledEl = document.getElementById("settings-api-anthropic-enabled") as HTMLInputElement;
+        const mistralEnabledEl = document.getElementById("settings-api-mistral-enabled") as HTMLInputElement;
+        
+        if (geminiEnabledEl) geminiEnabledEl.checked = settings.api_gemini_enabled !== false;
+        if (groqEnabledEl) groqEnabledEl.checked = settings.api_groq_enabled !== false;
+        if (youtubeEnabledEl) youtubeEnabledEl.checked = settings.api_youtube_enabled !== false;
+        if (grokEnabledEl) grokEnabledEl.checked = settings.api_grok_enabled !== false;
+        if (serpapiEnabledEl) serpapiEnabledEl.checked = settings.api_serpapi_enabled !== false;
+        if (anthropicEnabledEl) anthropicEnabledEl.checked = settings.api_anthropic_enabled !== false;
+        if (mistralEnabledEl) mistralEnabledEl.checked = settings.api_mistral_enabled !== false;
+
+        // Mise à jour visuelle du bouton de protection live dans le menu unifié
+        const menuAvLiveBtn = document.getElementById("menu-av-live-btn");
+        if (menuAvLiveBtn) {
+          const enabled = settings.av_live_protection === true;
+          menuAvLiveBtn.setAttribute("aria-pressed", String(enabled));
+          menuAvLiveBtn.innerHTML = enabled
+            ? `<span class="btn-icon">🛡️</span> PROT. TEMPS RÉEL : ON`
+            : `<span class="btn-icon">🛡️</span> PROT. TEMPS RÉEL : OFF`;
+          if (enabled) {
+            menuAvLiveBtn.classList.add("active");
+            menuAvLiveBtn.style.color = "#00ffcc";
+            menuAvLiveBtn.style.borderColor = "#00ffcc";
+          } else {
+            menuAvLiveBtn.classList.remove("active");
+            menuAvLiveBtn.style.color = "";
+            menuAvLiveBtn.style.borderColor = "";
+          }
+        }
         
         return;
       }
@@ -943,6 +1459,7 @@ function connect(): void {
 // ── Subtitles HUD Logic ──────────────────────────────────────────────────────
 let subtitleTimer: number | null = null;
 let subtitleTypeInterval: number | null = null;
+let hudLogs: string[] = [];
 
 function showSubtitles(text: string) {
   const container = document.getElementById("subtitle-hud")!;
@@ -953,6 +1470,66 @@ function showSubtitles(text: string) {
     textEl.style.fontStyle = "normal";
     textEl.style.color = "#00e5ff";
   }
+
+  // Si c'est un message du HUD de compilation (Iron Man Matrix)
+  if (text.startsWith("[HUD]")) {
+    if (subtitleTypeInterval) {
+      clearInterval(subtitleTypeInterval);
+      subtitleTypeInterval = null;
+    }
+    if (subtitleTimer) {
+      clearTimeout(subtitleTimer);
+      subtitleTimer = null;
+    }
+    container.style.display = "block";
+    metaEl.textContent = "COMPILING_SKILL_MATRIX...";
+    metaEl.style.color = "#ffaa00"; // Orange néon
+    
+    // Style type console / terminal
+    if (textEl) {
+      textEl.style.display = "block";
+      textEl.style.textAlign = "left";
+      textEl.style.whiteSpace = "pre-wrap";
+      textEl.style.fontSize = "11px";
+      textEl.style.lineHeight = "1.5";
+      textEl.style.maxHeight = "120px";
+      textEl.style.overflowY = "hidden";
+      textEl.style.fontFamily = "'Courier New', monospace";
+    }
+    
+    const cleanText = text.replace("[HUD] ", "").replace("[HUD]", "");
+    
+    // Réinitialiser les logs au début du processus
+    if (cleanText.includes("COMPILING NEW SKILL") || cleanText.includes("SYSTEM: ALLOCATING")) {
+      hudLogs = [];
+    }
+    
+    // Filtrer les codes de couleur console ANSI éventuels
+    const filteredText = cleanText.replace(/\u001b\[\d+m/g, '').replace(/\[0m/g, '').replace(/\[9\dm/g, '');
+    
+    if (filteredText.trim()) {
+      hudLogs.push(filteredText);
+      // Garder au maximum les 6 dernières lignes de logs à l'écran
+      if (hudLogs.length > 6) {
+        hudLogs.shift();
+      }
+    }
+    
+    if (textEl) {
+      textEl.textContent = hudLogs.join("\n");
+    }
+    return;
+  }
+
+  // Restauration du style d'origine pour les sous-titres ordinaires de Jarvis
+  if (textEl) {
+    textEl.style.display = "inline";
+    textEl.style.textAlign = "center";
+    textEl.style.whiteSpace = "normal";
+    textEl.style.fontSize = "18px";
+    textEl.style.lineHeight = "1.4";
+  }
+  hudLogs = []; // Vider la console
 
   // Clear any existing animation
   if (subtitleTimer) clearTimeout(subtitleTimer);
@@ -1002,6 +1579,286 @@ function scheduleReconnect(): void {
 }
 
 // ── Events ──────────────────────────────────────────────────────────────────
+// ── Unified Menu Event Listeners ─────────────────────────────────────────────
+if (jarvisMenuBtn && jarvisMenuDropdown) {
+  jarvisMenuBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const isOpen = !jarvisMenuDropdown.classList.contains("hidden");
+    if (isOpen) {
+      jarvisMenuDropdown.classList.add("hidden");
+      jarvisMenuBtn.classList.remove("active");
+    } else {
+      jarvisMenuDropdown.classList.remove("hidden");
+      jarvisMenuBtn.classList.add("active");
+    }
+  });
+
+  // Close menu when clicking outside of it
+  document.addEventListener("click", (e) => {
+    const target = e.target as HTMLElement;
+    if (!jarvisMenuDropdown.classList.contains("hidden")) {
+      if (!jarvisMenuDropdown.contains(target) && target !== jarvisMenuBtn) {
+        jarvisMenuDropdown.classList.add("hidden");
+        jarvisMenuBtn.classList.remove("active");
+      }
+    }
+  });
+
+  // Close menu when panel-opening buttons are clicked
+  jarvisMenuDropdown.querySelectorAll(".menu-action-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const id = btn.id;
+      if (id === "menu-settings-btn" || id === "shopping-toggle-btn" || id === "menu-uninstaller-toggle-btn" || id === "winget-toggle-btn" || id === "menu-holo-btn" || id === "menu-iptv-toggle-btn" || id === "menu-ha-toggle-btn" || id === "browser-btn" || id === "menu-keyboard-toggle" || id === "clear-cache-btn" || id === "api-keys-button" || id === "menu-av-scan-btn" || id === "menu-av-live-btn") {
+        jarvisMenuDropdown.classList.add("hidden");
+        jarvisMenuBtn.classList.remove("active");
+      }
+    });
+  });
+
+  // Liaison des clics du menu unifié vers les boutons jumeaux originaux (évite les doublons d'IDs)
+  const menuGpuBtn = document.getElementById("menu-gpu-btn");
+  if (menuGpuBtn && gpuButtonEl) {
+    menuGpuBtn.addEventListener("click", () => gpuButtonEl.click());
+  }
+
+  const menuSubtitleToggle = document.getElementById("menu-subtitle-toggle");
+  if (menuSubtitleToggle && subtitleToggleButtonEl) {
+    menuSubtitleToggle.addEventListener("click", () => subtitleToggleButtonEl.click());
+  }
+
+  const menuHoloBtn = document.getElementById("menu-holo-btn");
+  if (menuHoloBtn && holoButtonEl) {
+    menuHoloBtn.addEventListener("click", () => holoButtonEl.click());
+  }
+
+  const menuIptvToggleBtn = document.getElementById("menu-iptv-toggle-btn");
+  if (menuIptvToggleBtn) {
+    menuIptvToggleBtn.addEventListener("click", () => {
+      const p = document.getElementById("iptv-panel");
+      if (!p) return;
+      if (p.classList.contains("hidden")) {
+        p.classList.remove("hidden");
+        menuIptvToggleBtn.setAttribute("aria-pressed", "true");
+        menuIptvToggleBtn.classList.add("active");
+      } else {
+        p.classList.add("hidden");
+        menuIptvToggleBtn.setAttribute("aria-pressed", "false");
+        menuIptvToggleBtn.classList.remove("active");
+        const vid = document.getElementById("iptv-video") as HTMLVideoElement | null;
+        if (vid && !vid.paused) vid.pause();
+      }
+    });
+  }
+
+  const menuUninstallerToggleBtn = document.getElementById("menu-uninstaller-toggle-btn");
+  if (menuUninstallerToggleBtn) {
+    menuUninstallerToggleBtn.addEventListener("click", () => {
+      if (!uninstallerPanel) return;
+      const isHidden = uninstallerPanel.classList.contains("hidden");
+      if (isHidden) {
+        openUninstallerPanel();
+        menuUninstallerToggleBtn.setAttribute("aria-pressed", "true");
+        menuUninstallerToggleBtn.classList.add("active");
+      } else {
+        closeUninstallerPanel();
+        menuUninstallerToggleBtn.setAttribute("aria-pressed", "false");
+        menuUninstallerToggleBtn.classList.remove("active");
+      }
+    });
+  }
+
+  const menuHaToggleBtn = document.getElementById("menu-ha-toggle-btn");
+  if (menuHaToggleBtn) {
+    menuHaToggleBtn.addEventListener("click", () => {
+      if (!haPanel) return;
+      const isHidden = haPanel.classList.contains("hidden");
+      if (isHidden) {
+        haPanel.classList.remove("hidden");
+        menuHaToggleBtn.setAttribute("aria-pressed", "true");
+        menuHaToggleBtn.classList.add("active");
+        if (ws && ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({ type: "ha_get_states" }));
+        }
+      } else {
+        haPanel.classList.add("hidden");
+        menuHaToggleBtn.setAttribute("aria-pressed", "false");
+        menuHaToggleBtn.classList.remove("active");
+      }
+    });
+  }
+
+  const menuSettingsBtn = document.getElementById("menu-settings-btn");
+  if (menuSettingsBtn) {
+    menuSettingsBtn.addEventListener("click", () => {
+      // Masquer le menu déroulant
+      if (jarvisMenuDropdown) jarvisMenuDropdown.classList.add("hidden");
+      if (jarvisMenuBtn) jarvisMenuBtn.classList.remove("active");
+      
+      // Désactiver le clavier visuel s'il est ouvert pour éviter la superposition
+      if (keyboardEnabled && keyboardToggleButtonEl && keyboardHudEl) {
+        keyboardEnabled = false;
+        keyboardToggleButtonEl.setAttribute("aria-pressed", "false");
+        keyboardHudEl.style.display = "none";
+      }
+
+      // Ouvrir directement le modal paramètres
+      if (settingsModalEl) {
+        settingsModalEl.classList.add("visible");
+      }
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: "get_settings" }));
+      }
+
+      // Énumération autonome des caméras
+      if (navigator.mediaDevices && navigator.mediaDevices.enumerateDevices) {
+        navigator.mediaDevices.enumerateDevices()
+          .then(devices => {
+            const cameras = devices.filter(d => d.kind === "videoinput");
+            if (settingsCameraSelect) {
+              settingsCameraSelect.innerHTML = '<option value="">-- Détection automatique --</option>';
+              cameras.forEach((cam, index) => {
+                const opt = document.createElement("option");
+                opt.value = cam.deviceId;
+                opt.textContent = cam.label || `Caméra ${index + 1} (${cam.deviceId.substring(0, 5)}...)`;
+                settingsCameraSelect.appendChild(opt);
+              });
+              const savedCam = localStorage.getItem("jarvis-camera-id") || "";
+              settingsCameraSelect.value = savedCam;
+            }
+          })
+          .catch(err => {
+            console.error("Erreur lors de l'énumération des caméras:", err);
+          });
+      }
+    });
+  }
+
+  const menuKeyboardToggle = document.getElementById("menu-keyboard-toggle");
+  const keyboardToggle = document.getElementById("keyboard-toggle");
+  if (menuKeyboardToggle && keyboardToggle) {
+    menuKeyboardToggle.addEventListener("click", () => keyboardToggle.click());
+  }
+
+  // ── Antivirus Scan / Live Protection dans le menu unifié ──
+  const menuAvScanBtn = document.getElementById("menu-av-scan-btn");
+  const settingsAvScanBtn = document.getElementById("settings-av-scan-btn");
+  if (menuAvScanBtn && settingsAvScanBtn) {
+    menuAvScanBtn.addEventListener("click", () => {
+      // Fermer le menu déroulant et déclencher le scan antivirus
+      if (jarvisMenuDropdown) jarvisMenuDropdown.classList.add("hidden");
+      if (jarvisMenuBtn) jarvisMenuBtn.classList.remove("active");
+      settingsAvScanBtn.click();
+    });
+  }
+
+  const menuAvLiveBtn = document.getElementById("menu-av-live-btn");
+  const settingsAvLive = document.getElementById("settings-av-live") as HTMLInputElement;
+  if (menuAvLiveBtn && settingsAvLive) {
+    menuAvLiveBtn.addEventListener("click", () => {
+      if (jarvisMenuDropdown) jarvisMenuDropdown.classList.add("hidden");
+      if (jarvisMenuBtn) jarvisMenuBtn.classList.remove("active");
+      settingsAvLive.click();
+    });
+  }
+
+  // ── Bouton Vider Cache / Recharger ──
+  const clearCacheBtn = document.getElementById("clear-cache-btn") as HTMLButtonElement;
+  if (clearCacheBtn) {
+    clearCacheBtn.addEventListener("click", () => {
+      if (jarvisMenuDropdown) jarvisMenuDropdown.classList.add("hidden");
+      if (jarvisMenuBtn) jarvisMenuBtn.classList.remove("active");
+      clearCacheBtn.disabled = true;
+      clearCacheBtn.innerHTML = '<span class="btn-icon">⏳</span> NETTOYAGE EN COURS...';
+      const banner = document.getElementById("update-banner");
+      if (banner) {
+        banner.style.display = "block";
+        banner.style.cursor = "default";
+        banner.textContent = "⏳ NETTOYAGE DU CACHE EN COURS...";
+        banner.style.background = "linear-gradient(90deg, rgba(0,30,80,0.95), rgba(0,100,180,0.85))";
+      }
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: "clear_cache" }));
+      } else {
+        setTimeout(() => location.reload(), 1500);
+      }
+    });
+  }
+
+  // ── Bouton Liste des Commandes ──
+  const commandsBtn = document.getElementById("commands-btn");
+  if (commandsBtn) {
+    commandsBtn.addEventListener("click", () => {
+      if (jarvisMenuDropdown) jarvisMenuDropdown.classList.add("hidden");
+      if (jarvisMenuBtn) jarvisMenuBtn.classList.remove("active");
+      showHelpHUD();
+    });
+  }
+
+  // ── Bouton de configuration des clés API ──
+  if (apiKeysButtonEl && apiKeysModalEl) {
+    apiKeysButtonEl.addEventListener("click", () => {
+      if (jarvisMenuDropdown) jarvisMenuDropdown.classList.add("hidden");
+      if (jarvisMenuBtn) jarvisMenuBtn.classList.remove("active");
+      apiKeysModalEl.style.display = "flex";
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: "get_settings" }));
+      }
+    });
+  }
+
+  if (apiKeysCloseBtn && apiKeysModalEl) {
+    apiKeysCloseBtn.addEventListener("click", () => {
+      apiKeysModalEl.style.display = "none";
+    });
+  }
+
+  if (apiKeysSaveBtn && apiKeysModalEl) {
+    apiKeysSaveBtn.addEventListener("click", () => {
+      const geminiEnabledEl = document.getElementById("settings-api-gemini-enabled") as HTMLInputElement;
+      const groqEnabledEl = document.getElementById("settings-api-groq-enabled") as HTMLInputElement;
+      const youtubeEnabledEl = document.getElementById("settings-api-youtube-enabled") as HTMLInputElement;
+      const grokEnabledEl = document.getElementById("settings-api-grok-enabled") as HTMLInputElement;
+      const serpapiEnabledEl = document.getElementById("settings-api-serpapi-enabled") as HTMLInputElement;
+      const anthropicEnabledEl = document.getElementById("settings-api-anthropic-enabled") as HTMLInputElement;
+      const mistralEnabledEl = document.getElementById("settings-api-mistral-enabled") as HTMLInputElement;
+
+      const geminiKeyEl = document.getElementById("settings-api-gemini-key") as HTMLInputElement;
+      const groqKeyEl = document.getElementById("settings-api-groq-key") as HTMLInputElement;
+      const youtubeKeyEl = document.getElementById("settings-api-youtube-key") as HTMLInputElement;
+      const grokKeyEl = document.getElementById("settings-api-grok-key") as HTMLInputElement;
+      const serpapiKeyEl = document.getElementById("settings-api-serpapi-key") as HTMLInputElement;
+      const anthropicKeyEl = document.getElementById("settings-api-anthropic-key") as HTMLInputElement;
+      const mistralKeyEl = document.getElementById("settings-api-mistral-key") as HTMLInputElement;
+
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({
+          type: "update_settings",
+          settings: {
+            api_gemini_enabled: geminiEnabledEl ? geminiEnabledEl.checked : true,
+            api_groq_enabled: groqEnabledEl ? groqEnabledEl.checked : true,
+            api_youtube_enabled: youtubeEnabledEl ? youtubeEnabledEl.checked : true,
+            api_grok_enabled: grokEnabledEl ? grokEnabledEl.checked : true,
+            api_serpapi_enabled: serpapiEnabledEl ? serpapiEnabledEl.checked : true,
+            api_anthropic_enabled: anthropicEnabledEl ? anthropicEnabledEl.checked : true,
+            api_mistral_enabled: mistralEnabledEl ? mistralEnabledEl.checked : true,
+            api_keys: {
+              GEMINI_API_KEY: geminiKeyEl ? geminiKeyEl.value.trim() : "",
+              GROQ_API_KEY: groqKeyEl ? groqKeyEl.value.trim() : "",
+              YOUTUBE_API_KEY: youtubeKeyEl ? youtubeKeyEl.value.trim() : "",
+              XAI_API_KEY: grokKeyEl ? grokKeyEl.value.trim() : "",
+              SERPAPI_API_KEY: serpapiKeyEl ? serpapiKeyEl.value.trim() : "",
+              ANTHROPIC_API_KEY: anthropicKeyEl ? anthropicKeyEl.value.trim() : "",
+              MISTRAL_API_KEY: mistralKeyEl ? mistralKeyEl.value.trim() : ""
+            }
+          }
+        }));
+      }
+      apiKeysModalEl.style.display = "none";
+    });
+  }
+}
+
+
 muteButtonEl.addEventListener("click", () => {
   if (!ws || ws.readyState !== WebSocket.OPEN) return;
 
@@ -1012,7 +1869,7 @@ muteButtonEl.addEventListener("click", () => {
   applyState("idle");
 });
 
-gpuButtonEl.addEventListener("click", () => {
+gpuButtonEl?.addEventListener("click", () => {
   const isPressed = gpuButtonEl.getAttribute("aria-pressed") === "true";
   const newState = !isPressed;
   gpuButtonEl.setAttribute("aria-pressed", newState.toString());
@@ -1027,7 +1884,7 @@ gpuButtonEl.addEventListener("click", () => {
   }
 });
 
-subtitleToggleButtonEl.addEventListener("click", () => {
+subtitleToggleButtonEl?.addEventListener("click", () => {
   subtitlesEnabled = !subtitlesEnabled;
   subtitleToggleButtonEl.setAttribute("aria-pressed", subtitlesEnabled.toString());
   subtitleToggleButtonEl.textContent = subtitlesEnabled ? "HUD TEXT" : "TEXT OFF";
@@ -1059,7 +1916,7 @@ keyboardInputEl.addEventListener("keydown", (e) => {
 });
 
 // ── Settings UI Logic ────────────────────────────────────────────────────────
-settingsButtonEl.addEventListener("click", () => {
+settingsButtonEl?.addEventListener("click", () => {
   if (keyboardEnabled) {
     keyboardEnabled = false;
     keyboardToggleButtonEl.setAttribute("aria-pressed", "false");
@@ -1098,6 +1955,10 @@ settingsCloseBtn.addEventListener("click", () => {
   settingsModalEl.classList.remove("visible");
 });
 
+swarmCloseBtn?.addEventListener("click", () => {
+  devSwarmHud?.classList.add("hidden");
+});
+
 // ── Hologramme mode toggle ────────────────────────────────────────────────────
 let _holoActive = false;
 const _holoOverlay = document.getElementById("holo-overlay") as HTMLDivElement;
@@ -1108,8 +1969,10 @@ function _openHolo() {
   if (holoButtonEl) holoButtonEl.setAttribute("aria-pressed", "true");
   const orbCanvas = document.getElementById("orb-canvas");
   if (orbCanvas) orbCanvas.style.display = "none";
+  if (_carouselArrow) _carouselArrow.style.display = "none";
   activerHolo();
 }
+(window as any)._openHolo = _openHolo;
 
 function _closeHolo() {
   _holoActive = false;
@@ -1118,7 +1981,9 @@ function _closeHolo() {
   if (holoButtonEl) holoButtonEl.setAttribute("aria-pressed", "false");
   const orbCanvas = document.getElementById("orb-canvas");
   if (orbCanvas) orbCanvas.style.display = "block";
+  if (_carouselArrow) { _carouselArrow.style.display = "flex"; _positionArrow(_carouselOpen); }
 }
+(window as any)._closeHolo = _closeHolo;
 
 holoButtonEl?.addEventListener("click", () => {
   if (_holoActive) _closeHolo(); else _openHolo();
@@ -1159,21 +2024,48 @@ appAddBtn.addEventListener("click", () => {
   }
 });
 
+if (appDetectBtn) {
+  appDetectBtn.addEventListener("click", () => {
+    appDetectBtn.textContent = "🔍 SCAN...";
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: "detect_apps" }));
+    }
+  });
+}
+
+if (appDetectSelect) {
+  appDetectSelect.addEventListener("change", () => {
+    const selectedPath = appDetectSelect.value;
+    const selectedText = appDetectSelect.options[appDetectSelect.selectedIndex].text;
+    if (selectedPath && selectedText) {
+      const alreadyExists = currentCustomApps.some(app => app.exe_path === selectedPath);
+      if (!alreadyExists) {
+        const id = selectedText.toLowerCase().replace(/[^a-z0-9]/g, "_");
+        currentCustomApps.push({ id, label: selectedText, exe_path: selectedPath });
+        renderCustomApps();
+      }
+      appDetectSelect.value = "";
+    }
+  });
+}
+
 settingsSaveBtn.addEventListener("click", () => {
   const selectedMic = settingsMicSelect.value;
 
-  // Sauvegarde du thème de l'orbe dans le localStorage et application instantanée
-  const orbThemeSelect = document.getElementById("settings-orb-theme") as HTMLSelectElement;
-  if (orbThemeSelect) {
-    const selectedTheme = orbThemeSelect.value;
-    localStorage.setItem("jarvis-orb-theme", selectedTheme);
-    orb.setTheme(selectedTheme);
+  // Sauvegarde du style de l'orbe dans le localStorage et application instantanée
+  const orbStyleSelect = document.getElementById("settings-orb-style") as HTMLSelectElement;
+  if (orbStyleSelect) {
+    const selectedStyle = orbStyleSelect.value;
+    localStorage.setItem("jarvis-orb-style", selectedStyle);
+    orb.setTheme(selectedStyle);
   }
   
   // Sauvegarde de la caméra sélectionnée dans le localStorage
   if (settingsCameraSelect) {
     localStorage.setItem("jarvis-camera-id", settingsCameraSelect.value);
   }
+
+  const settingsAvLiveEl = document.getElementById("settings-av-live") as HTMLInputElement;
 
   const settings = {
     user_name: settingsNameEl.value.trim(),
@@ -1183,7 +2075,9 @@ settingsSaveBtn.addEventListener("click", () => {
     custom_apps: currentCustomApps,
     custom_lights: currentCustomLights,
     custom_prises: currentCustomPrises,
-    custom_capteurs: currentCustomCapteurs
+    custom_capteurs: currentCustomCapteurs,
+    orb_style: orbStyleSelect ? orbStyleSelect.value : "default",
+    av_live_protection: settingsAvLiveEl ? settingsAvLiveEl.checked : false
   };
   
   if (ws && ws.readyState === WebSocket.OPEN) {
@@ -1191,6 +2085,25 @@ settingsSaveBtn.addEventListener("click", () => {
   }
   
   settingsModalEl.classList.remove("visible");
+});
+
+// Toggle visibilité des mots de passe (oeil)
+document.querySelectorAll(".toggle-password-eye").forEach(eye => {
+  eye.addEventListener("click", () => {
+    const targetId = eye.getAttribute("data-target");
+    if (targetId) {
+      const input = document.getElementById(targetId) as HTMLInputElement;
+      if (input) {
+        if (input.type === "password") {
+          input.type = "text";
+          eye.textContent = "🙈";
+        } else {
+          input.type = "password";
+          eye.textContent = "👁️";
+        }
+      }
+    }
+  });
 });
 
 function renderHaEntities() {
@@ -1398,6 +2311,8 @@ setMuted(false);
 injectVisionButton();
 initJarvisGlobe();
 initHandTracking();
+initHADashboard(ws);
+initIPTVPlayer(ws);
 runBootSequence();
 
 // Masquer le message d'aide après 10 secondes
@@ -1413,7 +2328,7 @@ function showHelpHUD() {
   helpOverlayEl.style.display = "block";
   helpOverlayEl.innerHTML = "";
 
-  // Select 16 random commands
+  // Select 16 random commands (8 on each side) to keep them visible within the viewport
   const shuffled = [...HELP_COMMANDS].sort(() => 0.5 - Math.random());
   const selected = shuffled.slice(0, 16);
 
@@ -1422,19 +2337,18 @@ function showHelpHUD() {
     const widget = document.createElement("div");
     widget.className = `help-widget ${isRight ? 'right' : ''}`;
 
-    // Grid-like positioning with random offsets (starting lower to avoid the tip)
+    // Grid-like positioning with absolute geometric alignment (no overlap)
     const row = Math.floor(i / 2);
-    const top = 160 + (row * 95) + (Math.random() * 15);
+    const top = 120 + (row * 84);
     widget.style.top = `${top}px`;
 
-    // Position them more towards the center to "fill around"
-    const sideOffset = 30 + (Math.random() * 40);
+    // Position them on the left or right side with identical margins
+    const sideOffset = 45;
     if (isRight) widget.style.right = `${sideOffset}px`;
     else widget.style.left = `${sideOffset}px`;
 
-    // Faster reveal and varied animations
-    widget.style.animation = `float ${2 + Math.random() * 2}s ease-in-out infinite`;
-    widget.style.animationDelay = `${Math.random() * 1}s`;
+    // Cinematic reveal delay (shorter timeout for faster entrance)
+    widget.style.transitionDelay = `${(i % 5) * 0.15}s`;
 
     widget.innerHTML = `
       <div class="help-widget-title" style="display:flex; justify-content: space-between;">
@@ -1446,8 +2360,10 @@ function showHelpHUD() {
 
     helpOverlayEl.appendChild(widget);
 
-    // Cinematic reveal synchronized with speech (one widget every 800ms)
-    setTimeout(() => widget.classList.add("visible"), i * 800);
+    // Cinematic reveal (set transition visible immediately or on next tick)
+    requestAnimationFrame(() => {
+      setTimeout(() => widget.classList.add("visible"), 50);
+    });
   });
 
   // Auto-hide after 20 seconds
@@ -1841,6 +2757,8 @@ micBtnEl?.addEventListener("click", () => {
   setMuted(!isMuted);
 });
 
+
+
 setTimeout(() => initWidgets(ws), 2000);
 
 // ── Drag & Drop souris pour les widgets HUD ───────────────────────────────────
@@ -1853,11 +2771,14 @@ function makeDraggable(el: HTMLElement): void {
     // Ignorer les clics sur boutons, inputs, etc.
     if ((e.target as HTMLElement).closest("button, input, select, a, svg")) return;
 
+    // Ignorer si on clique dans la zone de redimensionnement (coin inférieur droit)
+    const rect = el.getBoundingClientRect();
+    if (rect.right - e.clientX < 20 && rect.bottom - e.clientY < 20) return;
+
     e.preventDefault();
     dragging = true;
 
     // Convertir right/bottom en left/top absolus pour pouvoir déplacer librement
-    const rect = el.getBoundingClientRect();
     el.style.transition = "none";
     el.style.animation  = "none";
     el.style.right      = "auto";
@@ -1901,7 +2822,7 @@ function makeDraggable(el: HTMLElement): void {
 }
 
 // Appliquer le drag à tous les widgets HUD au chargement (ils existent dans le DOM même si cachés)
-["calendar-hud", "weather-hud", "music-hud"].forEach(id => {
+["calendar-hud", "weather-hud", "music-hud", "dev-swarm-hud"].forEach(id => {
   const el = document.getElementById(id);
   if (el) makeDraggable(el);
 });
@@ -2012,76 +2933,15 @@ const txKeyframes: [number, number][] = [
 
 function renderCarousel(progress = 0) {
   const buttons = getCarouselButtons();
-  const len = buttons.length;
-  if (len === 0) return;
+  if (buttons.length === 0) return;
 
-  buttons.forEach((btn, idx) => {
-    // 1. Calculate the base circular slot
-    const diff = (idx - activeIndex + len) % len;
-    let slot = diff;
-    if (slot > Math.floor(len / 2)) {
-      slot -= len;
-    }
-
-    // 2. Adjust slot by drag progress
-    let currentSlot = slot + progress;
-
-    // Wrap currentSlot to the range [-len/2, len/2] for infinite circular scrolling
-    const halfLen = len / 2;
-    while (currentSlot < -halfLen) {
-      currentSlot += len;
-    }
-    while (currentSlot > halfLen) {
-      currentSlot -= len;
-    }
-
-    // 3. Interpolate styles
-    const scale = interpolate(currentSlot, scaleKeyframes);
-    const opacity = interpolate(currentSlot, opacityKeyframes);
-    const offset = interpolate(currentSlot, txKeyframes);
-    const tx = -50 + offset;
-
-    // Z-index based on rounded slot
-    const roundedSlot = Math.round(currentSlot);
-    let zIndex = 1;
-    if (roundedSlot === 0) zIndex = 10;
-    else if (Math.abs(roundedSlot) === 1) zIndex = 5;
-    else if (Math.abs(roundedSlot) === 2) zIndex = 3;
-
-    // Apply class names for CSS specific overrides (colors, etc.)
-    btn.classList.remove("active", "prev", "next", "prev2", "next2", "hidden");
-    
-    if (roundedSlot === 0) {
-      btn.classList.add("active");
-      btn.setAttribute("aria-hidden", "false");
-    } else if (roundedSlot === -1) {
-      btn.classList.add("prev");
-      btn.setAttribute("aria-hidden", "false");
-    } else if (roundedSlot === -2) {
-      btn.classList.add("prev2");
-      btn.setAttribute("aria-hidden", "false");
-    } else if (roundedSlot === 1) {
-      btn.classList.add("next");
-      btn.setAttribute("aria-hidden", "false");
-    } else if (roundedSlot === 2) {
-      btn.classList.add("next2");
-      btn.setAttribute("aria-hidden", "false");
-    } else {
-      btn.classList.add("hidden");
-      btn.setAttribute("aria-hidden", "true");
-    }
-
-    // Direct inline styles for fluid transition
-    btn.style.transform = `translate(${tx}%, -50%) scale(${scale})`;
-    btn.style.opacity = opacity.toString();
-    btn.style.zIndex = zIndex.toString();
-    btn.style.pointerEvents = Math.abs(currentSlot) > 2.2 ? "none" : "auto";
-  });
-
-  // Update dots active class
-  const dots = document.querySelectorAll(".carousel-dot");
-  dots.forEach((dot, idx) => {
-    dot.classList.toggle("active", idx === activeIndex);
+  buttons.forEach((btn) => {
+    // Supprimer les styles inline appliqués par le carrousel 3D précédent
+    btn.style.transform = "";
+    btn.style.opacity = "";
+    btn.style.zIndex = "";
+    btn.style.pointerEvents = "";
+    btn.setAttribute("aria-hidden", "false");
   });
 }
 
@@ -2218,3 +3078,1172 @@ if (controlBar && track) {
 // Initialize
 createIndicators();
 updateCarousel();
+
+
+// ── Drag & Drop utility for Antivirus Panel ─────────────────────────────────
+function makePanelDraggable(panel: HTMLElement, header: HTMLElement) {
+  let isDragging = false;
+  let offsetX = 0;
+  let offsetY = 0;
+
+  header.style.cursor = "grab";
+
+  header.addEventListener("mousedown", (e) => {
+    isDragging = true;
+    const rect = panel.getBoundingClientRect();
+    panel.style.left      = `${rect.left}px`;
+    panel.style.top       = `${rect.top}px`;
+    panel.style.right     = "auto";
+    panel.style.bottom    = "auto";
+    panel.style.transform = "none";
+    offsetX = e.clientX - rect.left;
+    offsetY = e.clientY - rect.top;
+    header.style.cursor = "grabbing";
+    e.preventDefault();
+  });
+
+  document.addEventListener("mousemove", (e) => {
+    if (!isDragging) return;
+    const newX = Math.max(0, Math.min(e.clientX - offsetX, window.innerWidth  - panel.offsetWidth));
+    const newY = Math.max(0, Math.min(e.clientY - offsetY, window.innerHeight - panel.offsetHeight));
+    panel.style.left = `${newX}px`;
+    panel.style.top  = `${newY}px`;
+  });
+
+  document.addEventListener("mouseup", () => {
+    if (isDragging) { isDragging = false; header.style.cursor = "grab"; }
+  });
+}
+
+// ── Antivirus HUD Logic ──────────────────────────────────────────────────────
+const avPanelEl       = document.getElementById("av-panel") as HTMLDivElement;
+const avHeaderEl      = document.getElementById("av-panel-header") as HTMLDivElement;
+const avCloseBtn      = document.getElementById("av-panel-close-btn") as HTMLButtonElement;
+const avCancelBtn     = document.getElementById("av-cancel-btn") as HTMLButtonElement;
+const avProgressFill  = document.getElementById("av-progress-bar-fill") as HTMLDivElement;
+const avProgressPct   = document.getElementById("av-progress-percent") as HTMLDivElement;
+const avStatusLabel   = document.getElementById("av-status-label") as HTMLSpanElement;
+const avThreatsCount  = document.getElementById("av-threats-count") as HTMLSpanElement;
+const avCurrentFile   = document.getElementById("av-current-file") as HTMLDivElement;
+const avConsole       = document.getElementById("av-console") as HTMLDivElement;
+
+let avScanInProgress = false;
+let avThreatsList: any[] = [];
+let avResolvedThreatsCount = 0;
+
+// Setup Drag & Drop
+if (avPanelEl && avHeaderEl) {
+  makePanelDraggable(avPanelEl, avHeaderEl);
+}
+
+function openAntivirusPanel() {
+  if (!avPanelEl) return;
+
+  // Initial positioning
+  const left = Math.max(20, (window.innerWidth - 460) / 2);
+  const top = Math.max(20, (window.innerHeight - 420) / 2);
+  avPanelEl.style.left = `${left}px`;
+  avPanelEl.style.top = `${top}px`;
+  avPanelEl.style.right = "auto";
+  avPanelEl.style.bottom = "auto";
+  avPanelEl.style.transform = "none";
+
+  // Reset UI elements
+  avPanelEl.classList.remove("threat-detected");
+  avPanelEl.classList.remove("hidden");
+  void avPanelEl.offsetWidth; // Reflow
+  avPanelEl.classList.add("visible");
+
+  if (avStatusLabel) avStatusLabel.textContent = "SYS_STATUS: INITIALISATION";
+  if (avThreatsCount) avThreatsCount.textContent = "MENACES DÉTECTÉES: 0";
+  if (avProgressFill) avProgressFill.style.width = "0%";
+  if (avProgressPct) avProgressPct.textContent = "0%";
+  if (avCurrentFile) avCurrentFile.textContent = "CONNEXION AU NOYAU DE SÉCURITÉ...";
+  if (avConsole) avConsole.innerHTML = '<div class="av-console-line info">[INFO] Initialisation du système de sécurité JARVIS v2.6...</div>';
+  
+  // Clean active threats state
+  avThreatsList = [];
+  avResolvedThreatsCount = 0;
+  const listContainer = document.getElementById("av-threats-list");
+  if (listContainer) {
+    listContainer.innerHTML = "";
+    listContainer.classList.add("hidden");
+  }
+  
+  // Show radar and progress controls
+  const radarCont = avPanelEl.querySelector(".av-radar-container") as HTMLElement;
+  const progressCont = avPanelEl.querySelector(".av-progress-bar-container") as HTMLElement;
+  const currentFileCont = document.getElementById("av-current-file") as HTMLElement;
+  if (radarCont) radarCont.style.display = "";
+  if (progressCont) progressCont.style.display = "";
+  if (currentFileCont) currentFileCont.style.display = "";
+
+  if (avCancelBtn) {
+    avCancelBtn.textContent = "ANNULER";
+    avCancelBtn.disabled = false;
+  }
+  avScanInProgress = true;
+
+  // Send start scan to backend
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({ type: "av_scan_start" }));
+  }
+}
+
+function closeAntivirusPanel() {
+  if (!avPanelEl) return;
+  
+  if (avScanInProgress) {
+    cancelAvScan();
+  }
+
+  avPanelEl.classList.remove("visible");
+  setTimeout(() => {
+    avPanelEl.classList.add("hidden");
+  }, 400);
+}
+
+function cancelAvScan() {
+  avScanInProgress = false;
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({ type: "av_scan_cancel" }));
+  }
+  if (avCancelBtn) {
+    avCancelBtn.textContent = "FERMER";
+  }
+}
+
+if (avCloseBtn) {
+  avCloseBtn.addEventListener("click", closeAntivirusPanel);
+}
+
+if (avCancelBtn) {
+  avCancelBtn.addEventListener("click", () => {
+    if (avScanInProgress) {
+      cancelAvScan();
+    } else {
+      closeAntivirusPanel();
+    }
+  });
+}
+
+function handleAntivirusWSMessage(data: any) {
+  if (!avConsole) return;
+
+  if (data.type === "av_start") {
+    const line = document.createElement("div");
+    line.className = "av-console-line info";
+    line.textContent = `[NOYAU] ${data.message || 'Moteur antivirus démarré.'}`;
+    avConsole.appendChild(line);
+    avConsole.scrollTop = avConsole.scrollHeight;
+  }
+  
+  else if (data.type === "av_progress") {
+    // Update progress bar
+    if (data.percent !== undefined && avProgressFill && avProgressPct) {
+      avProgressFill.style.width = `${data.percent}%`;
+      avProgressPct.textContent = `${data.percent}%`;
+    }
+    
+    if (data.step && avStatusLabel) {
+      avStatusLabel.textContent = `SYS_STATUS: ${data.step.toUpperCase()}_SCAN`;
+    }
+    
+    if (data.threats_found !== undefined && avThreatsCount) {
+      avThreatsCount.textContent = `MENACES DÉTECTÉES: ${data.threats_found}`;
+    }
+    
+    if (data.message) {
+      if (avCurrentFile) avCurrentFile.textContent = data.message;
+      
+      const line = document.createElement("div");
+      line.className = "av-console-line";
+      
+      if (data.step === "registry") {
+        line.textContent = `[REGISTRE] ${data.message}`;
+      } else if (data.step === "processes") {
+        line.textContent = `[PROCESSUS] ${data.message}`;
+      } else {
+        line.textContent = `[FICHIER] ${data.message}`;
+      }
+      
+      avConsole.appendChild(line);
+      avConsole.scrollTop = avConsole.scrollHeight;
+    }
+  }
+  
+  else if (data.type === "av_threat_detected" && data.threat) {
+    avThreatsList.push(data.threat);
+    if (avPanelEl) avPanelEl.classList.add("threat-detected");
+    
+    const line = document.createElement("div");
+    line.className = "av-console-line threat";
+    line.textContent = `[DANGER] Menace détectée : ${data.threat.class} -> ${data.threat.name} (${data.threat.desc})`;
+    avConsole.appendChild(line);
+    avConsole.scrollTop = avConsole.scrollHeight;
+  }
+  
+  else if (data.type === "av_complete") {
+    avScanInProgress = false;
+    if (avCancelBtn) avCancelBtn.textContent = "FERMER";
+    if (avProgressFill && avProgressPct) {
+      avProgressFill.style.width = "100%";
+      avProgressPct.textContent = "100%";
+    }
+    
+    const line = document.createElement("div");
+    if (data.status === "infected") {
+      if (avPanelEl) {
+        avPanelEl.classList.add("threat-detected");
+        avStatusLabel.textContent = "SYS_STATUS: VULNÉRABLE";
+      }
+      line.className = "av-console-line threat";
+      line.textContent = `[TERMINE] Analyse terminée. Menaces détectées : ${data.threats ? data.threats.length : avThreatsList.length}. Système vulnérable.`;
+      
+      // Store threats list
+      avThreatsList = data.threats || avThreatsList;
+      avResolvedThreatsCount = 0;
+      
+      // Render the threat controls
+      renderThreatsList();
+    } else if (data.status === "error") {
+      if (avStatusLabel) avStatusLabel.textContent = "SYS_STATUS: ERREUR";
+      line.className = "av-console-line threat";
+      line.textContent = `[ERREUR] ${data.message || 'Une erreur système est survenue pendant le scan.'}`;
+    } else {
+      if (avPanelEl) avPanelEl.classList.remove("threat-detected");
+      if (avStatusLabel) avStatusLabel.textContent = "SYS_STATUS: SAIN";
+      line.className = "av-console-line success";
+      line.textContent = `[TERMINE] Analyse terminée. Aucune menace détectée. Système entièrement sécurisé.`;
+    }
+    avConsole.appendChild(line);
+    avConsole.scrollTop = avConsole.scrollHeight;
+  }
+  
+  else if (data.type === "av_cancel") {
+    avScanInProgress = false;
+    if (avCancelBtn) avCancelBtn.textContent = "FERMER";
+    if (avStatusLabel) avStatusLabel.textContent = "SYS_STATUS: INTERROMPU";
+    
+    const line = document.createElement("div");
+    line.className = "av-console-line info";
+    line.textContent = `[INTERROMPU] ${data.message || "L'analyse antivirus a été annulée."}`;
+    avConsole.appendChild(line);
+    avConsole.scrollTop = avConsole.scrollHeight;
+  }
+
+  else if (data.type === "av_action_result") {
+    const idx = avThreatsList.findIndex(t => t.target === data.threat_target);
+    const line = document.createElement("div");
+    if (data.success) {
+      line.className = "av-console-line success";
+      line.textContent = `[RÉSOLU] Action '${data.action.toUpperCase()}' : ${data.message}`;
+      
+      if (idx !== -1) {
+        const itemEl = document.getElementById(`av-threat-${idx}`);
+        if (itemEl && !itemEl.classList.contains("resolved")) {
+          itemEl.classList.add("resolved");
+          const buttons = itemEl.querySelectorAll(".av-action-btn") as NodeListOf<HTMLButtonElement>;
+          buttons.forEach(btn => btn.disabled = true);
+          
+          const badge = document.createElement("div");
+          badge.className = "av-threat-status-badge";
+          let actStr = "RÉSOLU";
+          if (data.action === "delete") actStr = "SUPPRIMÉ";
+          else if (data.action === "clean") actStr = "NETTOYÉ";
+          else if (data.action === "quarantine") actStr = "MIS EN QUARANTAINE";
+          else if (data.action === "allow") actStr = "AUTORISÉ";
+          badge.textContent = `◈ STATUT: ${actStr}`;
+          itemEl.appendChild(badge);
+          
+          avResolvedThreatsCount++;
+          if (avThreatsCount) avThreatsCount.textContent = `MENACES DÉTECTÉES: ${avThreatsList.length - avResolvedThreatsCount}`;
+          
+          if (avResolvedThreatsCount === avThreatsList.length) {
+            if (avPanelEl) avPanelEl.classList.remove("threat-detected");
+            if (avStatusLabel) avStatusLabel.textContent = "SYS_STATUS: SAIN";
+            const sLine = document.createElement("div");
+            sLine.className = "av-console-line success";
+            sLine.textContent = "[SYSTEME] Résolution complète. Toutes les menaces ont été traitées.";
+            avConsole.appendChild(sLine);
+            
+            // Verbal feedback
+            if (ws && ws.readyState === WebSocket.OPEN) {
+              ws.send(JSON.stringify({
+                type: "av_speak",
+                text: "Toutes les menaces détectées ont été résolues, Mickael. Votre système est entièrement sécurisé."
+              }));
+            }
+          }
+        }
+      }
+    } else {
+      line.className = "av-console-line threat";
+      line.textContent = `[ÉCHEC] Action '${data.action.toUpperCase()}' sur la cible ${data.threat_target} : ${data.message}`;
+      
+      // Re-enable buttons
+      if (idx !== -1) {
+        const itemEl = document.getElementById(`av-threat-${idx}`);
+        if (itemEl) {
+          const buttons = itemEl.querySelectorAll(".av-action-btn") as NodeListOf<HTMLButtonElement>;
+          buttons.forEach(btn => btn.disabled = false);
+        }
+      }
+    }
+    avConsole.appendChild(line);
+    avConsole.scrollTop = avConsole.scrollHeight;
+  }
+}
+
+function renderThreatsList() {
+  const listContainer = document.getElementById("av-threats-list");
+  if (!listContainer) return;
+  
+  listContainer.innerHTML = "";
+  listContainer.classList.remove("hidden");
+  
+  // Hide scanning visuals
+  const radarCont = avPanelEl?.querySelector(".av-radar-container") as HTMLElement;
+  const progressCont = avPanelEl?.querySelector(".av-progress-bar-container") as HTMLElement;
+  const currentFileCont = document.getElementById("av-current-file") as HTMLElement;
+  if (radarCont) radarCont.style.display = "none";
+  if (progressCont) progressCont.style.display = "none";
+  if (currentFileCont) currentFileCont.style.display = "none";
+  
+  if (avThreatsList.length === 0) {
+    listContainer.innerHTML = '<div style="text-align:center;font-size:10px;color:#22c55e;padding:10px;">AUCUNE MENACE ACTIVE</div>';
+    return;
+  }
+  
+  avThreatsList.forEach((threat, idx) => {
+    const item = document.createElement("div");
+    item.className = "av-threat-item";
+    item.id = `av-threat-${idx}`;
+    
+    item.innerHTML = `
+      <div class="av-threat-meta">
+        <span class="av-threat-class">${threat.class}</span>
+        <span class="av-threat-type">${threat.type.toUpperCase()}</span>
+      </div>
+      <div class="av-threat-details">
+        <span class="av-threat-name">${threat.name}</span>
+        <span class="av-threat-target">${threat.target}</span>
+        <span class="av-threat-desc">${threat.desc || ''}</span>
+      </div>
+      <div class="av-threat-actions">
+        <button class="av-action-btn delete" data-index="${idx}" data-action="delete">SUPPRIMER</button>
+        <button class="av-action-btn clean" data-index="${idx}" data-action="clean">NETTOYER</button>
+        <button class="av-action-btn quarantine" data-index="${idx}" data-action="quarantine">QUARANTAINE</button>
+        <button class="av-action-btn allow" data-index="${idx}" data-action="allow">AUTORISER</button>
+      </div>
+    `;
+    listContainer.appendChild(item);
+  });
+  
+  // Attach event listeners to buttons
+  listContainer.querySelectorAll(".av-action-btn").forEach(button => {
+    button.addEventListener("click", (e) => {
+      const targetBtn = e.target as HTMLButtonElement;
+      const idxStr = targetBtn.getAttribute("data-index");
+      const action = targetBtn.getAttribute("data-action");
+      if (idxStr !== null && action !== null) {
+        const idx = parseInt(idxStr);
+        triggerAvThreatAction(action, idx);
+      }
+    });
+  });
+}
+
+function triggerAvThreatAction(action: string, idx: number) {
+  const threat = avThreatsList[idx];
+  if (!threat) return;
+  
+  // Disable all buttons in this threat item
+  const itemEl = document.getElementById(`av-threat-${idx}`);
+  if (itemEl) {
+    const buttons = itemEl.querySelectorAll(".av-action-btn") as NodeListOf<HTMLButtonElement>;
+    buttons.forEach(btn => btn.disabled = true);
+  }
+  
+  // Send action to backend
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({
+      type: "av_threat_action",
+      action: action,
+      threat: threat
+    }));
+  }
+}
+
+// Lancement manuel du scan antivirus depuis le menu des paramètres
+const settingsAvScanBtn = document.getElementById("settings-av-scan-btn") as HTMLButtonElement;
+if (settingsAvScanBtn) {
+  settingsAvScanBtn.addEventListener("click", () => {
+    // Fermer le modal des paramètres
+    if (settingsModalEl) {
+      settingsModalEl.classList.remove("visible");
+    }
+    // Ouvrir le panneau antivirus et démarrer le scan
+    openAntivirusPanel();
+  });
+}
+
+// Raccourci ANTIVIRUS dans le menu principal
+const menuAvScanBtn = document.getElementById("menu-av-scan-btn") as HTMLButtonElement;
+if (menuAvScanBtn) {
+  menuAvScanBtn.addEventListener("click", () => {
+    // Fermer le menu déroulant (requête dynamique d'éléments)
+    const dropdown = document.getElementById("jarvis-menu-dropdown");
+    if (dropdown) dropdown.classList.add("hidden");
+    const menuBtn = document.getElementById("jarvis-menu-btn");
+    if (menuBtn) menuBtn.classList.remove("active");
+    // Ouvrir le panneau antivirus
+    openAntivirusPanel();
+  });
+}
+
+// Plus d'info sur l'antivirus
+const settingsAvInfoBtn = document.getElementById("settings-av-info-btn") as HTMLAnchorElement;
+const avInfoModal = document.getElementById("av-info-modal") as HTMLDivElement;
+const avInfoModalClose = document.getElementById("av-info-modal-close") as HTMLSpanElement;
+const avInfoModalOk = document.getElementById("av-info-modal-ok") as HTMLButtonElement;
+
+if (settingsAvInfoBtn && avInfoModal) {
+  settingsAvInfoBtn.addEventListener("click", (e) => {
+    e.preventDefault();
+    avInfoModal.style.display = "flex";
+  });
+}
+
+if (avInfoModalClose && avInfoModal) {
+  avInfoModalClose.addEventListener("click", () => {
+    avInfoModal.style.display = "none";
+  });
+}
+
+if (avInfoModalOk && avInfoModal) {
+  avInfoModalOk.addEventListener("click", () => {
+    avInfoModal.style.display = "none";
+  });
+}
+
+
+// ── LOGIQUE DU DÉSINSTALLATEUR (UNINSTALLER PANEL) ──────────────────────────
+if (uninstallerPanel && uninstallerHeader) {
+  makePanelDraggable(uninstallerPanel, uninstallerHeader);
+}
+
+uninstallerCloseBtn?.addEventListener("click", () => {
+  closeUninstallerPanel();
+});
+
+uninstallerToggleBtn?.addEventListener("click", () => {
+  const isHidden = uninstallerPanel.classList.contains("hidden");
+  if (isHidden) {
+    openUninstallerPanel();
+  } else {
+    closeUninstallerPanel();
+  }
+});
+
+// ── LOGIQUE DU LECTEUR IPTV / VIDÉO ──
+document.getElementById("iptv-toggle-btn")?.addEventListener("click", () => {
+  const p = document.getElementById("iptv-panel");
+  if (!p) return;
+  const btn = document.getElementById("iptv-toggle-btn");
+  if (p.classList.contains("hidden")) {
+    p.classList.remove("hidden");
+    btn?.setAttribute("aria-pressed", "true");
+  } else {
+    p.classList.add("hidden");
+    btn?.setAttribute("aria-pressed", "false");
+    const vid = document.getElementById("iptv-video") as HTMLVideoElement | null;
+    if (vid && !vid.paused) vid.pause();
+  }
+});
+
+// ── LOGIQUE DU PANNEAU DE COURSES (SHOPPING PANEL) ───────────────────────────
+if (shoppingPanel && shoppingHeader) {
+  makePanelDraggable(shoppingPanel, shoppingHeader);
+}
+
+shoppingCloseBtn?.addEventListener("click", () => {
+  shoppingPanel.classList.add("hidden");
+  shoppingPanel.classList.remove("visible");
+});
+
+shoppingClearBtn?.addEventListener("click", () => {
+  currentShoppingList = [];
+  sendShoppingListToBackend();
+});
+
+function renderShoppingList() {
+  if (!shoppingListContainer) return;
+  shoppingListContainer.innerHTML = "";
+  if (currentShoppingList.length === 0) {
+    const empty = document.createElement("div");
+    empty.style.cssText = "padding:20px;font-size:11px;color:rgba(0,229,255,0.3);text-align:center;";
+    empty.textContent = "Aucun article dans la liste";
+    shoppingListContainer.appendChild(empty);
+    return;
+  }
+  currentShoppingList.forEach((itemText) => {
+    const isChecked = itemText.startsWith("[x] ");
+    const cleanText = isChecked ? itemText.substring(4) : itemText;
+
+    const div = document.createElement("div");
+    div.className = `shopping-item${isChecked ? " checked" : ""}`;
+
+    const cb = document.createElement("div");
+    cb.className = "shopping-checkbox";
+    cb.onclick = () => {
+      const idx = currentShoppingList.indexOf(itemText);
+      if (idx !== -1) {
+        if (isChecked) {
+          currentShoppingList[idx] = cleanText;
+        } else {
+          currentShoppingList[idx] = `[x] ${cleanText}`;
+        }
+        sendShoppingListToBackend();
+      }
+    };
+
+    const textSpan = document.createElement("span");
+    textSpan.className = "shopping-item-text";
+    textSpan.textContent = cleanText;
+
+    const del = document.createElement("button");
+    del.className = "shopping-item-delete";
+    del.innerHTML = "&times;";
+    del.onclick = () => {
+      currentShoppingList = currentShoppingList.filter(i => i !== itemText);
+      sendShoppingListToBackend();
+    };
+
+    div.appendChild(cb);
+    div.appendChild(textSpan);
+    div.appendChild(del);
+    shoppingListContainer.appendChild(div);
+  });
+}
+
+function sendShoppingListToBackend() {
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({
+      type: "update_shopping_list",
+      items: currentShoppingList
+    }));
+  }
+}
+
+function addShoppingItem() {
+  if (!shoppingAddInput) return;
+  const val = shoppingAddInput.value.trim();
+  if (val) {
+    currentShoppingList.push(val);
+    shoppingAddInput.value = "";
+    sendShoppingListToBackend();
+  }
+}
+
+shoppingAddBtn?.addEventListener("click", addShoppingItem);
+shoppingAddInput?.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") addShoppingItem();
+});
+
+// ── LOGIQUE DU DASHBOARD DOMOTIQUE HOME ASSISTANT ────────────────────────────
+haToggleBtn?.addEventListener("click", () => {
+  if (!haPanel) return;
+  const isHidden = haPanel.classList.contains("hidden");
+  if (isHidden) {
+    haPanel.classList.remove("hidden");
+    haToggleBtn.setAttribute("aria-pressed", "true");
+    haToggleBtn.classList.add("active");
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: "ha_get_states" }));
+    }
+  } else {
+    haPanel.classList.add("hidden");
+    haToggleBtn.setAttribute("aria-pressed", "false");
+    haToggleBtn.classList.remove("active");
+  }
+});
+
+
+// ── Image Panels Logic (Iron Man style floating panels) ──────────────────────
+let imgPanelCount = 0;
+let maxZIndex = 600;
+
+function showImagePanel(query: string, images: string[]) {
+  const container = document.getElementById("image-panels-container");
+  if (!container) return;
+
+  const panel = document.createElement("div");
+  panel.className = "img-panel";
+  
+  // Bring to front on mousedown
+  panel.addEventListener("mousedown", () => {
+    maxZIndex++;
+    panel.style.zIndex = maxZIndex.toString();
+  });
+
+  // Calculate dynamic position with cascade offset
+  const offset = (imgPanelCount % 6) * 30;
+  const left = Math.max(20, (window.innerWidth - 420) / 2 + offset);
+  const top = Math.max(20, (window.innerHeight - 380) / 2 + offset);
+  panel.style.left = `${left}px`;
+  panel.style.top = `${top}px`;
+  imgPanelCount++;
+
+  // Add scanlines, corners & structure
+  panel.innerHTML = `
+    <div class="img-panel-scanlines"></div>
+    <div class="img-panel-corner-tr"></div>
+    <div class="img-panel-corner-bl"></div>
+    <div class="img-panel-header">
+      <div class="img-panel-drag-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M5 9l7-7 7 7M5 15l7 7 7-7" />
+        </svg>
+      </div>
+      <div class="img-panel-title">IMAGE_SCAN // ${query.toUpperCase()}</div>
+      <button class="img-panel-close">&times;</button>
+    </div>
+    <div class="img-panel-status">
+      <span>GRID STATUS: ACTIVE</span>
+      <span class="img-panel-meta">FOUND: ${images.length} SECURE_NODES</span>
+    </div>
+    <div class="img-panel-grid"></div>
+    <div class="img-panel-footer">
+      <span>SYS.LOC: LOCAL_HUD</span>
+      <span>JARVIS_V2.6</span>
+    </div>
+  `;
+
+  // Populate grid
+  const grid = panel.querySelector(".img-panel-grid") as HTMLElement;
+  if (images.length === 0) {
+    const empty = document.createElement("div");
+    empty.style.gridColumn = "span 3";
+    empty.style.padding = "20px";
+    empty.style.textAlign = "center";
+    empty.style.fontSize = "10px";
+    empty.style.color = "rgba(0, 229, 255, 0.4)";
+    empty.textContent = "NO SECURE NODE RESOLVED";
+    grid.appendChild(empty);
+  } else {
+    images.forEach((url, index) => {
+      const item = document.createElement("div");
+      item.className = "img-panel-item";
+      // Stagger animation delay
+      item.style.animationDelay = `${index * 0.08}s`;
+      
+      const img = document.createElement("img");
+      img.src = url;
+      img.alt = query;
+      img.loading = "lazy";
+      
+      // Handle image load error
+      img.onerror = () => {
+        img.src = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 100 100'><rect width='100' height='100' fill='rgba(0,8,20,0.8)'/><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' font-family='Courier, monospace' font-size='10' fill='%23ff3366'>LOAD_ERR</text></svg>";
+      };
+
+      item.appendChild(img);
+      
+      // Click for fullscreen zoom
+      item.addEventListener("click", () => {
+        showFullscreenImage(url, query);
+      });
+
+      grid.appendChild(item);
+    });
+  }
+
+  // Setup close button
+  const closeBtn = panel.querySelector(".img-panel-close") as HTMLElement;
+  closeBtn.addEventListener("click", () => {
+    panel.classList.remove("visible");
+    setTimeout(() => {
+      panel.remove();
+    }, 400);
+  });
+
+  // Setup Drag & Drop
+  const header = panel.querySelector(".img-panel-header") as HTMLElement;
+  makePanelDraggable(panel, header);
+
+  // Append & animate in
+  container.appendChild(panel);
+  
+  // Trigger Reflow to animate opacity/scale
+  void panel.offsetWidth;
+  panel.classList.add("visible");
+}
+
+function showFullscreenImage(url: string, query: string) {
+  const overlay = document.createElement("div");
+  overlay.className = "img-zoom-overlay";
+
+  overlay.innerHTML = `
+    <button class="img-zoom-close">CLOSE [ESC]</button>
+    <img src="${url}" alt="${query}" />
+    <div class="img-zoom-label">RESOLVED NODE // ${query.toUpperCase()}</div>
+  `;
+
+  const closeOverlay = () => {
+    overlay.remove();
+    document.removeEventListener("keydown", handleEsc);
+  };
+
+  const handleEsc = (e: KeyboardEvent) => {
+    if (e.key === "Escape") {
+      closeOverlay();
+    }
+  };
+
+  overlay.addEventListener("click", (e) => {
+    if (e.target === overlay || (e.target as HTMLElement).classList.contains("img-zoom-close")) {
+      closeOverlay();
+    }
+  });
+
+  document.addEventListener("keydown", handleEsc);
+  document.body.appendChild(overlay);
+}
+
+// ── Uninstaller core functions and listeners ──
+function openUninstallerPanel() {
+  if (uninstallerPanel) {
+    uninstallerPanel.classList.remove("hidden");
+    uninstallerPanel.classList.add("visible");
+    uninstallerToggleBtn?.setAttribute("aria-pressed", "true");
+    
+    if (wingetPanel) closeWingetPanel();
+    
+    // Switch to list view initially
+    uninstallerListView?.classList.remove("hidden");
+    uninstallerActionView?.classList.add("hidden");
+    
+    // Set loading status
+    if (uninstallerAppsList) {
+      uninstallerAppsList.innerHTML = '<div class="uninstaller-loading">CHARGEMENT DE LA LISTE DES LOGICIELS...</div>';
+    }
+    
+    // Request installed programs
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: "get_installed_programs" }));
+    }
+  }
+}
+
+function closeUninstallerPanel() {
+  if (uninstallerPanel) {
+    uninstallerPanel.classList.add("hidden");
+    uninstallerPanel.classList.remove("visible");
+    uninstallerToggleBtn?.setAttribute("aria-pressed", "false");
+  }
+}
+
+function renderInstalledPrograms(programs: typeof allInstalledPrograms) {
+  if (!uninstallerAppsList) return;
+  uninstallerAppsList.innerHTML = "";
+  
+  if (programs.length === 0) {
+    const empty = document.createElement("div");
+    empty.className = "uninstaller-loading";
+    empty.textContent = "AUCUN LOGICIEL TROUVÉ";
+    uninstallerAppsList.appendChild(empty);
+    return;
+  }
+  
+  programs.forEach(prog => {
+    const item = document.createElement("div");
+    item.className = "uninstaller-app-item";
+    
+    item.innerHTML = `
+      <div class="uninstaller-app-info">
+        <div class="uninstaller-app-name">${prog.name}</div>
+        <div class="uninstaller-app-publisher">${prog.publisher || 'Éditeur inconnu'} - v${prog.version || 'Inconnue'} (${prog.hive})</div>
+      </div>
+      <button class="uninstaller-app-btn">DÉSINSTALLER</button>
+    `;
+    
+    const btn = item.querySelector(".uninstaller-app-btn") as HTMLButtonElement;
+    btn.addEventListener("click", () => {
+      triggerUninstall(prog);
+    });
+    
+    uninstallerAppsList.appendChild(item);
+  });
+}
+
+function triggerUninstall(prog: typeof allInstalledPrograms[0]) {
+  uninstallerListView?.classList.add("hidden");
+  uninstallerActionView?.classList.remove("hidden");
+  
+  uninstallerRadarContainer?.classList.remove("hidden");
+  uninstallerLeftoversContainer?.classList.add("hidden");
+  if (uninstallerStatusMsg) {
+    uninstallerStatusMsg.textContent = `Lancement de la désinstallation de ${prog.name}...`;
+  }
+  
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({
+      type: "uninstall_program",
+      name: prog.name,
+      publisher: prog.publisher,
+      install_location: prog.install_location,
+      uninstall_string: prog.uninstall_string
+    }));
+  }
+}
+
+function updateUninstallProgress(data: any) {
+  if (uninstallerStatusMsg) {
+    uninstallerStatusMsg.textContent = data.message || "En cours...";
+  }
+}
+
+function showUninstallComplete(data: any) {
+  uninstallerRadarContainer?.classList.add("hidden");
+  uninstallerLeftoversContainer?.classList.remove("hidden");
+  
+  currentLeftovers = data.leftovers || [];
+  
+  // Reset Select All checkbox
+  if (uninstallerSelectAll) {
+    uninstallerSelectAll.checked = true;
+  }
+  
+  renderLeftovers();
+}
+
+function renderLeftovers() {
+  if (!uninstallerLeftoversList) return;
+  uninstallerLeftoversList.innerHTML = "";
+  
+  if (currentLeftovers.length === 0) {
+    const empty = document.createElement("div");
+    empty.className = "uninstaller-leftover-empty";
+    empty.textContent = "Aucune trace résiduelle détectée sur le système.";
+    uninstallerLeftoversList.appendChild(empty);
+    if (uninstallerCleanBtn) uninstallerCleanBtn.disabled = true;
+    return;
+  }
+  
+  if (uninstallerCleanBtn) uninstallerCleanBtn.disabled = false;
+  
+  currentLeftovers.forEach((leftover, idx) => {
+    const item = document.createElement("div");
+    item.className = "uninstaller-leftover-item";
+    
+    const icon = leftover.type === 'folder' ? '📁' : '🔑';
+    const typeLabel = leftover.type === 'folder' ? 'Dossier' : 'Registre';
+    
+    item.innerHTML = `
+      <label class="uninstaller-leftover-label">
+        <input type="checkbox" class="uninstaller-leftover-checkbox" data-idx="${idx}" checked>
+        <span class="uninstaller-leftover-icon">${icon}</span>
+        <div class="uninstaller-leftover-details">
+          <div class="uninstaller-leftover-path" title="${leftover.path}">${leftover.path}</div>
+          <div class="uninstaller-leftover-desc">${typeLabel} - ${leftover.desc}</div>
+        </div>
+      </label>
+    `;
+    
+    uninstallerLeftoversList.appendChild(item);
+  });
+}
+
+function showCleanComplete(data: any) {
+  const cleaned = data.cleaned_count || 0;
+  const total = data.total_count || 0;
+  alert(`Nettoyage terminé : ${cleaned}/${total} traces supprimées.`);
+  
+  // Go back to program list
+  openUninstallerPanel();
+}
+
+// Event Listeners for Uninstaller Controls
+uninstallerSearchInput?.addEventListener("input", () => {
+  const query = uninstallerSearchInput.value.trim().toLowerCase();
+  if (!query) {
+    renderInstalledPrograms(allInstalledPrograms);
+  } else {
+    const filtered = allInstalledPrograms.filter(p => 
+      p.name.toLowerCase().includes(query) || 
+      (p.publisher && p.publisher.toLowerCase().includes(query))
+    );
+    renderInstalledPrograms(filtered);
+  }
+});
+
+uninstallerSelectAll?.addEventListener("change", () => {
+  const checked = uninstallerSelectAll.checked;
+  const checkboxes = document.querySelectorAll(".uninstaller-leftover-checkbox") as NodeListOf<HTMLInputElement>;
+  checkboxes.forEach(cb => {
+    cb.checked = checked;
+  });
+});
+
+uninstallerCleanBtn?.addEventListener("click", () => {
+  const selectedItems: any[] = [];
+  const checkboxes = document.querySelectorAll(".uninstaller-leftover-checkbox") as NodeListOf<HTMLInputElement>;
+  checkboxes.forEach(cb => {
+    if (cb.checked) {
+      const idx = parseInt(cb.getAttribute("data-idx") || "0");
+      selectedItems.push(currentLeftovers[idx]);
+    }
+  });
+  
+  if (selectedItems.length === 0) {
+    alert("Veuillez sélectionner au moins une trace à nettoyer.");
+    return;
+  }
+  
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({
+      type: "clean_leftovers",
+      items: selectedItems
+    }));
+  }
+});
+
+uninstallerSkipBtn?.addEventListener("click", () => {
+  openUninstallerPanel();
+});
+
+// ── Winget Upgrade Panel Toggle and Draggable ──
+if (wingetPanel && wingetHeader) {
+  makePanelDraggable(wingetPanel, wingetHeader);
+}
+
+wingetCloseBtn?.addEventListener("click", () => {
+  closeWingetPanel();
+});
+
+wingetToggleBtn?.addEventListener("click", () => {
+  const isHidden = wingetPanel.classList.contains("hidden");
+  if (isHidden) {
+    openWingetPanel();
+  } else {
+    closeWingetPanel();
+  }
+});
+
+// ── Winget Upgrade Panel Core Functions ──
+function openWingetPanel() {
+  if (wingetPanel) {
+    wingetPanel.classList.remove("hidden");
+    wingetPanel.classList.add("visible");
+    wingetToggleBtn?.setAttribute("aria-pressed", "true");
+    
+    // Close other panels if needed
+    if (uninstallerPanel) closeUninstallerPanel();
+    
+    wingetLogsContainer?.classList.add("hidden");
+    
+    if (wingetList) {
+      wingetList.innerHTML = '<div class="uninstaller-loading" style="color: #00e5ff;">RECHERCHE DES MISES À JOUR...</div>';
+    }
+    
+    // Request winget upgrades
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: "get_winget_upgrades" }));
+    }
+  }
+}
+
+function closeWingetPanel() {
+  if (wingetPanel) {
+    wingetPanel.classList.add("hidden");
+    wingetPanel.classList.remove("visible");
+    wingetToggleBtn?.setAttribute("aria-pressed", "false");
+  }
+}
+
+function renderWingetUpgrades(upgrades: WingetUpgradeItem[]) {
+  if (!wingetList) return;
+  wingetList.innerHTML = "";
+  
+  if (upgrades.length === 0) {
+    const empty = document.createElement("div");
+    empty.className = "uninstaller-loading";
+    empty.style.color = "#00e5ff";
+    empty.textContent = "VOTRE SYSTÈME EST À JOUR";
+    wingetList.appendChild(empty);
+    
+    if (wingetCountBadge) {
+      wingetCountBadge.textContent = "0";
+      wingetCountBadge.classList.add("hidden");
+    }
+    return;
+  }
+  
+  if (wingetCountBadge) {
+    wingetCountBadge.textContent = upgrades.length.toString();
+    wingetCountBadge.classList.remove("hidden");
+  }
+  
+  upgrades.forEach((item, idx) => {
+    const el = document.createElement("div");
+    el.className = "uninstaller-app-item";
+    el.innerHTML = `
+      <div class="uninstaller-app-info" style="display:flex; align-items:center; gap:10px; width:65%;">
+        <input type="checkbox" class="winget-select-checkbox" data-idx="${idx}" checked style="accent-color: #00e5ff;">
+        <div style="flex:1;">
+          <div class="uninstaller-app-name" style="color:#00e5ff;">${item.name}</div>
+          <div class="uninstaller-app-publisher" style="font-size:9px; opacity:0.7;">
+            ID: ${item.id} | v${item.version} → <span style="color:#00ff88;">v${item.available}</span>
+          </div>
+        </div>
+      </div>
+      <button class="uninstaller-app-btn winget-upgrade-item-btn" data-id="${item.id}" style="border-color:#00e5ff; color:#00e5ff; background:rgba(0,229,255,0.05);">METTRE À JOUR</button>
+    `;
+    
+    const btn = el.querySelector(".winget-upgrade-item-btn") as HTMLButtonElement;
+    btn.addEventListener("click", () => {
+      runWingetUpgrade([item.id]);
+    });
+    
+    wingetList.appendChild(el);
+  });
+}
+
+function runWingetUpgrade(ids: string[]) {
+  if (ids.length === 0) return;
+  if (wingetLogsContainer && wingetConsole) {
+    wingetLogsContainer.classList.remove("hidden");
+    wingetConsole.textContent = `[JARVIS] Lancement de la mise à jour pour:\n- ${ids.join("\n- ")}\n\n`;
+    wingetConsole.scrollTop = wingetConsole.scrollHeight;
+  }
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({
+      type: "run_winget_upgrade",
+      ids: ids
+    }));
+  }
+}
+
+// Event Listeners for Winget controls
+wingetSearchInput?.addEventListener("input", () => {
+  const query = wingetSearchInput.value.trim().toLowerCase();
+  const items = document.querySelectorAll("#winget-upgrades-list .uninstaller-app-item");
+  items.forEach(item => {
+    const text = item.textContent?.toLowerCase() || "";
+    if (text.includes(query)) {
+      (item as HTMLElement).style.display = "";
+    } else {
+      (item as HTMLElement).style.display = "none";
+    }
+  });
+});
+
+wingetSelectAll?.addEventListener("change", () => {
+  const checked = wingetSelectAll.checked;
+  const checkboxes = document.querySelectorAll(".winget-select-checkbox") as NodeListOf<HTMLInputElement>;
+  checkboxes.forEach(cb => {
+    cb.checked = checked;
+  });
+});
+
+wingetRefreshBtn?.addEventListener("click", () => {
+  if (wingetList) {
+    wingetList.innerHTML = '<div class="uninstaller-loading" style="color: #00e5ff;">RECHERCHE DES MISES À JOUR...</div>';
+  }
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({ type: "get_winget_upgrades" }));
+  }
+});
+
+wingetUpgradeSelectedBtn?.addEventListener("click", () => {
+  const ids: string[] = [];
+  const checkboxes = document.querySelectorAll(".winget-select-checkbox") as NodeListOf<HTMLInputElement>;
+  checkboxes.forEach(cb => {
+    if (cb.checked) {
+      const idx = parseInt(cb.getAttribute("data-idx") || "0");
+      ids.push(allWingetUpgrades[idx].id);
+    }
+  });
+  if (ids.length === 0) {
+    alert("Veuillez sélectionner au moins un logiciel à mettre à jour.");
+    return;
+  }
+  runWingetUpgrade(ids);
+});
+
+wingetUpgradeAllBtn?.addEventListener("click", () => {
+  if (allWingetUpgrades.length === 0) {
+    alert("Aucune mise à jour disponible à installer.");
+    return;
+  }
+  if (wingetLogsContainer && wingetConsole) {
+    wingetLogsContainer.classList.remove("hidden");
+    wingetConsole.textContent = "[JARVIS] Lancement de la mise à jour globale du système...\n\n";
+    wingetConsole.scrollTop = wingetConsole.scrollHeight;
+  }
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({
+      type: "run_winget_upgrade",
+      all: true
+    }));
+  }
+});
+
+wingetCloseLogsBtn?.addEventListener("click", () => {
+  wingetLogsContainer?.classList.add("hidden");
+  // Refresh the list after upgrade closes
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({ type: "get_winget_upgrades" }));
+  }
+});
+
+// ══ NAVIGATEUR SÉCURISÉ CONTRÔLES & ÉVÉNEMENTS ══
+(window as any).updateBrowserUIState = (state: string) => {
+  const browserControls = document.getElementById("hud-browser-controls");
+  const dockBtn = document.getElementById("hud-browser-dock-btn");
+  if (state === "docked") {
+    document.body.classList.add("browser-open");
+    if (browserControls) browserControls.classList.remove("hidden");
+    if (dockBtn) dockBtn.innerText = "⚡ DÉTACHER";
+  } else if (state === "undocked") {
+    document.body.classList.remove("browser-open");
+    if (browserControls) browserControls.classList.remove("hidden");
+    if (dockBtn) dockBtn.innerText = "🔗 ANCRER";
+  } else if (state === "closed") {
+    document.body.classList.remove("browser-open");
+    if (browserControls) browserControls.classList.add("hidden");
+  }
+};
+
+const browserBtnEl = document.getElementById("browser-btn") as HTMLButtonElement;
+if (browserBtnEl) {
+  browserBtnEl.addEventListener("click", () => {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: "open_browser" }));
+    }
+  });
+}
+
+const hudBrowserDockBtn = document.getElementById("hud-browser-dock-btn") as HTMLButtonElement;
+const hudBrowserCloseBtn = document.getElementById("hud-browser-close-btn") as HTMLButtonElement;
+
+if (hudBrowserDockBtn) {
+  hudBrowserDockBtn.addEventListener("click", () => {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      if (document.body.classList.contains("browser-open")) {
+        ws.send(JSON.stringify({ type: "undock_browser" }));
+      } else {
+        ws.send(JSON.stringify({ type: "dock_browser" }));
+      }
+    }
+  });
+}
+
+if (hudBrowserCloseBtn) {
+  hudBrowserCloseBtn.addEventListener("click", () => {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: "close_browser" }));
+    }
+  });
+}
