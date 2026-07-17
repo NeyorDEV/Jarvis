@@ -7,11 +7,17 @@ _CORE_DIR = os.path.join(_BASE_DIR, "core")
 # Modèle communautaire openWakeWord pré-entraîné sur "hey jarvis"
 WAKEWORD_MODEL_NAME = "hey_jarvis_v0.1"
 
+# Modèle custom entraîné sur "jarvis" prononcé à la française
+# (voir training/wakeword/jarvis_fr_colab.ipynb). S'il existe, il est
+# utilisé automatiquement à la place de hey_jarvis.
+CUSTOM_MODEL_PATH = os.path.join(_CORE_DIR, "jarvis_fr.onnx")
+
 
 def init_wakeword():
     """Télécharge le modèle 'hey jarvis' et les modèles de features openWakeWord s'ils sont absents."""
     import openwakeword.utils
     # download_models saute silencieusement les fichiers déjà présents
+    # (les modèles de features melspectrogram/embedding sont requis même avec un modèle custom)
     openwakeword.utils.download_models(model_names=[WAKEWORD_MODEL_NAME])
 
 
@@ -25,8 +31,13 @@ class WakeWordDetector:
 
     def __init__(self):
         from openwakeword.model import Model
+        if os.path.exists(CUSTOM_MODEL_PATH):
+            modele = CUSTOM_MODEL_PATH
+            print(f"🎙  [WAKEWORD] Modèle custom français détecté : {os.path.basename(CUSTOM_MODEL_PATH)}")
+        else:
+            modele = WAKEWORD_MODEL_NAME
         self.model = Model(
-            wakeword_models=[WAKEWORD_MODEL_NAME],
+            wakeword_models=[modele],
             inference_framework="onnx",
         )
 
