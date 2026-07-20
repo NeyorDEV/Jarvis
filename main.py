@@ -5236,6 +5236,8 @@ def ecouter():
                         if texte:
                             is_relevant = (WAKE_WORD in texte.lower()) or jarvis_actif
                             if not is_relevant:
+                                if WAKEWORD_MODEL is not None:
+                                    print(f"[WAKEWORD] Détection locale mais aucun 'jarvis' dans la transcription : « {texte} » — ignoré (pas d'activation).")
                                 _safe_ws_send(json.dumps({"action": "jarvis_text", "text": ""}))
                                 audio_buffer = []
                                 continue
@@ -6212,7 +6214,7 @@ def main():
 
     # Verification initiale des mises a jour
     verifier_mises_a_jour()
-    
+
     # Lancer les services en arriere-plan
     threading.Thread(target=start_mobile_http_server, daemon=True).start()
     threading.Thread(target=start_ia, daemon=True).start()
