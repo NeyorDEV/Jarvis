@@ -1,0 +1,746 @@
+import os
+import pickle
+import webbrowser
+from google.oauth2.credentials import Credentials
+from google_auth_oauthlib.flow import InstalledAppFlow
+from google.auth.transport.requests import Request
+from googleapiclient.discovery import build
+import datetime
+
+try:
+    import google.oauth2.credentials
+    _google_apis_ok = True
+except ImportError:
+    _google_apis_ok = False
+
+# Globaux persistants pour le doc en cours
+dernier_doc_id      = None
+dernier_doc_titre   = None
+dernier_sheet_id    = None
+dernier_sheet_titre = None
+dernier_msg_id      = None
+dernier_msg_sujet   = None
+
+
+# SCOPES pour Google API (privilèges d'écriture et de gestion complets)
+SCOPES = [
+    'https://www.googleapis.com/auth/documents',
+    'https://www.googleapis.com/auth/drive',
+    'https://mail.google.com/',
+    'https://www.googleapis.com/auth/spreadsheets',
+    'https://www.googleapis.com/auth/calendar',
+    'https://www.googleapis.com/auth/tasks'
+]
+
+def get_google_creds():
+    if not _google_apis_ok:
+        print("[GOOGLE] google-auth-oauthlib non installe — fonctions Google desactivees.")
+        return None
+
+    # Chemins absolus basés sur l'emplacement de la racine de JARVIS
+    _dir = os.path.dirname(os.path.abspath(__file__))
+    _root = os.path.dirname(_dir) if os.path.basename(_dir) == "module" else _dir
+    token_path       = os.path.join(_root, "config", "token.pickle")
+    credentials_path = os.path.join(_root, "config", "credentials.json")
+
+    creds = None
+    if os.path.exists(token_path):
+        with open(token_path, "rb") as f:
+            creds = pickle.load(f)
+    
+    scopes_match = True
+    if creds and hasattr(creds, "scopes"):
+        scopes_match = all(s in creds.scopes for s in SCOPES)
+
+    if not creds or not creds.valid or not scopes_match:
+        if creds and creds.expired and creds.refresh_token and scopes_match:
+            try:
+                creds.refresh(Request())
+            except Exception as e:
+                print(f"[GOOGLE] Erreur de rafraichissement du token : {e}. Lancement d'une nouvelle authentification...")
+                if os.path.exists(token_path):
+                    try:
+                        os.remove(token_path)
+                    except Exception as err:
+                        print(f"[GOOGLE] Impossible de supprimer le token expire : {err}")
+                if not os.path.exists(credentials_path):
+                    print(f"[GOOGLE] credentials.json introuvable à : {credentials_path}")
+                    return None
+                flow  = InstalledAppFlow.from_client_secrets_file(credentials_path, SCOPES)
+                creds = flow.run_local_server(port=0)
+        else:
+            if not os.path.exists(credentials_path):
+                print(f"[GOOGLE] credentials.json introuvable à : {credentials_path}")
+                return None
+            flow  = InstalledAppFlow.from_client_secrets_file(credentials_path, SCOPES)
+            creds = flow.run_local_server(port=0)
+        with open(token_path, "wb") as f:
+            pickle.dump(creds, f)
+    return creds
+
+def get_docs_service():
+    creds = get_google_creds()
+    return build("docs", "v1", credentials=creds) if creds else None
+
+def get_drive_service():
+    creds = get_google_creds()
+    return build("drive", "v3", credentials=creds) if creds else None
+
+def get_gmail_service():
+    creds = get_google_creds()
+    return build("gmail", "v1", credentials=creds) if creds else None
+
+def get_sheets_service():
+    creds = get_google_creds()
+    return build("sheets", "v4", credentials=creds) if creds else None
+
+def get_calendar_service():
+    creds = get_google_creds()
+    return build("calendar", "v3", credentials=creds) if creds else None
+
+def creer_google_doc(titre="Nouveau Document", contenu=""):
+    global dernier_doc_id, dernier_doc_titre
+    try:
+        service = get_docs_service()
+        if not service:
+            return "Google Docs non disponible."
+        doc    = service.documents().create(body={"title": titre}).execute()
+        doc_id = doc["documentId"]
+        dernier_doc_id    = doc_id
+        dernier_doc_titre = titre
+        if contenu:
+            requests_body = [{"insertText": {"location": {"index": 1}, "text": contenu}}]
+            service.documents().batchUpdate(documentId=doc_id, body={"requests": requests_body}).execute()
+        webbrowser.open(f"https://docs.google.com/document/d/{doc_id}/edit")
+        return f"Document {titre} cree et ouvert, mylane."
+    except Exception as e:
+        return f"Erreur Google Docs : {e}"
+
+def modifier_google_doc(contenu, doc_id=None):
+    global dernier_doc_id
+    try:
+        service   = get_docs_service()
+        if not service:
+            return "Google Docs non disponible."
+        target_id = doc_id or dernier_doc_id
+        if not target_id:
+            return "Aucun document ouvert en memoire."
+        doc       = service.documents().get(documentId=target_id).execute()
+        end_index = doc["body"]["content"][-1]["endIndex"] - 1
+        requests_body = [{"insertText": {"location": {"index": end_index}, "text": "\n" + contenu}}]
+        service.documents().batchUpdate(documentId=target_id, body={"requests": requests_body}).execute()
+        webbrowser.open(f"https://docs.google.com/document/d/{target_id}/edit")
+        return f"Texte ajoute dans le document {dernier_doc_titre}."
+    except Exception as e:
+        return f"Erreur modification doc : {e}"
+
+def lire_emails(max_results=5):
+    global dernier_msg_id, dernier_msg_sujet
+    try:
+        service  = get_gmail_service()
+        if not service:
+            return "Gmail non disponible."
+        results  = service.users().messages().list(
+            userId="me", 
+            maxResults=max_results, 
+            labelIds=["INBOX"], 
+            q="is:unread category:primary"
+        ).execute()
+        messages = results.get("messages", [])
+        if not messages:
+            return "Aucun nouvel email non lu."
+        reponse = ""
+        msg_ids = []
+        for idx, msg in enumerate(messages):
+            m       = service.users().messages().get(userId="me", id=msg["id"], format="metadata").execute()
+            headers = {h["name"]: h["value"] for h in m["payload"]["headers"]}
+            from_val = headers.get('From', '?')
+            subject_val = headers.get('Subject', '?')
+            
+            if idx == 0:
+                dernier_msg_id = msg["id"]
+                dernier_msg_sujet = subject_val
+                
+            reponse += f"De: {from_val} | Sujet: {subject_val}\n"
+            msg_ids.append(msg["id"])
+            
+        if msg_ids:
+            service.users().messages().batchModify(
+                userId="me",
+                body={"ids": msg_ids, "removeLabelIds": ["UNREAD"]}
+            ).execute()
+            
+        return reponse.strip()
+    except Exception as e:
+        return f"Erreur Gmail : {e}"
+
+def lister_evenements_calendar():
+    try:
+        service = get_calendar_service()
+        if not service:
+            return "Google Calendar non disponible."
+        from datetime import datetime, timezone
+        now    = datetime.now(timezone.utc).isoformat()
+        events = service.events().list(calendarId="primary", timeMin=now, maxResults=5, singleEvents=True, orderBy="startTime").execute()
+        items = events.get("items", [])
+        if not items:
+            return "Aucun evenement a venir."
+        reponse = ""
+        for e in items:
+            start    = e["start"].get("dateTime", e["start"].get("date"))
+            reponse += f"{start} : {e['summary']}\n"
+        return reponse.strip()
+    except Exception as e:
+        return f"Erreur Calendar : {e}"
+
+def creer_google_sheet(titre="Nouvelle Feuille"):
+    global dernier_sheet_id, dernier_sheet_titre
+    try:
+        service  = get_sheets_service()
+        if not service:
+            return "Google Sheets non disponible."
+        sheet    = service.spreadsheets().create(body={"properties": {"title": titre}}).execute()
+        sheet_id = sheet["spreadsheetId"]
+        dernier_sheet_id = sheet_id
+        dernier_sheet_titre = titre
+        webbrowser.open(f"https://docs.google.com/spreadsheets/d/{sheet_id}/edit")
+        return f"Feuille {titre} creee et ouverte."
+    except Exception as e:
+        return f"Erreur Google Sheets : {e}"
+
+def get_tasks_service():
+    creds = get_google_creds()
+    return build("tasks", "v1", credentials=creds) if creds else None
+
+def creer_google_task(titre, notes=None):
+    try:
+        service = get_tasks_service()
+        if not service:
+            return "Google Tasks non disponible."
+        body = {'title': titre}
+        if notes:
+            body['notes'] = notes
+        task = service.tasks().insert(tasklist='@default', body=body).execute()
+        return f"Tâche '{titre}' ajoutée dans Google Tasks, mylane."
+    except Exception as e:
+        return f"Erreur Google Tasks : {e}"
+
+def lister_google_tasks():
+    try:
+        service = get_tasks_service()
+        if not service:
+            return "Google Tasks non disponible."
+        results = service.tasks().list(tasklist='@default', showCompleted=False).execute()
+        items = results.get('items', [])
+        if not items:
+            return "Aucune tâche à faire dans votre liste Google Tasks."
+        
+        reponse = ""
+        for item in items:
+            title = item.get('title', 'Sans titre')
+            notes = item.get('notes')
+            if notes:
+                reponse += f"- {title} ({notes})\n"
+            else:
+                reponse += f"- {title}\n"
+        return reponse.strip()
+    except Exception as e:
+        return f"Erreur de lecture Google Tasks : {e}"
+
+def complete_google_task(titre):
+    try:
+        service = get_tasks_service()
+        if not service:
+            return "Google Tasks non disponible."
+        
+        results = service.tasks().list(tasklist='@default', showCompleted=False).execute()
+        items = results.get('items', [])
+        
+        task_id = None
+        exact_title = None
+        for item in items:
+            t_title = item.get('title', '').strip().lower()
+            if t_title == titre.strip().lower() or titre.strip().lower() in t_title or t_title in titre.strip().lower():
+                task_id = item['id']
+                exact_title = item.get('title')
+                break
+        
+        if not task_id:
+            return f"Tâche '{titre}' introuvable dans votre Google Tasks, mylane."
+        
+        task = service.tasks().get(tasklist='@default', task=task_id).execute()
+        task['status'] = 'completed'
+        service.tasks().update(tasklist='@default', task=task_id, body=task).execute()
+        return f"Tâche '{exact_title}' validée dans Google Tasks, mylane."
+    except Exception as e:
+        return f"Erreur lors de la validation de la tâche : {e}"
+
+def delete_google_task(titre):
+    try:
+        service = get_tasks_service()
+        if not service:
+            return "Google Tasks non disponible."
+        
+        results = service.tasks().list(tasklist='@default', showCompleted=True).execute()
+        items = results.get('items', [])
+        
+        task_id = None
+        exact_title = None
+        for item in items:
+            t_title = item.get('title', '').strip().lower()
+            if t_title == titre.strip().lower() or titre.strip().lower() in t_title or t_title in titre.strip().lower():
+                task_id = item['id']
+                exact_title = item.get('title')
+                break
+        
+        if not task_id:
+            return f"Tâche '{titre}' introuvable dans votre Google Tasks, mylane."
+        
+        service.tasks().delete(tasklist='@default', task=task_id).execute()
+        return f"Tâche '{exact_title}' supprimée de Google Tasks, mylane."
+    except Exception as e:
+        return f"Erreur lors de la suppression de la tâche : {e}"
+
+def ouvrir_google_drive():
+    try:
+        webbrowser.open("https://drive.google.com/")
+        return "J'ai ouvert votre Google Drive, mylane."
+    except Exception as e:
+        return f"Erreur lors de l'ouverture du Google Drive : {e}"
+
+def rechercher_google_drive(nom_fichier=None, max_results=5):
+    try:
+        service = get_drive_service()
+        if not service:
+            return "Google Drive non disponible."
+        
+        q = "trashed = false"
+        
+        # Liste de termes génériques à ne pas chercher littéralement
+        generiques = ["mes documents", "mes fichiers", "mes docs", "documents", "fichiers", "drive", "mon drive", "tout", "tous"]
+        
+        if nom_fichier and nom_fichier.lower().strip() not in generiques:
+            escaped_name = nom_fichier.replace("'", "\\'")
+            q += f" and name contains '{escaped_name}'"
+            
+        results = service.files().list(
+            q=q,
+            pageSize=max_results,
+            fields="files(id, name, webViewLink, modifiedTime)",
+            orderBy="modifiedTime desc"
+        ).execute()
+        
+        files = results.get("files", [])
+        if not files:
+            if nom_fichier and nom_fichier.lower().strip() not in generiques:
+                return f"Aucun fichier trouvé sur votre Drive contenant '{nom_fichier}'."
+            return "Aucun fichier trouvé sur votre Google Drive."
+            
+        reponse = ""
+        for f in files:
+            nom = f.get("name", "Sans titre")
+            lien = f.get("webViewLink", "#")
+            reponse += f"- {nom} : {lien}\n"
+        return reponse.strip()
+    except Exception as e:
+        return f"Erreur de recherche Google Drive : {e}"
+
+def envoyer_email(destinataire, sujet, corps):
+    import base64
+    from email.mime.text import MIMEText
+    try:
+        service = get_gmail_service()
+        if not service:
+            return "Gmail non disponible."
+        
+        message = MIMEText(corps)
+        message['to'] = destinataire
+        message['subject'] = sujet
+        
+        raw_message = base64.urlsafe_b64encode(message.as_bytes()).decode('utf-8')
+        body = {'raw': raw_message}
+        
+        service.users().messages().send(userId="me", body=body).execute()
+        return f"E-mail envoyé avec succès à {destinataire}, mylane."
+    except Exception as e:
+        return f"Erreur lors de l'envoi de l'e-mail : {e}"
+
+def repondre_email(corps, original_msg_id=None):
+    global dernier_msg_id, dernier_msg_sujet
+    import base64
+    from email.mime.text import MIMEText
+    try:
+        service = get_gmail_service()
+        if not service:
+            return "Gmail non disponible."
+        
+        msg_id = original_msg_id or dernier_msg_id
+        if not msg_id:
+            return "Aucun e-mail récent à qui répondre en session, mylane."
+        
+        orig_msg = service.users().messages().get(userId="me", id=msg_id, format="metadata").execute()
+        thread_id = orig_msg.get('threadId')
+        headers = {h["name"]: h["value"] for h in orig_msg["payload"]["headers"]}
+        
+        original_msg_id_header = headers.get('Message-ID')
+        original_subject = headers.get('Subject', '')
+        original_from = headers.get('From', '')
+        
+        sujet = original_subject
+        if not sujet.lower().startswith('re:'):
+            sujet = 'Re: ' + sujet
+            
+        message = MIMEText(corps)
+        message['to'] = original_from
+        message['subject'] = sujet
+        
+        if original_msg_id_header:
+            message['In-Reply-To'] = original_msg_id_header
+            message['References'] = original_msg_id_header
+            
+        raw_message = base64.urlsafe_b64encode(message.as_bytes()).decode('utf-8')
+        body = {'raw': raw_message, 'threadId': thread_id}
+        
+        service.users().messages().send(userId="me", body=body).execute()
+        return f"Réponse envoyée avec succès à {original_from}, mylane."
+    except Exception as e:
+        return f"Erreur lors de la réponse à l'e-mail : {e}"
+
+def lire_detail_email(msg_id=None):
+    global dernier_msg_id
+    try:
+        service = get_gmail_service()
+        if not service:
+            return "Gmail non disponible."
+        
+        target_id = msg_id or dernier_msg_id
+        if not target_id:
+            return "Aucun e-mail trouvé en session, mylane."
+            
+        msg = service.users().messages().get(userId="me", id=target_id).execute()
+        payload = msg.get('payload', {})
+        
+        corps = ""
+        
+        def extraire_texte(partie):
+            text = ""
+            mime_type = partie.get('mimeType', '')
+            body_data = partie.get('body', {}).get('data', '')
+            if mime_type == 'text/plain' and body_data:
+                import base64
+                text += base64.urlsafe_b64decode(body_data).decode('utf-8', errors='ignore')
+            elif 'parts' in partie:
+                for subpart in partie['parts']:
+                    text += extraire_texte(subpart)
+            return text
+            
+        corps = extraire_texte(payload)
+        if not corps:
+            body_data = payload.get('body', {}).get('data', '')
+            if body_data:
+                import base64
+                corps = base64.urlsafe_b64decode(body_data).decode('utf-8', errors='ignore')
+                
+        if not corps:
+            return "Impossible d'extraire le texte brut de cet e-mail."
+            
+        res_preview = corps.strip()
+        if len(res_preview) > 800:
+            res_preview = res_preview[:800] + "..."
+        return res_preview
+    except Exception as e:
+        return f"Erreur de lecture détaillée de l'e-mail : {e}"
+
+def archiver_email(msg_id=None):
+    global dernier_msg_id
+    try:
+        service = get_gmail_service()
+        if not service:
+            return "Gmail non disponible."
+        
+        target_id = msg_id or dernier_msg_id
+        if not target_id:
+            return "Aucun e-mail récent à archiver, mylane."
+            
+        service.users().messages().batchModify(
+            userId="me",
+            body={"ids": [target_id], "removeLabelIds": ["INBOX"]}
+        ).execute()
+        return "L'e-mail a été archivé avec succès, mylane."
+    except Exception as e:
+        return f"Erreur lors de l'archivage de l'e-mail : {e}"
+
+def supprimer_email(msg_id=None):
+    global dernier_msg_id
+    try:
+        service = get_gmail_service()
+        if not service:
+            return "Gmail non disponible."
+        
+        target_id = msg_id or dernier_msg_id
+        if not target_id:
+            return "Aucun e-mail récent à supprimer, mylane."
+            
+        service.users().messages().trash(userId="me", id=target_id).execute()
+        return "L'e-mail a été déplacé dans la corbeille avec succès, mylane."
+    except Exception as e:
+        return f"Erreur lors de la suppression de l'e-mail : {e}"
+
+def creer_evenement_calendar(summary, start_time, end_time, description=None):
+    try:
+        service = get_calendar_service()
+        if not service:
+            return "Google Calendar non disponible."
+        
+        event = {
+            'summary': summary,
+            'start': {
+                'dateTime': start_time,
+                'timeZone': 'Europe/Paris',
+            },
+            'end': {
+                'dateTime': end_time,
+                'timeZone': 'Europe/Paris',
+            }
+        }
+        if description:
+            event['description'] = description
+            
+        service.events().insert(calendarId="primary", body=event).execute()
+        return f"Événement '{summary}' créé avec succès dans votre agenda, mylane."
+    except Exception as e:
+        return f"Erreur de création de l'événement Calendar : {e}"
+
+def modifier_evenement_calendar(ancien_titre, nouveau_titre=None, nouvelle_heure=None, fin_heure=None):
+    try:
+        service = get_calendar_service()
+        if not service:
+            return "Google Calendar non disponible."
+        
+        from datetime import datetime, timezone
+        now = datetime.now(timezone.utc).isoformat()
+        events = service.events().list(calendarId="primary", timeMin=now, maxResults=20, singleEvents=True, orderBy="startTime").execute()
+        items = events.get("items", [])
+        
+        event_id = None
+        exact_summary = None
+        event_data = None
+        for e in items:
+            summary = e.get("summary", "").strip().lower()
+            if ancien_titre.strip().lower() in summary or summary in ancien_titre.strip().lower():
+                event_id = e["id"]
+                exact_summary = e.get("summary")
+                event_data = e
+                break
+                
+        if not event_id:
+            return f"Événement '{ancien_titre}' introuvable dans votre agenda, mylane."
+            
+        if nouveau_titre:
+            event_data['summary'] = nouveau_titre
+        if nouvelle_heure:
+            event_data['start']['dateTime'] = nouvelle_heure
+            if fin_heure:
+                event_data['end']['dateTime'] = fin_heure
+            else:
+                try:
+                    from datetime import datetime, timedelta
+                    clean_time = nouvelle_heure.replace('Z', '+00:00')
+                    dt = datetime.fromisoformat(clean_time)
+                    event_data['end']['dateTime'] = (dt + timedelta(hours=1)).isoformat()
+                except:
+                    event_data['end']['dateTime'] = nouvelle_heure
+            
+        service.events().update(calendarId="primary", event=event_id, body=event_data).execute()
+        return f"Événement '{exact_summary}' modifié avec succès dans votre agenda, mylane."
+    except Exception as e:
+        return f"Erreur lors de la modification de l'événement : {e}"
+
+def supprimer_evenement_calendar(titre):
+    try:
+        service = get_calendar_service()
+        if not service:
+            return "Google Calendar non disponible."
+        
+        from datetime import datetime, timezone
+        now = datetime.now(timezone.utc).isoformat()
+        events = service.events().list(calendarId="primary", timeMin=now, maxResults=20, singleEvents=True, orderBy="startTime").execute()
+        items = events.get("items", [])
+        
+        event_id = None
+        exact_summary = None
+        for e in items:
+            summary = e.get("summary", "").strip().lower()
+            if titre.strip().lower() in summary or summary in titre.strip().lower():
+                event_id = e["id"]
+                exact_summary = e.get("summary")
+                break
+                
+        if not event_id:
+            return f"Événement '{titre}' introuvable dans votre agenda, mylane."
+            
+        service.events().delete(calendarId="primary", event=event_id).execute()
+        return f"Événement '{exact_summary}' supprimé de votre agenda avec succès, mylane."
+    except Exception as e:
+        return f"Erreur lors de la suppression de l'événement : {e}"
+
+def ajouter_ligne_sheet(valeurs, spreadsheet_id=None, onglet="Feuille 1"):
+    global dernier_sheet_id
+    try:
+        service = get_sheets_service()
+        if not service:
+            return "Google Sheets non disponible."
+        
+        target_id = spreadsheet_id or dernier_sheet_id
+        if not target_id:
+            return "Aucune feuille de calcul active en session, mylane."
+            
+        if not isinstance(valeurs, list):
+            valeurs = [valeurs]
+            
+        range_name = f"{onglet}!A:Z"
+        body = {
+            'values': [valeurs]
+        }
+        service.spreadsheets().values().append(
+            spreadsheetId=target_id,
+            range=range_name,
+            valueInputOption="USER_ENTERED",
+            body=body
+        ).execute()
+        
+        return "Données insérées avec succès dans la feuille, mylane."
+    except Exception as e:
+        return f"Erreur lors de l'écriture dans Google Sheets : {e}"
+
+def lire_donnees_sheet(cell_range, spreadsheet_id=None):
+    global dernier_sheet_id
+    try:
+        service = get_sheets_service()
+        if not service:
+            return "Google Sheets non disponible."
+        
+        target_id = spreadsheet_id or dernier_sheet_id
+        if not target_id:
+            return "Aucune feuille de calcul active en session, mylane."
+            
+        result = service.spreadsheets().values().get(
+            spreadsheetId=target_id,
+            range=cell_range
+        ).execute()
+        
+        values = result.get('values', [])
+        if not values:
+            return "Aucune donnée trouvée dans cette plage."
+            
+        reponse = ""
+        for row in values:
+            reponse += " | ".join(row) + "\n"
+        return reponse.strip()
+    except Exception as e:
+        return f"Erreur de lecture Google Sheets : {e}"
+
+def lire_contenu_doc(doc_id=None):
+    global dernier_doc_id
+    try:
+        service = get_docs_service()
+        if not service:
+            return "Google Docs non disponible."
+        
+        target_id = doc_id or dernier_doc_id
+        if not target_id:
+            return "Aucun document actif en session, mylane."
+            
+        doc = service.documents().get(documentId=target_id).execute()
+        
+        contenu = doc.get('body', {}).get('content', [])
+        texte = ""
+        for item in contenu:
+            if 'paragraph' in item:
+                for element in item['paragraph'].get('elements', []):
+                    if 'textRun' in element:
+                        texte += element['textRun'].get('content', '')
+                        
+        if not texte.strip():
+            return "Le document est vide."
+            
+        res_preview = texte.strip()
+        if len(res_preview) > 1000:
+            res_preview = res_preview[:1000] + "..."
+        return res_preview
+    except Exception as e:
+        return f"Erreur lors de la lecture du document : {e}"
+
+def charger_fichier_drive(local_path, parent_folder_id=None):
+    try:
+        service = get_drive_service()
+        if not service:
+            return "Google Drive non disponible."
+        
+        import os
+        if not os.path.exists(local_path):
+            return f"Fichier local introuvable au chemin : {local_path}"
+            
+        filename = os.path.basename(local_path)
+        
+        import mimetypes
+        mime_type, _ = mimetypes.guess_type(local_path)
+        if not mime_type:
+            mime_type = 'application/octet-stream'
+            
+        from googleapiclient.http import MediaFileUpload
+        file_metadata = {'name': filename}
+        if parent_folder_id:
+            file_metadata['parents'] = [parent_folder_id]
+            
+        media = MediaFileUpload(local_path, mimetype=mime_type, resumable=True)
+        file_uploaded = service.files().create(body=file_metadata, media_body=media, fields='id, webViewLink').execute()
+        
+        lien = file_uploaded.get('webViewLink')
+        return f"Fichier '{filename}' téléversé avec succès. Lien : {lien}"
+    except Exception as e:
+        return f"Erreur de téléversement Drive : {e}"
+
+def partager_fichier_drive(email, role="reader", file_id=None):
+    global dernier_doc_id
+    try:
+        service = get_drive_service()
+        if not service:
+            return "Google Drive non disponible."
+        
+        target_id = file_id or dernier_doc_id
+        if not target_id:
+            return "Aucun document actif en session à partager, mylane."
+            
+        permission = {
+            'type': 'user',
+            'role': role,
+            'emailAddress': email
+        }
+        service.permissions().create(fileId=target_id, body=permission).execute()
+        return f"Le document a été partagé avec succès avec {email} en tant que {role}, mylane."
+    except Exception as e:
+        return f"Erreur de partage du fichier : {e}"
+
+def creer_dossier_drive(nom_dossier, parent_folder_id=None):
+    try:
+        service = get_drive_service()
+        if not service:
+            return "Google Drive non disponible."
+        
+        file_metadata = {
+            'name': nom_dossier,
+            'mimeType': 'application/vnd.google-apps.folder'
+        }
+        if parent_folder_id:
+            file_metadata['parents'] = [parent_folder_id]
+            
+        folder = service.files().create(body=file_metadata, fields='id, webViewLink').execute()
+        lien = folder.get('webViewLink')
+        return f"Dossier '{nom_dossier}' créé avec succès. Lien : {lien}"
+    except Exception as e:
+        return f"Erreur lors de la création du dossier Drive : {e}"
+
+
+
+

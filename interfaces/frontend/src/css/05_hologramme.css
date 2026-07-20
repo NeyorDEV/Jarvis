@@ -1,0 +1,262 @@
+/* ══════════════════════════════════════════════════════════════════════════════
+   HOLOGRAMME OVERLAY
+   ══════════════════════════════════════════════════════════════════════════════ */
+#holo-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: #000;
+  overflow: hidden;
+  font-family: 'Courier New', monospace;
+}
+
+/* Scanlines */
+#holo-overlay::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 3px,
+    rgba(0, 229, 255, 0.012) 3px,
+    rgba(0, 229, 255, 0.012) 4px
+  );
+  pointer-events: none;
+  z-index: 5;
+}
+
+/* ── Webcam caché ────────────────────────────────────────────────────────── */
+#holo-overlay #holo-webcam {
+  display: none;
+}
+
+/* ── Canvases empilés ────────────────────────────────────────────────────── */
+#holo-overlay #holo-starfield,
+#holo-overlay #holo-three-canvas,
+#holo-overlay #holo-hand-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+#holo-overlay #holo-starfield    { z-index: 1; }
+#holo-overlay #holo-three-canvas { z-index: 2; }
+#holo-overlay #holo-game-canvas  { z-index: 3; pointer-events: none; }
+#holo-overlay #holo-hand-canvas  { z-index: 4; pointer-events: none; }
+
+/* ── Coins décoratifs ────────────────────────────────────────────────────── */
+#holo-overlay .holo-corner {
+  position: absolute;
+  width: 24px;
+  height: 24px;
+  z-index: 8;
+  pointer-events: none;
+}
+
+#holo-overlay .holo-corner-tl { top: 8px; left: 8px; border-top: 2px solid rgba(0,229,255,0.4); border-left: 2px solid rgba(0,229,255,0.4); }
+#holo-overlay .holo-corner-tr { top: 8px; right: 8px; border-top: 2px solid rgba(0,229,255,0.4); border-right: 2px solid rgba(0,229,255,0.4); }
+#holo-overlay .holo-corner-bl { bottom: 8px; left: 8px; border-bottom: 2px solid rgba(0,229,255,0.4); border-left: 2px solid rgba(0,229,255,0.4); }
+#holo-overlay .holo-corner-br { bottom: 8px; right: 8px; border-bottom: 2px solid rgba(0,229,255,0.4); border-right: 2px solid rgba(0,229,255,0.4); }
+
+/* ── Bouton fermer ───────────────────────────────────────────────────────── */
+#holo-overlay #holo-close-btn {
+  position: absolute;
+  top: 16px;
+  right: 20px;
+  z-index: 10;
+  background: rgba(0, 229, 255, 0.10);
+  border: 1px solid rgba(0, 229, 255, 0.5);
+  color: #00e5ff;
+  font-family: 'Courier New', monospace;
+  font-size: 11px;
+  font-weight: bold;
+  letter-spacing: 2px;
+  padding: 8px 20px;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 0 12px rgba(0, 229, 255, 0.2);
+  text-transform: uppercase;
+}
+
+#holo-overlay #holo-close-btn:hover {
+  background: rgba(0, 229, 255, 0.22);
+  border-color: #00e5ff;
+  box-shadow: 0 0 22px rgba(0, 229, 255, 0.45);
+  transform: scale(1.04);
+}
+
+/* ── Toast geste ─────────────────────────────────────────────────────────── */
+#holo-overlay #holo-gesture-toast {
+  position: absolute;
+  bottom: 110px;
+  left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  z-index: 10;
+  background: rgba(0, 229, 255, 0.08);
+  border: 1px solid rgba(0, 229, 255, 0.4);
+  color: #00e5ff;
+  font-size: 13px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  padding: 7px 22px;
+  border-radius: 3px;
+  opacity: 0;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  pointer-events: none;
+  backdrop-filter: blur(6px);
+  box-shadow: 0 0 20px rgba(0, 229, 255, 0.15);
+  white-space: nowrap;
+}
+
+#holo-overlay #holo-gesture-toast.visible {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* ── HUD coins ───────────────────────────────────────────────────────────── */
+#holo-overlay .holo-hud-corner {
+  position: absolute;
+  z-index: 10;
+  pointer-events: none;
+}
+
+#holo-overlay .holo-hud-tl { top: 44px; left: 14px; }
+#holo-overlay .holo-hud-tr { top: 44px; right: 14px; }
+#holo-overlay .holo-hud-bl { bottom: 90px; left: 14px; }
+
+#holo-overlay .holo-hud-block {
+  padding: 10px 14px;
+  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid rgba(0, 229, 255, 0.12);
+  border-radius: 3px;
+  backdrop-filter: blur(4px);
+}
+
+#holo-overlay .holo-hud-title {
+  font-size: 10px;
+  font-weight: bold;
+  letter-spacing: 3px;
+  color: #00e5ff;
+  opacity: 0.85;
+  margin-bottom: 4px;
+  text-transform: uppercase;
+}
+
+#holo-overlay .holo-hud-line {
+  display: flex;
+  gap: 8px;
+  font-size: 10px;
+  color: #00e5ff;
+  line-height: 1.8;
+  text-transform: uppercase;
+}
+
+#holo-overlay .holo-hud-line.holo-muted { opacity: 0.5; }
+
+#holo-overlay .holo-key {
+  opacity: 0.45;
+  min-width: 55px;
+  letter-spacing: 1px;
+}
+
+/* ── Barres d'énergie ────────────────────────────────────────────────────── */
+#holo-overlay .holo-hud-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 10px 14px;
+  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid rgba(0, 229, 255, 0.12);
+  border-radius: 3px;
+  backdrop-filter: blur(4px);
+}
+
+#holo-overlay .holo-bar-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 9px;
+  color: rgba(0, 229, 255, 0.55);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+#holo-overlay .holo-bar {
+  width: 80px;
+  height: 3px;
+  background: rgba(0, 229, 255, 0.12);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+#holo-overlay .holo-bar-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.5s ease;
+}
+
+#holo-overlay .holo-bar-fill.holo-cyan   { background: #00e5ff; box-shadow: 0 0 6px #00e5ff; }
+#holo-overlay .holo-bar-fill.holo-orange { background: #ff8a1a; box-shadow: 0 0 6px #ff8a1a; }
+#holo-overlay .holo-bar-fill.holo-red    { background: #ff2e4d; box-shadow: 0 0 6px #ff2e4d; }
+
+/* ── Dock formes ─────────────────────────────────────────────────────────── */
+#holo-overlay #holo-dock {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+  display: flex;
+  gap: 6px;
+  background: rgba(0, 0, 0, 0.55);
+  border: 1px solid rgba(0, 229, 255, 0.15);
+  padding: 8px 14px;
+  border-radius: 40px;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 0 25px rgba(0, 229, 255, 0.08);
+  pointer-events: auto;
+}
+
+#holo-overlay .holo-dock-btn {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: 1px solid rgba(0, 229, 255, 0.2);
+  background: rgba(0, 229, 255, 0.05);
+  color: rgba(0, 229, 255, 0.7);
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Courier New', monospace;
+}
+
+#holo-overlay .holo-dock-btn:hover {
+  background: rgba(0, 229, 255, 0.15);
+  border-color: rgba(0, 229, 255, 0.55);
+  color: #00e5ff;
+  box-shadow: 0 0 12px rgba(0, 229, 255, 0.3);
+}
+
+#holo-overlay .holo-dock-btn.active {
+  background: rgba(0, 229, 255, 0.25);
+  border-color: #00e5ff;
+  color: #00e5ff;
+  box-shadow: 0 0 18px rgba(0, 229, 255, 0.5);
+}
+
+#holo-overlay .holo-dock-btn.holo-dock-sep {
+  width: auto;
+  border-radius: 4px;
+  padding: 0 10px;
+  font-size: 9px;
+  letter-spacing: 1px;
+}
+
+/* Le style du bouton HOLO est désormais géré de façon unifiée dans le conteneur .carousel-track > button pour le Dock Dynamic Island */
+

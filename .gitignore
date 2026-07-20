@@ -25,12 +25,15 @@ adb_key.pub
 
 
 # Base vectorielle
-chroma_db/
+data/chroma_db/
 
-# Frontend
-frontend/node_modules/
-frontend/dist/
-frontend/.vite/
+# Frontend (patterns robustes : n'importe quel emplacement)
+**/node_modules/
+**/dist/
+**/.vite/
+
+# Fichiers audio transitoires (sorties TTS)
+jarvis_tts_*.mp3
 
 # Logs
 *.log

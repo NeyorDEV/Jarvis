@@ -33,8 +33,8 @@ set "WEB_STATUS=[A INSTALLER]"
 set "ROOT_STATUS=NON"
 set "CHROME_STATUS=NON"
 
-:: Vérification Racine (présence de main2.py dans le même dossier que le script)
-if exist "%~dp0main2.py" (
+:: Vérification Racine (présence de main.py dans le même dossier que le script)
+if exist "%~dp0main.py" (
     set "ROOT_STATUS=OUI"
 ) else (
     set "ROOT_STATUS=NON"
@@ -54,7 +54,7 @@ if "!CHROME_STATUS!"=="NON" (
 python --version >nul 2>&1 && set "PY_STATUS=[DEJA PRESENT]"
 where npm >nul 2>&1 && set "NODE_STATUS=[DEJA PRESENT]"
 if exist "venv" set "VENV_STATUS=[DEJA PRESENT]"
-if exist "frontend\node_modules" set "WEB_STATUS=[DEJA PRESENT]"
+if exist "interfaces\frontend\node_modules" set "WEB_STATUS=[DEJA PRESENT]"
 
 :: 1c. Récapitulatif et Validation
 echo ======================================================
@@ -79,7 +79,7 @@ if "!ROOT_STATUS!"=="NON" (
     echo [^!] LE FICHIER INSTALL.BAT N'EST PAS AU BON ENDROIT.
     echo.
     echo POUR CORRIGER :
-    echo 1. Allez dans votre dossier JARVIS (la ou se trouve main2.py^).
+    echo 1. Allez dans votre dossier JARVIS (la ou se trouve main.py^).
     echo 2. Copiez ce fichier 'install.bat' a l'interieur.
     echo 3. Relancez-le depuis ce dossier.
     echo.
@@ -252,9 +252,9 @@ if exist "requirements.txt" (
 :: 7. Interface Web
 where npm >nul 2>&1
 if %errorlevel% equ 0 (
-    if exist "frontend\package.json" (
+    if exist "interfaces\frontend\package.json" (
         echo [SYSTEME] Installation de l'interface Web...
-        pushd frontend && call npm install & popd
+        pushd interfaces\frontend && call npm install & popd
     )
 )
 
@@ -265,7 +265,7 @@ echo @echo off
 echo TITLE J.A.R.V.I.S - www.techenclair.fr
 echo COLOR 0B
 echo cd /d "%%~dp0"
-echo ".\venv\Scripts\python.exe" "main2.py"
+echo ".\venv\Scripts\python.exe" "main.py"
 echo pause
 ) > "DEMARRER_JARVIS.bat"
 
@@ -334,7 +334,7 @@ echo Remplacement de 'Mickael' par '!PN!' dans le code source...
 
 echo import sys > temp_rename.py
 echo n = sys.argv[1] >> temp_rename.py
-echo for p in ['main2.py', 'jarvis_agent.py']: >> temp_rename.py
+echo for p in ['main.py', 'backend/module/jarvis_agent.py']: >> temp_rename.py
 echo     try: >> temp_rename.py
 echo         f = open(p, 'r', encoding='utf-8') >> temp_rename.py
 echo         c = f.read() >> temp_rename.py

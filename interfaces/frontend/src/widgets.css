@@ -1,0 +1,516 @@
+/* ── Widgets HUD Base ─────────────────────────────────────────────────────── */
+.hud-widget {
+  position: fixed;
+  z-index: 70;
+  pointer-events: auto;
+  font-family: var(--font-title);
+  color: #00e5ff;
+  background: rgba(10, 16, 26, 0.45);
+  border: 1px solid rgba(0, 229, 255, 0.22);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  padding: 18px;
+  border-radius: 16px;
+  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.55), 0 0 15px rgba(0, 229, 255, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.hud-widget::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0, 229, 255, 0.01) 2px, rgba(0, 229, 255, 0.01) 4px);
+  pointer-events: none;
+}
+
+/* ── Widget reveal animation ─────────────────────────────────────────────── */
+@keyframes widget-reveal {
+  from { opacity: 0; transform: translateY(12px) scale(0.96); }
+  to   { opacity: 1; transform: translateY(0)    scale(1); }
+}
+
+/* ── Widgets cachés par défaut — s'affichent sur commande vocale ──────────── */
+#calendar-hud,
+#weather-hud,
+#music-hud {
+  display: none;
+}
+
+#calendar-hud.hud-revealed {
+  display: block;
+  animation: widget-reveal 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+#weather-hud.hud-revealed {
+  display: flex;
+  animation: widget-reveal 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+#music-hud.hud-revealed {
+  display: flex;
+  animation: widget-reveal 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+/* ── Curseur drag sur les zones non-interactives des widgets ─────────────── */
+#calendar-hud.hud-revealed,
+#weather-hud.hud-revealed,
+#music-hud.hud-revealed {
+  cursor: grab;
+}
+
+#calendar-hud button,
+#weather-hud button,
+#music-hud button {
+  cursor: pointer;
+}
+
+/* ── Bouton fermeture commun aux 3 widgets ───────────────────────────────── */
+.widget-close-btn {
+  background: none;
+  border: none;
+  color: rgba(0, 229, 255, 0.45);
+  font-size: 11px;
+  cursor: pointer;
+  padding: 0 2px;
+  line-height: 1;
+  transition: color 0.2s;
+  font-family: 'Courier New', monospace;
+}
+.widget-close-btn:hover {
+  color: #ff3366;
+}
+
+/* ── Calendar Widget (Top Right) ─────────────────────────────────────────── */
+#calendar-hud {
+  top: 100px;
+  right: 20px;
+  width: 280px;
+  text-align: center;
+}
+
+.cal-header {
+  font-size: 14px;
+  font-weight: 900;
+  letter-spacing: 4px;
+  margin-bottom: 15px;
+  text-transform: uppercase;
+  border-bottom: 1px solid rgba(0, 229, 255, 0.2);
+  padding-bottom: 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.cal-header-title {
+  flex: 1;
+}
+
+.cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 5px;
+  font-size: 11px;
+}
+
+.cal-day-name {
+  color: rgba(0, 229, 255, 0.5);
+  font-weight: bold;
+  font-size: 9px;
+  margin-bottom: 5px;
+}
+
+.cal-day {
+  padding: 5px;
+  transition: all 0.3s ease;
+}
+
+.cal-day.today {
+  background: rgba(0, 229, 255, 0.15);
+  border: 1px solid #00e5ff;
+  color: #fff;
+  box-shadow: 0 0 10px rgba(0, 229, 255, 0.5);
+}
+
+.cal-day.other-month {
+  opacity: 0.2;
+}
+
+/* ── Weather Widget (Bottom Right) ──────────────────────────────────────── */
+#weather-hud {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  width: 320px;
+  flex-direction: column;
+  gap: 15px;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  backdrop-filter: none;
+  padding: 0;
+  z-index: 70;
+}
+
+.weather-hud-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 9px;
+  letter-spacing: 3px;
+  color: rgba(0, 229, 255, 0.5);
+  text-transform: uppercase;
+  padding: 0 2px 4px;
+  border-bottom: 1px solid rgba(0, 229, 255, 0.1);
+  margin-bottom: 2px;
+}
+
+.weather-block {
+  background: rgba(0, 229, 255, 0.05);
+  border: 1px solid rgba(0, 229, 255, 0.3);
+  padding: 15px;
+  border-radius: 2px;
+  position: relative;
+  overflow: hidden;
+  color: #ffffff; /* Texte en blanc par défaut pour le bloc */
+}
+
+.weather-block::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 40px;
+  height: 2px;
+  background: #00e5ff;
+}
+
+.weather-city {
+  font-size: 10px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: #00e5ff; /* Garder le cyan pour le nom de la ville */
+  margin-bottom: 8px;
+}
+
+.weather-main {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.weather-desc {
+  font-size: 16px;
+  font-weight: 900;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  max-width: 60%;
+  color: #ffffff;
+}
+
+.weather-temp {
+  font-size: 42px;
+  font-weight: 900;
+  color: #ffffff;
+  text-shadow: 0 0 15px rgba(0, 229, 255, 0.6);
+}
+
+.weather-details {
+  margin-top: 15px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  font-size: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  padding-top: 10px;
+}
+
+.weather-detail-item {
+  display: flex;
+  flex-direction: column;
+}
+
+.weather-detail-label {
+  color: rgba(0, 229, 255, 0.7);
+  font-size: 8px;
+  text-transform: uppercase;
+  margin-bottom: 2px;
+}
+
+.weather-detail-val {
+  font-weight: bold;
+  color: #ffffff;
+}
+
+/* ── Music Widget (Bottom Left) ──────────────────────────────────────────── */
+#music-hud {
+  position: fixed;
+  bottom: 20px;
+  left: 20px;
+  width: 280px;
+  padding: 0;
+  border: none;
+  background: rgba(5, 10, 15, 0.8);
+  border-left: 4px solid #00e5ff;
+  box-shadow: 0 0 30px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+  flex-direction: column;
+  z-index: 70;
+}
+
+.music-content {
+  padding: 15px;
+  position: relative;
+}
+
+.music-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  gap: 8px;
+}
+
+.music-source {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 10px;
+  font-weight: bold;
+  letter-spacing: 2px;
+  color: #00e5ff;
+}
+
+.music-source-icon {
+  width: 12px;
+  height: 12px;
+  background: #ff7b00; /* Orange icon like in the image */
+  border-radius: 50%;
+  box-shadow: 0 0 5px #ff7b00;
+}
+
+.music-status-badge {
+  font-size: 9px;
+  background: rgba(0, 229, 255, 0.1);
+  padding: 2px 8px;
+  border: 1px solid rgba(0, 229, 255, 0.3);
+  letter-spacing: 1px;
+}
+
+.music-info {
+  margin-bottom: 15px;
+}
+
+.music-title {
+  font-size: 22px;
+  font-weight: 900;
+  color: #00e5ff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+  text-shadow: 0 0 10px rgba(0, 229, 255, 0.3);
+}
+
+.music-artist {
+  font-size: 11px;
+  color: #fff;
+  opacity: 0.7;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+}
+
+.music-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+}
+
+.music-btn {
+  flex: 1;
+  background: rgba(0, 229, 255, 0.05);
+  border: 1px solid rgba(0, 229, 255, 0.3);
+  color: #00e5ff;
+  padding: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 10px;
+  font-weight: bold;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.music-btn:hover {
+  background: rgba(0, 229, 255, 0.15);
+  border-color: #00e5ff;
+}
+
+.music-btn:active {
+  transform: scale(0.95);
+}
+
+.music-btn.play-pause {
+  flex: 2;
+  border-color: #00e5ff;
+  background: rgba(0, 229, 255, 0.1);
+}
+
+.music-volume {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 15px;
+  font-size: 10px;
+  color: rgba(0, 229, 255, 0.6);
+}
+
+.music-volume-bar {
+  flex: 1;
+  height: 1px;
+  background: rgba(0, 229, 255, 0.2);
+  position: relative;
+}
+
+.music-volume-fill {
+  position: absolute;
+  top: -1px;
+  left: 0;
+  height: 3px;
+  width: 70%;
+  background: #00e5ff;
+}
+
+/* ── Contextual Cards (Dynamic) ───────────────────────────────────────────── */
+#cards-hud {
+  position: fixed;
+  top: 150px;
+  left: 20px;
+  width: 350px;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  z-index: 100;
+  pointer-events: none;
+}
+
+.ctx-card {
+  position: relative;
+  background: rgba(5, 10, 15, 0.85);
+  border: 1px solid rgba(0, 229, 255, 0.25);
+  border-left: 3px solid #00e5ff;
+  padding: 0;
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
+  border-radius: 4px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), 0 0 15px rgba(0, 229, 255, 0.1);
+  transform: translateX(-100%);
+  opacity: 0;
+  transition: all 0.6s cubic-bezier(0.23, 1, 0.32, 1);
+  pointer-events: auto;
+  overflow: hidden;
+}
+
+.ctx-card.visible {
+  transform: translateX(0);
+  opacity: 1;
+}
+
+.ctx-card.dismiss {
+  transform: translateX(-110%) scale(0.9);
+  opacity: 0;
+}
+
+.ctx-card-header {
+  display: flex;
+  align-items: center;
+  padding: 12px 15px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.ctx-card-icon {
+  font-size: 18px;
+  color: #00e5ff;
+  margin-right: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ctx-card-title {
+  flex-grow: 1;
+  font-size: 11px;
+  font-weight: 700;
+  color: #00e5ff;
+  letter-spacing: 2px;
+  text-shadow: 0 0 8px rgba(0, 229, 255, 0.5);
+  opacity: 0.9;
+}
+
+.ctx-card-close {
+  cursor: pointer;
+  font-size: 12px;
+  color: rgba(0, 229, 255, 0.4);
+  transition: color 0.2s;
+}
+
+.ctx-card-close:hover {
+  color: #ff3366;
+}
+
+.ctx-card-body {
+  padding: 15px 18px;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 14px;
+  line-height: 1.6;
+  font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+  white-space: pre-wrap;
+  text-shadow: 0 0 10px rgba(0, 229, 255, 0.2);
+  letter-spacing: 0.05em;
+  text-align: left !important;
+  display: block;
+  font-weight: 500;
+}
+
+.ctx-card-progress {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.ctx-card-progress-bar {
+  height: 100%;
+  background: #00e5ff;
+  width: 0%;
+  animation: card-timeout linear forwards;
+}
+
+@keyframes card-timeout {
+  from { width: 100%; }
+  to { width: 0%; }
+}
+
+.ctx-card-glow {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, rgba(0, 229, 255, 0.08) 0%, transparent 60%);
+  pointer-events: none;
+  z-index: -1;
+}
+
+/* Types de cartes */
+.ctx-card-alert { border-left-color: #ff3366; }
+.ctx-card-alert .ctx-card-title { color: #ff3366; }
+.ctx-card-alert .ctx-card-progress-bar { background: #ff3366; }
+
+.ctx-card-system { border-left-color: #f59e0b; }
+.ctx-card-system .ctx-card-title { color: #f59e0b; }
+
+
