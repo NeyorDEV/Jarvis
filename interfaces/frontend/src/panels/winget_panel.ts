@@ -192,13 +192,20 @@ wingetUpgradeSelectedBtn?.addEventListener("click", () => {
   const ids: string[] = [];
   const checkboxes = document.querySelectorAll(".winget-select-checkbox") as NodeListOf<HTMLInputElement>;
   checkboxes.forEach(cb => {
+    // La recherche masque les lignes non correspondantes SANS décocher leur case.
+    // Sans ce test, filtrer sur une application puis cliquer « mettre à jour la
+    // sélection » mettait à jour TOUS les logiciels, y compris les invisibles.
+    const ligne = cb.closest(".uninstaller-app-item") as HTMLElement | null;
+    if (ligne && ligne.style.display === "none") return;
+
     if (cb.checked) {
       const idx = parseInt(cb.getAttribute("data-idx") || "0");
-      ids.push(allWingetUpgrades[idx].id);
+      const item = allWingetUpgrades[idx];
+      if (item) ids.push(item.id);   // garde-fou : index hors bornes possible
     }
   });
   if (ids.length === 0) {
-    alert("Veuillez sélectionner au moins un logiciel à mettre à jour.");
+    alert("Veuillez sélectionner au moins un logiciel visible à mettre à jour.");
     return;
   }
   runWingetUpgrade(ids);

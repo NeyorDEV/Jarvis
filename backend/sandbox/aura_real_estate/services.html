@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Services d'Exception & Ingenierie Immobiliere | AURA Real Estate</title>
+    
+    <!-- Meta SEO -->
+    <meta name="description" content="Découvrez les services sur-mesure d'AURA Real Estate : Ventes Off-Market confidentielles, Acquisition Privée, Estimation Patrimoniale certifiée, Conciergerie de Prestige et Gestion de Portefeuille International.">
+    <meta name="keywords" content="services immobilier luxe, off-market prive, estimation residence exception, chasseur immobilier prestige, conciergerie patrimoniale, gestion portefeuille immobilier, aura real estate">
+    <meta name="author" content="AURA Real Estate">
+    <meta name="robots" content="index, follow">
+
+    <!-- Open Graph / Facebook / LinkedIn -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://www.aura-realestate.com/services.html">
+    <meta property="og:title" content="Services d'Exception & Ingenierie Immobiliere | AURA Real Estate">
+    <meta property="og:description" content="Ingénierie sur-mesure pour acquisitions confidentielles, valorisation de propriétés d'architectes et gestion de patrimoine immobilier d'exception.">
+    <meta property="og:image" content="assets/img_b0b849d2.jpg">
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Services d'Exception | AURA Real Estate">
+    <meta name="twitter:description" content="Accompagnement exclusif et haute négociation immobilière à Paris, Monaco, Genève et Dubaï.">
+    <meta name="twitter:image" content="assets/img_b0b849d2.jpg">
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- CSS Centralized Design System -->
+    <link rel="stylesheet" href="css/main.css">
+
+    <!-- App JavaScript -->
+    <script src="js/app.js" defer></script>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+</head>
+<body>
+
+    <!-- Header & Navigation -->
+    <header class="site-header" id="header">
+        <div class="header-container">
+            <a href="index.html" class="brand-logo" aria-label="AURA Real Estate Page d'accueil">
+                <span class="logo-mark">AURA</span>
+                <span class="logo-sub">REAL ESTATE</span>
+            </a>
+
+            <!-- Desktop Navigation -->
+            <nav class="desktop-nav" aria-label="Navigation principale">
+                <ul class="nav-list">
+                    <li><a href="index.html" class="nav-link">Accueil</a></li>
+                    <li><a href="annonces.html" class="nav-link">Propriétés</a></li>
+                    <li class="dropdown-item">
+                        <a href="services.html" class="nav-link active">
+                            Services <span class="dropdown-arrow">▼</span>
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a href="services.html#off-market">Ventes Off-Market</a></li>
+                            <li><a href="services.html#acquisition-privee">Acquisition Privée</a></li>
+                            <li><a href="services.html#estimation">Estimation d'Exception</a></li>
+                            <li><a href="services.html#conciergerie">Conciergerie Patrimoniale</a></li>
+                        </ul>
+                    </li>
+                    <li><a href="faq.html" class="nav-link">FAQ</a></li>
+                    <li><a href="contact.html" class="nav-link">Contact</a></li>
+                </ul>
+            </nav>
+
+            <div class="header-actions">
+                <a href="contact.html" class="btn btn-gold btn-sm hide-mobile">Rendez-vous Privé</a>
+                <button class="mobile-toggle" id="mobileToggle" aria-label="Ouvrir le menu mobile" aria-expanded="false" aria-controls="mobileMenu">
+                    <span class="hamburger-bar"></span>
+                    <span class="hamburger-bar"></span>
+                    <span class="hamburger-bar"></span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Mobile Drawer Navigation -->
+        <div class="mobile-drawer" id="mobileMenu" aria-hidden="true">
+            <div class="drawer-header">
+                <span class="logo-mark">AURA</span>
+                <button class="drawer-close" id="drawerClose" aria-label="Fermer le menu mobile">&times;</button>
+            </div>
+            <nav class="mobile-nav">
+                <ul class="mobile-nav-list">
+                    <li><a href="index.html" class="mobile-nav-link">Accueil</a></li>
+                    <li><a href="annonces.html" class="mobile-nav-link">Propriétés de Prestige</a></li>
+                    <li><a href="services.html" class="mobile-nav-link active">Services & Off-Market</a></li>
+                    <li><a href="services.html#estimation" class="mobile-nav-link sub-link">Estimation sur-mesure</a></li>
+                    <li><a href="services.html#off-market" class="mobile-nav-link sub-link">Mandats Confidentiels</a></li>
+                    <li><a href="faq.html" class="mobile-nav-link">Foire aux Questions</a></li>
+                    <li><a href="contact.html" class="mobile-nav-link">Contact & Bureaux</a></li>
+                </ul>
+            </nav>
+            <div class="drawer-footer">
+                <a href="contact.html" class="btn btn-gold btn-full">Planifier un Rendez-vous</a>
+                <p class="drawer-contact-info">Paris • Monaco • Genève • Dubaï</p>
+            </div>
+        </div>
+    </header>
+
+    <main id="main-content">
+
+        <!-- Page Hero Banner -->
+        <section class="page-header-section bg-dark">
+            <div class="container">
+                <nav class="breadcrumb-nav" aria-label="Fil d'Ariane">
+                    <ol class="breadcrumb-list">
+                        <li><a href="index.html">Accueil</a></li>
+                        <li class="separator">/</li>
+                        <li aria-current="page">Services d'Exception</li>
+                    </ol>
+                </nav>
+                
+                <div class="page-title-block">
+                    <span class="sub-heading">Savoir-Faire & Ingestion Patrimoniale</span>
+                    <h1 class="page-title">Haute Négociation & Architecture de l'Accompagnement</h1>
+                    <p class="page-subtitle">
+                        Une approche sur-mesure combinant expertise financière, discrétion absolue et maîtrise architecturale pour les acteurs majeurs du marché immobilier international.
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Quick Jump Navigation Tabs -->
+        <section class="service-nav-bar bg-alt border-y-gold">
+            <div class="container">
+                <nav class="service-quick-links" aria-label="Menu rapide des services">
+                    <a href="#off-market" class="service-tab-btn active">
+                        <span class="tab-icon">&#128274;</span>
+                        <span>Acquisition Off-Market</span>
+                    </a>
+                    <a href="#acquisition-privee" class="service-tab-btn">
+                        <span class="tab-icon">&#127919;</span>
+                        <span>Chasse & Mandats Privés</span>
+                    </a>
+                    <a href="#estimation" class="service-tab-btn">
+                        <span class="tab-icon">&#9878;</span>
+                        <span>Valorisation Certifiée</span>
+                    </a>
+                    <a href="#conciergerie" class="service-tab-btn">
+                        <span class="tab-icon">&#11088;</span>
+                        <span>Conciergerie & Asset Management</span>
+                    </a>
+                </nav>
+            </div>
+        </section>
+
+        <!-- Main Services Sections Wrapper -->
+        <div class="services-wrapper bg-dark">
+
+            <!-- SERVICE 1: Private Off-Market Acquisition -->
+            <section class="section-padding service-detail-section" id="off-market">
+                <div class="container">
+                    <div class="grid-2-cols align-items-center">
+                        <div class="service-content-col">
+                            <div class="service-badge">
+                                <span class="badge badge-gold">Pilier N°1</span>
+                                <span class="badge badge-emerald">Confidentialité 100%</span>
+                            </div>
+                            <h2 class="section-title">Acquisition & Cession Privée Off-Market</h2>
+                            <p class="paragraph-lead">
+                                Pour les résidences les plus emblématiques au monde, la discrétion est la forme ultime du luxe. Plus de 60% de nos volumes de transaction s'effectuent sans aucune empreinte numérique ni diffusion publique.
+                            </p>
+                            <p class="paragraph-text">
+                                Notre protocole Off-Market sécurise les transactions des célébrités, grands dirigeants, Family Offices et investisseurs institutionnels. Nous garantissons la préservation de votre vie privée ainsi que la maîtrise de l'image de votre bien d'exception.
+                            </p>
+
+                            <div class="service-pillars-list margin-top-sm">
+                                <div class="pillar-item">
+                                    <div class="pillar-number">01</div>
+                                    <div class="pillar-info">
+                                        <h4>Filtrage Strict des Acquéreurs</h4>
+                                        <p>Vérification préalable des capacités financières et de l'identité des repreneurs potentiels sous accords de confidentialité (NDA).</p>
+                                    </div>
+                                </div>
+
+                                <div class="pillar-item">
+                                    <div class="pillar-number">02</div>
+                                    <div class="pillar-info">
+                                        <h4>Protection Médias & Numérique</h4>
+                                        <p>Aucune adresse, aucune photographie ni aucun plan ne sont publiés sur Internet ou les réseaux sociaux sans autorisation formelle.</p>
+                                    </div>
+                                </div>
+
+                                <div class="pillar-item">
+                                    <div class="pillar-number">03</div>
+                                    <div class="pillar-info">
+                                        <h4>Réseau Direct de Propriétaires</h4>
+                                        <p>Accès prioritaire à des penthouses, villas d'architectes et châteaux non présents sur le marché ouvert.</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="margin-top-md">
+                                <a href="contact.html?service=off-market" class="btn btn-gold">Solliciter un Accès Off-Market</a>
+                            </div>
+                        </div>
+
+                        <div class="service-media-col">
+                            <div class="image-frame glass-panel">
+                                <img src="https://images.unsplash.com/photo-1544829099-b9a0c07fad1a?w=800&auto=format&fit=crop" 
+                                     alt="Salon privé de négociation immobilière Off-Market AURA Real Estate" 
+                                     loading="lazy" 
+                                     class="service-img">
+                                <div class="frame-overlay-badge">
+                                    <span class="badge-icon">&#128274;</span>
+                                    <div>
+                                        <strong>Protocole NDA Cliquable</strong>
+                                        <p>Signature numérique sécurisée sous 5 minutes</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SERVICE 2: Tailored Private Property Hunting -->
+            <section class="section-padding service-detail-section bg-alt" id="acquisition-privee">
+                <div class="container">
+                    <div class="grid-2-cols align-items-center image-reverse">
+                        <div class="service-media-col">
+                            <div class="image-frame glass-panel">
+                                <img src="https://images.unsplash.com/photo-1617814076367-b759c7d7e738?w=800&auto=format&fit=crop" 
+                                     alt="Analyse architecturale lors d'un mandat de recherche privée" 
+                                     loading="lazy" 
+                                     class="service-img">
+                                <div class="frame-overlay-badge">
+                                    <span class="badge-icon">&#127919;</span>
+                                    <div>
+                                        <strong>Mandat Exclusif de Recherche</strong>
+                                        <p>Taux de satisfaction de nos mandants : 98%</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="service-content-col">
+                            <div class="service-badge">
+                                <span class="badge badge-indigo">Pilier N°2</span>
+                                <span class="badge badge-gold">Chasse Sur-Mesure</span>
+                            </div>
+                            <h2 class="section-title">Chasse Immobilière Privée & Conseils d'Achat</h2>
+                            <p class="paragraph-lead">
+                                Trouver le bien rare correspondant scrupuleusement à vos impératifs de vie, de rendement ou d'architecture exige un temps précieux et un ancrage local sans faille.
+                            </p>
+                            <p class="paragraph-text">
+                                Nous agissons en tant qu'acheteur représentatif exclusif. Nous prospectons pour vous, auditons l'état technique et urbanistique des propriétés et négocions dans votre intérêt direct pour sécuriser la transaction dans les meilleures conditions économiques.
+                            </p>
+
+                            <ul class="bullet-feature-list margin-top-sm">
+                                <li>
+                                    <strong>Audit Architectural & Technique :</strong> Analyse des structures, diagnostics poussés et estimations des possibilités d'extension par nos architectes partenaires.
+                                </li>
+                                <li>
+                                    <strong>Négociation Financière Aiguë :</strong> Valorisation stricte par le marché micro-prime pour contrer les surévaluations de complaisance.
+                                </li>
+                                <li>
+                                    <strong>Coordination Juridique & Fiscale :</strong> Travail en synergie étroite avec vos notaires, avocats fiscalistes et Family Office.
+                                </li>
+                            </ul>
+
+                            <div class="margin-top-md">
+                                <a href="contact.html?service=acquisition" class="btn btn-gold">Confier un Mandat de Recherche</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SERVICE 3: Asset Valuation & Architectural Expertise -->
+            <section class="section-padding service-detail-section" id="estimation">
+                <div class="container">
+                    <div class="grid-2-cols align-items-center">
+                        <div class="service-content-col">
+                            <div class="service-badge">
+                                <span class="badge badge-gold">Pilier N°3</span>
+                                <span class="badge badge-emerald">Rapport sous 48h</span>
+                            </div>
+                            <h2 class="section-title">Expertise d'Évaluation & Valorisation Patrimoniale</h2>
+                            <p class="paragraph-lead">
+                                Fixer le juste prix d'une propriété d'exception nécessite de dépasser les algorithmes classiques pour intégrer la rareté architecturale, la qualité des finitions et le potentiel émotionnel.
+                            </p>
+                            <p class="paragraph-text">
+                                Nos rapports d'expertise reposent sur une analyse comparative croisée des ventes enregistrées, du coût d'éviction des matériaux nobles et des tendances financières des micro-marchés de luxe (Triangle d'Or, Carré d'Or, Cologny, Palm Jumeirah).
+                            </p>
+
+                            <div class="valuation-highlights-grid margin-top-sm">
+                                <div class="val-card glass-panel">
+                                    <div class="val-icon">&#128200;</div>
+                                    <h4>Analyse Micro-Marché</h4>
+                                    <p>Accès aux bases de données DVF certifiées et aux ventes non publiées.</p>
+                                </div>
+
+                                <div class="val-card glass-panel">
+                                    <div class="val-icon">&#127963;</div>
+                                    <h4>Pondération Architecturale</h4>
+                                    <p>Prise en compte de la renommée de l'architecte, de l'exposition et des vues préservées.</p>
+                                </div>
+                            </div>
+
+                            <div class="margin-top-md">
+                                <a href="index.html#estimation-section" class="btn btn-gold">Demander une Évaluation Certifiée</a>
+                            </div>
+                        </div>
+
+                        <div class="service-media-col">
+                            <div class="image-frame glass-panel">
+                                <img src="https://images.unsplash.com/photo-1503376780353-7e6692767b70?w=800&auto=format&fit=crop" 
+                                     alt="Plans d'architecte et étude de valorisation immobilière" 
+                                     loading="lazy" 
+                                     class="service-img">
+                                <div class="frame-overlay-badge">
+                                    <span class="badge-icon">&#9878;</span>
+                                    <div>
+                                        <strong>Valorisation de Précision</strong>
+                                        <p>Rapport d'expertise certifié de 25 pages</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SERVICE 4: Wealth Concierge & International Asset Management -->
+            <section class="section-padding service-detail-section bg-alt" id="conciergerie">
+                <div class="container">
+                    <div class="grid-2-cols align-items-center image-reverse">
+                        <div class="service-media-col">
+                            <div class="image-frame glass-panel">
+                                <img src="https://images.unsplash.com/photo-1555215695-3004980ad54e?w=800&auto=format&fit=crop" 
+                                     alt="Résidence secondaire d'exception gérée par la conciergerie AURA Real Estate" 
+                                     loading="lazy" 
+                                     class="service-img">
+                                <div class="frame-overlay-badge">
+                                    <span class="badge-icon">&#11088;</span>
+                                    <div>
+                                        <strong>Conciergerie Privée VIP</strong>
+                                        <p>Gestion 24/7 de vos résidences principales et secondaires</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="service-content-col">
+                            <div class="service-badge">
+                                <span class="badge badge-gold">Pilier N°4</span>
+                                <span class="badge badge-indigo">Sérénité Absolue</span>
+                            </div>
+                            <h2 class="section-title">Conciergerie Patrimoniale & Portfolio Management</h2>
+                            <p class="paragraph-lead">
+                                La possession d'un portefeuille immobilier d'exception implique des exigences quotidiennes d'intendance, de maintenance et d'optimisation locative de très haut niveau.
+                            </p>
+                            <p class="paragraph-text">
+                                Notre département Conciergerie veille à la valorisation continue de vos actifs : de la préparation de vos villas avant votre arrivée saisonnière à la supervision de chantiers de rénovation, en passant par la location événementielle ou de courte durée hautement sélective.
+                            </p>
+
+                            <div class="concierge-services-grid margin-top-sm">
+                                <div class="concierge-card glass-panel">
+                                    <span class="c-icon">&#128188;</span>
+                                    <h4>Asset Management</h4>
+                                    <p>Optimisation des rendements et arbitrages stratégiques.</p>
+                                </div>
+
+                                <div class="concierge-card glass-panel">
+                                    <span class="c-icon">&#127750;</span>
+                                    <h4>Saisonnière de Luxe</h4>
+                                    <p>Gestion locative complète avec majordomes et sécurité.</p>
+                                </div>
+
+                                <div class="concierge-card glass-panel">
+                                    <span class="c-icon">&#127912;</span>
+                                    <h4>Curating Design & Art</h4>
+                                    <p>Conseil en aménagement d'intérieur et oeuvres d'art.</p>
+                                </div>
+
+                                <div class="concierge-card glass-panel">
+                                    <span class="c-icon">&#128736;</span>
+                                    <h4>Supervision Chantiers</h4>
+                                    <p>Suivi des travaux de rénovation et d'extension.</p>
+                                </div>
+                            </div>
+
+                            <div class="margin-top-md">
+                                <a href="contact.html?service=conciergerie" class="btn btn-gold">Découvrir la Conciergerie VIP</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+        </div>
+
+        <!-- The AURA Methodology / Workflow Section -->
+        <section class="section-padding bg-dark border-y-gold">
+            <div class="container">
+                <div class="section-header text-center">
+                    <span class="sub-heading">Rigueur & Transparence</span>
+                    <h2 class="section-title">La Méthode AURA : 4 Étapes vers l'Excellence</h2>
+                    <p class="section-description">
+                        Un processus structuré et prévisible pour concrétiser vos projets immobiliers les plus ambitieux sans la moindre friction.
+                    </p>
+                </div>
+
+                <div class="methodology-steps-grid margin-top-lg">
+                    
+                    <div class="step-card glass-panel">
+                        <div class="step-header">
+                            <span class="step-number">01</span>
+                            <span class="step-badge">Diagnostic</span>
+                        </div>
+                        <h3>Briefing & Définition du Profil</h3>
+                        <p>Analyse approfondie de vos objectifs patrimoniaux, de votre mode de vie et de vos contraintes juridiques ou fiscales.</p>
+                    </div>
+
+                    <div class="step-card glass-panel">
+                        <div class="step-header">
+                            <span class="step-number">02</span>
+                            <span class="step-badge">Sécurisation</span>
+                        </div>
+                        <h3>Accord NDA & Sourcing Secret</h3>
+                        <p>Signature des protocoles de confidentialité et activation de notre réseau confidentiel à Paris, Monaco, Genève et Dubaï.</p>
+                    </div>
+
+                    <div class="step-card glass-panel">
+                        <div class="step-header">
+                            <span class="step-number">03</span>
+                            <span class="step-badge">Négociation</span>
+                        </div>
+                        <h3>Présentation & Offre Ferme</h3>
+                        <p>Visites privées, audits techniques complets et négociation chirurgicale au prix le plus juste.</p>
+                    </div>
+
+                    <div class="step-card glass-panel">
+                        <div class="step-header">
+                            <span class="step-number">04</span>
+                            <span class="step-badge">Transmission</span>
+                        </div>
+                        <h3>Signature & Clés en Main</h3>
+                        <p>Accompagnement notarié, transfert de propriété et prise en charge immédiate par nos services de conciergerie.</p>
+                    </div>
+
+                </div>
+            </div>
+        </section>
+
+        <!-- Global International Hubs Section -->
+        <section class="section-padding bg-alt">
+            <div class="container">
+                <div class="section-header text-center">
+                    <span class="sub-heading">Présence Internationale</span>
+                    <h2 class="section-title">Ancrage dans les Capitales du Luxe</h2>
+                    <p class="section-description">
+                        Nos équipes locales maîtrisent la réglementation spécifique de chaque juridiction pour vous offrir une exécution fluide.
+                    </p>
+                </div>
+
+                <div class="hubs-grid margin-top-md">
+                    
+                    <div class="hub-card glass-panel">
+                        <div class="hub-media">
+                            <img src="https://images.unsplash.com/photo-1533473359331-0135ef1b58bf?w=800&auto=format&fit=crop" 
+                                 alt="Bureau AURA Real Estate Paris" 
+                                 loading="lazy">
+                        </div>
+                        <div class="hub-body">
+                            <h3>Paris</h3>
+                            <p class="hub-address">12 Avenue Montaigne, 75008 Paris</p>
+                            <p class="hub-desc">Spécialiste du Triangle d'Or, des Hôtels Particuliers du 16e et des penthouses d'exception.</p>
+                            <a href="contact.html?office=paris" class="btn-text">Contacter le bureau Paris &rarr;</a>
+                        </div>
+                    </div>
+
+                    <div class="hub-card glass-panel">
+                        <div class="hub-media">
+                            <img src="https://images.unsplash.com/photo-1583121274602-3e2820c69888?w=800&auto=format&fit=crop" 
+                                 alt="Bureau AURA Real Estate Monaco" 
+                                 loading="lazy">
+                        </div>
+                        <div class="hub-body">
+                            <h3>Monaco</h3>
+                            <p class="hub-address">1 Place du Casino, 98000 Monaco</p>
+                            <p class="hub-desc">Expertise sur le Carré d'Or, Larvotto et les résidences Off-Market de la Principauté.</p>
+                            <a href="contact.html?office=monaco" class="btn-text">Contacter le bureau Monaco &rarr;</a>
+                        </div>
+                    </div>
+
+                    <div class="hub-card glass-panel">
+                        <div class="hub-media">
+                            <img src="https://images.unsplash.com/photo-1502877338535-766e1452684a?w=800&auto=format&fit=crop" 
+                                 alt="Bureau AURA Real Estate Genève" 
+                                 loading="lazy">
+                        </div>
+                        <div class="hub-body">
+                            <h3>Genève</h3>
+                            <p class="hub-address">Rue du Rhône 42, 1204 Genève</p>
+                            <p class="hub-desc">Accompagnement dédié aux domaines lémaniques à Cologny, Vandoeuvres et Anières.</p>
+                            <a href="contact.html?office=geneva" class="btn-text">Contacter le bureau Genève &rarr;</a>
+                        </div>
+                    </div>
+
+                    <div class="hub-card glass-panel">
+                        <div class="hub-media">
+                            <img src="https://images.unsplash.com/photo-1544829099-b9a0c07fad1a?w=800&auto=format&fit=crop" 
+                                 alt="Bureau AURA Real Estate Dubaï" 
+                                 loading="lazy">
+                        </div>
+                        <div class="hub-body">
+                            <h3>Dubaï</h3>
+                            <p class="hub-address">Gate Village 04, DIFC, Dubaï</p>
+                            <p class="hub-desc">Penthouses d'exception, Sky Villas et propriétés privées à Palm Jumeirah et Emirates Hills.</p>
+                            <a href="contact.html?office=dubai" class="btn-text">Contacter le bureau Dubaï &rarr;</a>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </section>
+
+        <!-- Final VIP Call-To-Action Banner -->
+        <section class="section-padding bg-dark">
+            <div class="container">
+                <div class="cta-banner-card glass-panel text-center">
+                    <span class="sub-heading">Rendez-vous Privé</span>
+                    <h2 class="section-title">Envie de concrétiser un projet immobilier hors du commun ?</h2>
+                    <p class="paragraph-text container-narrow">
+                        Que vous souhaitiez confier un mandat de recherche exclusif, faire évaluer votre résidence ou accéder à notre portefeuille secret Off-Market, nos Directeurs Associés sont à votre entière disposition.
+                    </p>
+                    <div class="cta-actions margin-top-md">
+                        <a href="contact.html" class="btn btn-gold">Planifier une Consultation Confidentielle</a>
+                        <a href="faq.html" class="btn btn-outline">Consulter nos Engagements Juridiques & FAQ</a>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Global Footer -->
+    <footer class="site-footer">
+        <div class="footer-top section-padding bg-dark">
+            <div class="container">
+                <div class="footer-grid">
+                    
+                    <!-- Brand Info Column -->
+                    <div class="footer-col brand-col">
+                        <a href="index.html" class="brand-logo footer-logo">
+                            <span class="logo-mark">AURA</span>
+                            <span class="logo-sub">REAL ESTATE</span>
+                        </a>
+                        <p class="footer-about">
+                            Maison internationale d'architecture et de négociation immobilière de prestige. Portefeuille privé réservé aux acquéreurs et vendeurs exigeants.
+                        </p>
+                        <div class="agency-badges">
+                            <span class="agency-badge">Carte T N° CPI 7501 2021 000 000 888</span>
+                            <span class="agency-badge">Garantie Financière Galian 5 000 000 €</span>
+                        </div>
+                    </div>
+
+                    <!-- Navigation Links Column -->
+                    <div class="footer-col">
+                        <h4 class="footer-heading">Navigation</h4>
+                        <ul class="footer-links">
+                            <li><a href="index.html">Accueil</a></li>
+                            <li><a href="annonces.html">Propriétés en vente</a></li>
+                            <li><a href="services.html#off-market">Portefeuille Off-Market</a></li>
+                            <li><a href="services.html#estimation">Estimation sur-mesure</a></li>
+                            <li><a href="faq.html">Foire aux Questions</a></li>
+                            <li><a href="contact.html">Prendre Rendez-vous</a></li>
+                        </ul>
+                    </div>
+
+                    <!-- Services Links Column -->
+                    <div class="footer-col">
+                        <h4 class="footer-heading">Savoir-Faire</h4>
+                        <ul class="footer-links">
+                            <li><a href="services.html#acquisition-privee">Acquisition Privée</a></li>
+                            <li><a href="services.html#estimation">Expertise d'Évaluation</a></li>
+                            <li><a href="services.html#off-market">Ventes Confidentielles</a></li>
+                            <li><a href="services.html#conciergerie">Conciergerie Patrimoniale</a></li>
+                            <li><a href="legal.html#cgv">Conditions d'Accompagnement</a></li>
+                        </ul>
+                    </div>
+
+                    <!-- Offices Column -->
+                    <div class="footer-col">
+                        <h4 class="footer-heading">Bureaux Internationaux</h4>
+                        <ul class="office-list">
+                            <li>
+                                <strong>Paris :</strong> 12 Avenue Montaigne, 75008 Paris
+                            </li>
+                            <li>
+                                <strong>Monaco :</strong> 1 Place du Casino, 98000 Monaco
+                            </li>
+                            <li>
+                                <strong>Genève :</strong> Rue du Rhône 42, 1204 Genève
+                            </li>
+                            <li>
+                                <strong>Dubaï :</strong> Gate Village 04, DIFC, Dubaï
+                            </li>
+                        </ul>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer Bottom Bar -->
+        <div class="footer-bottom">
+            <div class="container footer-bottom-container">
+                <p class="copyright">
+                    &copy; <span id="currentYear">2025</span> AURA Real Estate. Tous droits réservés.
+                </p>
+                <ul class="legal-links">
+                    <li><a href="legal.html">Mentions Légales</a></li>
+                    <li><a href="legal.html#confidentialite">Politique de Confidentialité</a></li>
+                    <li><a href="legal.html#cookies">Gestion des Cookies</a></li>
+                    <li><a href="legal.html#bareme">Barème d'Honoraires</a></li>
+                </ul>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Global Toast / Notification Container -->
+    <div id="toastContainer" class="toast-container" aria-live="polite" aria-atomic="true"></div>
+
+</body>
+</html>

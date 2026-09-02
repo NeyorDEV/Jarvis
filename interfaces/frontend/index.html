@@ -43,8 +43,7 @@
       max-width: 290px;
       z-index: 1001;
     }
-
-    .help-widget.right {
+        .help-widget.right {
       border-left: none;
       border-right: 4px solid #00e5ff;
     }
@@ -84,8 +83,7 @@
       }
     }
   </style>
-
-  <script type="module" src="/src/main.ts"></script>
+    <script type="module" src="/src/main.ts"></script>
   <!-- MediaPipe — chargé globalement pour le mode hologramme -->
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/hands.js" crossorigin="anonymous"></script>
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3.1675466862/camera_utils.js" crossorigin="anonymous"></script>
@@ -117,7 +115,7 @@
       </div>
       <div id="boot-logo-text">J.A.R.V.I.S</div>
       <div id="boot-logo-sub">JUST A RATHER VERY INTELLIGENT SYSTEM</div>
-      <div id="boot-logo-version">CORE v9.0 &nbsp;·&nbsp; BUILD NEYOR &nbsp;·&nbsp; <span id="boot-build-year"></span></div>
+            <div id="boot-logo-version">CORE v9.0 &nbsp;·&nbsp; BUILD NEYOR &nbsp;·&nbsp; <span id="boot-build-year"></span></div>
     </div>
 
     <!-- Separator -->
@@ -158,8 +156,7 @@
   <div id="orb-clock-hud">
     <div id="holo-clock-canvas-wrap"></div>
   </div>
-
-  <!-- ══ BOUTON MIC & STOP ═══════════════════════════════════════════ -->
+    <!-- ══ BOUTON MIC & STOP ═══════════════════════════════════════════ -->
   <div class="bottom-controls-container">
     <div class="mic-stop-panel">
       <button id="mic-btn" aria-label="Activer le microphone" title="Cliquez pour parler à JARVIS">
@@ -193,7 +190,7 @@
   <button id="fullscreen-btn" title="Plein écran">&#x26F6;</button>
 
   <!-- ══ HUD CONTROL BAR — Carousel caché par défaut ══════════════════ -->
-  <div id="carousel-arrow-wrap">
+     <div id="carousel-arrow-wrap">
     <button id="carousel-toggle-arrow" title="Afficher les commandes"><svg width="12" height="8" viewBox="0 0 12 8" fill="none" xmlns="http://www.w3.org/2000/svg"><polyline points="1,1 6,7 11,1" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
   </div>
   <div id="hud-control-bar" class="carousel-container carousel-hidden">
@@ -212,6 +209,7 @@
         <button id="carousel-winget-btn" aria-pressed="false" title="Mettre à jour les logiciels avec Winget"><span class="btn-icon">🚀</span> WINGET <span id="winget-count-badge" class="badge hidden" style="background:#ff3366; color:white; font-size:8px; padding:1px 4px; border-radius:10px; margin-left:3px;">0</span></button>
         <button id="carousel-av-scan-btn" aria-pressed="false" title="Lancer un scan antivirus rapide"><span class="btn-icon">🛡️</span> ANTIVIRUS</button>
         <button id="carousel-ha-btn" aria-pressed="false" title="Contrôler la domotique Home Assistant"><span class="btn-icon">🏠</span> DOMOTIQUE</button>
+        <button id="carousel-mobile-btn" aria-pressed="false" title="Connecter l'application mobile smartphone"><span class="btn-icon">📱</span> MOBILE</button>
         <button id="carousel-browser-btn" aria-pressed="false" title="Ouvrir le navigateur web sécurisé"><span class="btn-icon">🌐</span> NAVIGATEUR</button>
         
         <!-- Section Système -->
@@ -244,7 +242,7 @@
   <div id="subtitle-hud"
     style="display:none;position:fixed;bottom:100px;left:50%;transform:translateX(-50%);z-index:150;text-align:center;pointer-events:none;width:85%;max-width:900px;">
     <div id="subtitle-box"
-      style="background:rgba(0,229,255,0.03);border-top:1px solid rgba(0,229,255,0.15);border-bottom:1px solid rgba(0,229,255,0.15);padding:20px;backdrop-filter:blur(10px);position:relative;overflow:hidden;border-radius:4px;box-shadow:0 0 30px rgba(0,0,0,0.5);">
+          style="background:rgba(0,229,255,0.03);border-top:1px solid rgba(0,229,255,0.15);border-bottom:1px solid rgba(0,229,255,0.15);padding:20px;backdrop-filter:blur(10px);position:relative;overflow:hidden;border-radius:4px;box-shadow:0 0 30px rgba(0,0,0,0.5);">
       <div
         style="position:absolute;top:0;left:0;width:100%;height:100%;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,229,255,0.02) 2px,rgba(0,229,255,0.02) 4px);pointer-events:none;">
       </div>
@@ -267,7 +265,7 @@
   </div>
 
   <!-- ══ TEMP PANEL — Iron Man HUD (left side) ═══════════════════════ -->
-  <div id="temp-panel">
+     <div id="temp-panel">
     <div class="tp-scanlines"></div>
     <div class="tp-corner tp-tl"></div>
     <div class="tp-corner tp-tr"></div>
@@ -306,7 +304,7 @@
   </div>
 
   <!-- ══ WEATHER PANEL — Iron Man HUD ════════════════════════════════ -->
-  <div id="weather-panel">
+     <div id="weather-panel">
     <div class="wp-scanlines"></div>
     <div class="wp-corner wp-tl"></div>
     <div class="wp-corner wp-tr"></div>
@@ -348,7 +346,7 @@
   </div>
 
   <!-- ══ JARVIS GLOBE — Canvas 2D pur (aucune dépendance) ════════════ -->
-  <div id="globe-overlay"
+     <div id="globe-overlay"
     style="display:none;position:fixed;inset:0;z-index:100;background:#000;opacity:0;flex-direction:column;transition:opacity 0.8s ease-in-out;">
     <canvas id="globe-canvas"
       style="position:absolute;inset:0;width:100%;height:100%;cursor:grab;display:block;"></canvas>
@@ -372,7 +370,7 @@
       <div style="font-size:9px;letter-spacing:1px;opacity:0.5;">by Neyor</div>
     </div>
     <div
-      style="position:absolute;top:14px;right:20px;text-align:right;z-index:20;color:rgba(0,229,255,.7);font-family:'Courier New',monospace;font-size:11px;letter-spacing:2px;text-transform:uppercase;pointer-events:none;line-height:1.8;">
+          style="position:absolute;top:14px;right:20px;text-align:right;z-index:20;color:rgba(0,229,255,.7);font-family:'Courier New',monospace;font-size:11px;letter-spacing:2px;text-transform:uppercase;pointer-events:none;line-height:1.8;">
       <div id="globe-clock">--:--:--</div>
       <div style="font-size:9px;opacity:.5">UTC</div>
     </div>
@@ -397,7 +395,7 @@
       style="position:absolute;bottom:8px;left:8px;width:20px;height:20px;border-bottom:2px solid #00e5ff;border-left:2px solid #00e5ff;opacity:.5;pointer-events:none;z-index:20;">
     </div>
     <div
-      style="position:absolute;bottom:8px;right:8px;width:20px;height:20px;border-bottom:2px solid #00e5ff;border-right:2px solid #00e5ff;opacity:.5;pointer-events:none;z-index:20;">
+    style="position:absolute;bottom:8px;right:8px;width:20px;height:20px;border-bottom:2px solid #00e5ff;border-right:2px solid #00e5ff;opacity:.5;pointer-events:none;z-index:20;">
     </div>
     <button id="globe-close"
       style="position:absolute;top:12px;left:50%;transform:translateX(-50%);z-index:30;background:rgba(0,229,255,.08);border:1px solid rgba(0,229,255,.35);color:rgba(0,229,255,.75);font-family:'Courier New',monospace;font-size:10px;letter-spacing:2px;padding:5px 18px;border-radius:2px;cursor:pointer;">✕
@@ -436,8 +434,7 @@
             leafletMap.setView([lat, lon], 5);
           }
         }
-
-        // Force resize after transition
+                // Force resize after transition
         setTimeout(() => leafletMap.invalidateSize(), 400);
       }, 50);
     };
@@ -476,8 +473,7 @@
     <div class="vis-bar"></div><div class="vis-bar"></div><div class="vis-bar"></div><div class="vis-bar"></div>
     <div class="vis-bar"></div><div class="vis-bar"></div><div class="vis-bar"></div><div class="vis-bar"></div>
   </div>
-
-  <div id="image-hud"
+    <div id="image-hud"
     style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%, -50%);z-index:180;width:80%;max-width:700px;background:rgba(5,5,8,0.9);border:1px solid #00e5ff;padding:20px;backdrop-filter:blur(20px);border-radius:4px;box-shadow:0 0 50px rgba(0,229,255,0.3);pointer-events:auto;">
     <div style="display:flex;justify-content:space-between;margin-bottom:15px;font-family:'Courier New',monospace;color:#00e5ff;font-size:12px;letter-spacing:3px;text-transform:uppercase;">
       <span>IMAGE_RECONSTRUCTION_PROTOTYPE</span>
@@ -496,7 +492,7 @@
   </div>
 
   <!-- ══ WINGET UPGRADER PANEL - Blue HUD ════════════════════════════ -->
-  <div id="winget-panel" class="uninstaller-panel hidden" style="--un-color: #00e5ff; --un-glow: rgba(0, 229, 255, 0.35); z-index: 609; width: 720px; height: 620px;">
+     <div id="winget-panel" class="uninstaller-panel hidden" style="--un-color: #00e5ff; --un-glow: rgba(0, 229, 255, 0.35); z-index: 609; width: 720px; height: 620px;">
     <div class="uninstaller-panel-scanlines"></div>
     <div class="uninstaller-panel-corner-tr"></div>
     <div class="uninstaller-panel-corner-bl"></div>
@@ -527,7 +523,7 @@
         </div>
         <div class="uninstaller-action-buttons" style="margin-top: 10px; gap: 10px;">
           <button class="uninstaller-btn" id="winget-upgrade-selected-btn" style="border-color:#00e5ff; color:#00e5ff; background:rgba(0,229,255,0.05); flex:1;">METTRE À JOUR LA SÉLECTION</button>
-          <button class="uninstaller-btn" id="winget-upgrade-all-btn" style="border-color:#00ff88; color:#00ff88; background:rgba(0,255,136,0.05); flex:1;">TOUT METTRE À JOUR</button>
+                    <button class="uninstaller-btn" id="winget-upgrade-all-btn" style="border-color:#00ff88; color:#00ff88; background:rgba(0,255,136,0.05); flex:1;">TOUT METTRE À JOUR</button>
           <button class="uninstaller-btn secondary" id="winget-refresh-btn" style="flex:0.5;">ACTUALISER</button>
         </div>
       </div>
@@ -549,7 +545,7 @@
   </div>
 
   <!-- ══ UNINSTALLER PANEL - Iron Man HUD ════════════════════════════ -->
-  <div id="uninstaller-panel" class="uninstaller-panel hidden">
+     <div id="uninstaller-panel" class="uninstaller-panel hidden">
     <div class="uninstaller-panel-scanlines"></div>
     <div class="uninstaller-panel-corner-tr"></div>
     <div class="uninstaller-panel-corner-bl"></div>
@@ -586,7 +582,7 @@
             <div class="uninstaller-radar-grid circle-2"></div>
             <div class="uninstaller-radar-grid circle-3"></div>
           </div>
-          <div class="uninstaller-status-msg" id="uninstaller-status-msg">En attente de la désinstallation...</div>
+                    <div class="uninstaller-status-msg" id="uninstaller-status-msg">En attente de la désinstallation...</div>
         </div>
         
         <!-- Liste des traces détectées -->
@@ -614,7 +610,7 @@
   </div>
 
   <!-- ══ ANTIVIRUS SCAN PANEL — Iron Man HUD ════════════════════════════ -->
-  <div id="av-panel" class="av-panel hidden">
+     <div id="av-panel" class="av-panel hidden">
     <div class="av-panel-scanlines"></div>
     <div class="av-panel-corner-tr"></div>
     <div class="av-panel-corner-bl"></div>
@@ -647,8 +643,7 @@
       <div class="av-progress-bar-container">
         <div class="av-progress-bar-fill" id="av-progress-bar-fill" style="width: 0%;"></div>
       </div>
-
-      <!-- Realtime scanning directory/file label -->
+            <!-- Realtime scanning directory/file label -->
       <div class="av-current-file" id="av-current-file">SYS_CORE_SCANNER_AWAITING_TRIGGER...</div>
 
       <!-- Terminal console logs -->
@@ -688,8 +683,7 @@
 
     <!-- Toast geste -->
     <div id="holo-gesture-toast"></div>
-
-    <!-- HUD Haut-Gauche -->
+        <!-- HUD Haut-Gauche -->
     <div class="holo-hud-corner holo-hud-tl">
       <div class="holo-hud-block">
         <div class="holo-hud-line"><span class="holo-key">FPS</span><span id="holo-hud-fps">--</span></div>
@@ -724,7 +718,7 @@
       <div class="cp-corner cp-bl"></div>
       <div class="cp-corner cp-br"></div>
       <div class="cp-header">
-        <span class="cp-title">▣ COGNITIVE_NODE_DETAILS // CORTEX</span>
+                <span class="cp-title">▣ COGNITIVE_NODE_DETAILS // CORTEX</span>
         <span class="cp-close" id="cp-close-btn">✕</span>
       </div>
       <div class="cp-content">
@@ -745,7 +739,7 @@
         </div>
       </div>
     </div>
-
+    
     <!-- ══ NETWORK RADAR PANEL ════════════════════════ -->
     <div id="network-radar-panel" style="display:none; position:fixed; top:140px; right:18px; width:320px; max-height:calc(100vh - 160px); flex-direction:column; background:rgba(0,8,20,0.88); border:1px solid rgba(0,229,255,0.35); border-radius:6px; overflow:hidden; z-index:75; font-family:monospace; backdrop-filter:blur(8px);">
       <!-- Header -->
@@ -767,7 +761,7 @@
         <button id="radar-tab-blocked" onclick="window._networkRadar?.switchTab?.('blocked')"
           style="flex:1;padding:5px 0;background:none;border:none;color:rgba(0,229,255,0.4);font-family:monospace;font-size:9px;letter-spacing:1.5px;cursor:pointer;">BLOQUÉES <span id="radar-blocked-count"></span></button>
       </div>
-      <!-- Barre de recherche (onglet Actives uniquement) -->
+            <!-- Barre de recherche (onglet Actives uniquement) -->
       <div id="radar-search-bar" style="padding:5px 10px; border-bottom:1px solid rgba(0,229,255,0.1); flex-shrink:0;">
         <input id="radar-search" type="text" placeholder="🔍  process, IP, pays…"
           style="width:100%;box-sizing:border-box;background:rgba(0,229,255,0.05);border:1px solid rgba(0,229,255,0.2);border-radius:3px;color:#00e5ff;font-family:monospace;font-size:10px;padding:4px 8px;outline:none;" />
@@ -796,7 +790,7 @@
           <div id="chess-setup-container" style="background: rgba(0, 229, 255, 0.04); border: 1px solid rgba(0, 229, 255, 0.25); padding: 12px; border-radius: 4px; margin-bottom: 15px; box-shadow: 0 0 10px rgba(0, 229, 255, 0.05);">
             <div class="cp-section-title" style="margin-top: 0; color: #00e5ff; font-size: 10px; letter-spacing: 1.5px; border-bottom: 1px solid rgba(0,229,255,0.15); padding-bottom: 5px; margin-bottom: 10px;">CONFIGURATION DE PARTIE</div>
             <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; font-family: monospace; font-size: 11px; color: #a5f3fc;">
-              <span>CHRONOMÈTRE (TIMER) :</span>
+                            <span>CHRONOMÈTRE (TIMER) :</span>
               <select id="chess-config-timer" style="background: rgba(0, 10, 25, 0.85); border: 1px solid rgba(0, 229, 255, 0.4); color: #00e5ff; font-family: monospace; font-size: 11px; padding: 3px 8px; border-radius: 3px; cursor: pointer; outline: none; transition: border-color 0.2s ease;">
                 <option value="yes">OUI (10 MIN)</option>
                 <option value="no" selected>NON (SANS LIMITE)</option>
@@ -822,7 +816,7 @@
                 <option value="black">NOIR (JARVIS JOUE EN 1ER)</option>
               </select>
             </div>
-            <button id="chess-start-game-btn" style="width: 100%; padding: 8px; background: rgba(0, 255, 136, 0.12); border: 1px solid rgba(0, 255, 136, 0.4); color: #00ff88; font-family: monospace; font-size: 10px; font-weight: bold; cursor: pointer; border-radius: 3px; letter-spacing: 1px; transition: all 0.3s ease; text-shadow: 0 0 5px rgba(0,255,136,0.3);">DÉMARRER LA PARTIE</button>
+                        <button id="chess-start-game-btn" style="width: 100%; padding: 8px; background: rgba(0, 255, 136, 0.12); border: 1px solid rgba(0, 255, 136, 0.4); color: #00ff88; font-family: monospace; font-size: 10px; font-weight: bold; cursor: pointer; border-radius: 3px; letter-spacing: 1px; transition: all 0.3s ease; text-shadow: 0 0 5px rgba(0,255,136,0.3);">DÉMARRER LA PARTIE</button>
           </div>
           <div class="cp-section-title">GUIDE DE JEU HOLOGRAPHIQUE</div>
           <div style="font-size: 11px; line-height: 1.6; color: rgba(180, 240, 255, 0.85); margin-bottom: 15px;">
@@ -846,7 +840,7 @@
               <div style="font-size: 9px; color: rgba(0, 229, 255, 0.6); margin-bottom: 3px;">VOUS</div>
               <div id="chess-timer-white" style="font-size: 18px; color: #00e5ff; font-weight: bold; text-shadow: 0 0 6px rgba(0,229,255,0.5);">10:00</div>
             </div>
-            <div style="flex: 1; background: rgba(255, 46, 77, 0.05); border: 1px solid rgba(255, 46, 77, 0.2); padding: 8px; border-radius: 3px; text-align: center;">
+                        <div style="flex: 1; background: rgba(255, 46, 77, 0.05); border: 1px solid rgba(255, 46, 77, 0.2); padding: 8px; border-radius: 3px; text-align: center;">
               <div style="font-size: 9px; color: rgba(255, 46, 77, 0.6); margin-bottom: 3px;">JARVIS</div>
               <div id="chess-timer-black" style="font-size: 18px; color: #ff2e4d; font-weight: bold; text-shadow: 0 0 6px rgba(255,46,77,0.5);">10:00</div>
             </div>
@@ -867,8 +861,7 @@
         </div>
       </div>
     </div>
-
-    <!-- Dock — boutons de formes (touches 1-9) -->
+        <!-- Dock — boutons de formes (touches 1-9) -->
     <div id="holo-dock">
       <button class="holo-dock-btn" data-shape="sphere" title="Sphère [1]">⬤</button>
       <button class="holo-dock-btn" data-shape="cube" title="Cube [2]">■</button>
@@ -892,7 +885,7 @@
     <div class="settings-container">
       <div class="settings-header">
         <span>CONFIGURATION PROFIL</span>
-        <span class="settings-close" id="settings-close-btn">[ X ]</span>
+        <button type="button" class="settings-close" id="settings-close-btn" onclick="const m=document.getElementById('settings-modal'); if(m){ m.classList.remove('visible'); m.style.display='none'; }" style="background:transparent; border:none; cursor: pointer; font-size: 16px; color: #00e5ff; font-weight:bold; padding:4px 8px; z-index:1001;" title="Fermer la fenêtre">[ X ]</button>
       </div>
 
       <div class="settings-group">
@@ -901,8 +894,7 @@
           <option value="">-- Détection automatique --</option>
         </select>
       </div>
-
-      <div class="settings-group">
+            <div class="settings-group">
         <label for="settings-camera">WEBCAM (MODE AR)</label>
         <select id="settings-camera">
           <option value="">-- Détection automatique --</option>
@@ -938,8 +930,7 @@
           <button class="settings-btn" id="app-add-btn">AJOUTER</button>
         </div>
       </div>
-
-      <!-- ══ HOME ASSISTANT ENTITIES ═══════════════════════════ -->
+            <!-- ══ HOME ASSISTANT ENTITIES ═══════════════════════════ -->
       <div class="settings-group" style="margin-top: 30px;">
         <label>APPAREILS HOME ASSISTANT</label>
         <div class="ha-tabs">
@@ -958,6 +949,51 @@
         <div class="ha-hint">Dites : "Jarvis, allume la lumière de l'<em>escalier</em>"</div>
       </div>
 
+      <!-- ══ CHOIX DES MODÈLES IA / AGENTS ════════════════════ -->
+      <div class="settings-group" style="margin-top: 30px;">
+        <label>🤖 MODÈLES IA PAR AGENT</label>
+        <div class="ha-hint" style="margin-bottom: 15px;">Sélectionnez le modèle LLM dédié à chaque rôle de l'assistant (Gemini, Grok, Claude, Groq, ChatGPT, Ollama).</div>
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;" id="agent-models-grid">
+          <div>
+            <label style="font-size: 9px; color: #00e5ff; letter-spacing: 1px; display: block; margin-bottom: 4px;">🧠 PM (CERVEAU PRINCIPAL)</label>
+            <select id="agent-model-PM" class="agent-model-select" style="width: 100%; background: rgba(0, 229, 255, 0.05); border: 1px solid rgba(0, 229, 255, 0.2); color: #fff; padding: 8px; border-radius: 4px; outline: none; font-family: monospace; font-size: 11px;">
+              <option value="">Chargement...</option>
+            </select>
+          </div>
+          <div>
+            <label style="font-size: 9px; color: #00e5ff; letter-spacing: 1px; display: block; margin-bottom: 4px;">💻 DEV (CODE & DÉVELOPPEMENT)</label>
+            <select id="agent-model-DEV" class="agent-model-select" style="width: 100%; background: rgba(0, 229, 255, 0.05); border: 1px solid rgba(0, 229, 255, 0.2); color: #fff; padding: 8px; border-radius: 4px; outline: none; font-family: monospace; font-size: 11px;">
+              <option value="">Chargement...</option>
+            </select>
+          </div>
+          <div>
+            <label style="font-size: 9px; color: #00e5ff; letter-spacing: 1px; display: block; margin-bottom: 4px;">🎨 UI (INTERFACE & RENDU)</label>
+            <select id="agent-model-UI" class="agent-model-select" style="width: 100%; background: rgba(0, 229, 255, 0.05); border: 1px solid rgba(0, 229, 255, 0.2); color: #fff; padding: 8px; border-radius: 4px; outline: none; font-family: monospace; font-size: 11px;">
+              <option value="">Chargement...</option>
+            </select>
+          </div>
+          <div>
+            <label style="font-size: 9px; color: #00e5ff; letter-spacing: 1px; display: block; margin-bottom: 4px;">🛡️ SEC (SÉCURITÉ & ANTIVIRUS)</label>
+            <select id="agent-model-SEC" class="agent-model-select" style="width: 100%; background: rgba(0, 229, 255, 0.05); border: 1px solid rgba(0, 229, 255, 0.2); color: #fff; padding: 8px; border-radius: 4px; outline: none; font-family: monospace; font-size: 11px;">
+              <option value="">Chargement...</option>
+            </select>
+          </div>
+          <div>
+            <label style="font-size: 9px; color: #00e5ff; letter-spacing: 1px; display: block; margin-bottom: 4px;">🧪 QA (TESTS & QUALITÉ)</label>
+            <select id="agent-model-QA" class="agent-model-select" style="width: 100%; background: rgba(0, 229, 255, 0.05); border: 1px solid rgba(0, 229, 255, 0.2); color: #fff; padding: 8px; border-radius: 4px; outline: none; font-family: monospace; font-size: 11px;">
+              <option value="">Chargement...</option>
+            </select>
+          </div>
+          <div>
+            <label style="font-size: 9px; color: #00e5ff; letter-spacing: 1px; display: block; margin-bottom: 4px;">⚙️ OPS (SYSTÈME & OPÉRATIONS)</label>
+            <select id="agent-model-OPS" class="agent-model-select" style="width: 100%; background: rgba(0, 229, 255, 0.05); border: 1px solid rgba(0, 229, 255, 0.2); color: #fff; padding: 8px; border-radius: 4px; outline: none; font-family: monospace; font-size: 11px;">
+              <option value="">Chargement...</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
       <!-- ══ STYLE DE L'ORBE (ORB) ══════════════════════════ -->
       <div class="settings-group" style="margin-top: 30px;">
         <label for="settings-orb-style">STYLE DE L'ORBE (ORB)</label>
@@ -971,8 +1007,7 @@
         </select>
         <div class="ha-hint">Bascule instantanément les styles et shaders de l'orbe 3D.</div>
       </div>
-
-      <!-- ══ LIEN MUSIQUE ═════════════════════════════════════ -->
+            <!-- ══ LIEN MUSIQUE ═════════════════════════════════════ -->
       <div class="settings-group" style="margin-top: 30px;">
         <label for="settings-musique-lien">LIEN MUSIQUE PERSONNALISÉ</label>
         <input type="url" id="settings-musique-lien" placeholder="Ex: https://open.spotify.com/playlist/... ou https://www.youtube.com/...">
@@ -998,7 +1033,7 @@
     </div>
   </div>
 
-  <!-- ══ ANTIVIRUS INFO MODAL ══════════════════════════════════ -->
+    <!-- ══ ANTIVIRUS INFO MODAL ══════════════════════════════════ -->
   <div id="av-info-modal" style="display: none; position: fixed; inset: 0; z-index: 1002; background: rgba(5, 5, 8, 0.9); backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px); align-items: center; justify-content: center;">
     <div class="settings-container" style="border-color: rgba(0, 229, 255, 0.4); box-shadow: 0 0 30px rgba(0, 229, 255, 0.2); color: #00e5ff; max-width: 550px;">
       <div class="settings-header" style="border-bottom: 1px solid rgba(0, 229, 255, 0.3); padding-bottom: 15px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
@@ -1018,7 +1053,7 @@
 
         <h4 style="color: #00e5ff; margin-top: 15px; margin-bottom: 5px; text-transform: uppercase; font-size: 13px;">🛡️ Que fait-il en cas de détection ?</h4>
         <p style="margin-bottom: 15px;">Il fonctionne en mode <strong>audit et signalement passif</strong>. Les menaces s'affichent sur le radar et la console du HUD et J.A.R.V.I.S vous alerte vocalement.</p>
-        <p style="margin-bottom: 15px; color: #00e5ff; font-style: italic;">Par sécurité pour vos données, il ne supprime pas de fichiers et ne bloque pas de processus automatiquement afin d'éviter tout faux positif.</p>
+                <p style="margin-bottom: 15px; color: #00e5ff; font-style: italic;">Par sécurité pour vos données, il ne supprime pas de fichiers et ne bloque pas de processus automatiquement afin d'éviter tout faux positif.</p>
       </div>
 
       <div style="display: flex; gap: 15px; flex-direction: column; margin-top: 20px;">
@@ -1032,14 +1067,13 @@
     <div class="settings-container" style="max-height: 90vh; overflow-y: auto; width: 90%; max-width: 600px; background: rgba(0, 229, 255, 0.05); border: 1px solid rgba(0, 229, 255, 0.3); box-shadow: 0 0 30px rgba(0, 229, 255, 0.2); border-radius: 4px; padding: 30px; font-family: 'Courier New', monospace; color: #00e5ff;">
       <div class="settings-header" style="font-size: 20px; font-weight: bold; letter-spacing: 3px; margin-bottom: 20px; text-transform: uppercase; border-bottom: 1px solid rgba(0, 229, 255, 0.2); padding-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
         <span>🔑 CONFIGURATION API</span>
-        <span class="settings-close" id="api-keys-close-btn" style="cursor: pointer; font-size: 14px; color: rgba(0, 229, 255, 0.5); transition: color 0.3s ease;">[ X ]</span>
+        <button type="button" class="settings-close" id="api-keys-close-btn" onclick="const m=document.getElementById('api-keys-modal'); if(m) m.style.display='none';" style="background:transparent; border:none; cursor: pointer; font-size: 16px; color: #00e5ff; font-weight:bold; padding:4px 8px; z-index:1001;" title="Fermer la fenêtre">[ X ]</button>
       </div>
 
       <div class="ha-hint" style="margin-bottom: 20px; font-size: 11px; line-height: 1.5; color: rgba(0, 229, 255, 0.7);">
         Activez, désactivez et configurez vos clés API pour les services connectés de JARVIS. Vos clés sont enregistrées en direct dans votre fichier local <code>.env</code>.
       </div>
-
-      <!-- API Gemini -->
+            <!-- API Gemini -->
       <div class="settings-group" style="margin-bottom: 25px; border-bottom: 1px solid rgba(0, 229, 255, 0.1); padding-bottom: 15px;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
           <span style="font-weight: bold; font-size: 11px; color: #00e5ff; letter-spacing: 1px;">GOOGLE GEMINI API (Cerveau & Voix)</span>
@@ -1054,11 +1088,26 @@
           </div>
           <a href="https://aistudio.google.com/" target="_blank" class="settings-btn" style="text-align: center; text-decoration: none; font-size: 10px; line-height: 20px; padding: 6px 12px; border: 1px solid rgba(0, 229, 255, 0.3); border-radius: 4px; color: #00e5ff; font-weight: bold; background: rgba(0, 229, 255, 0.02); display: inline-block; cursor: pointer;" title="Obtenir une clé API Gemini (AI Studio)">🔑 OBTENIR</a>
         </div>
-        <div class="ha-hint" style="font-size: 9px; margin-top: 5px; color: rgba(0, 229, 255, 0.5);">Requis pour l'intelligence générale de JARVIS et les voix ultra-réalistes.</div>
+      <!-- API OpenAI / ChatGPT -->
+      <div class="settings-group" style="margin-bottom: 25px; border-bottom: 1px solid rgba(0, 229, 255, 0.1); padding-bottom: 15px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+          <span style="font-weight: bold; font-size: 11px; color: #00e5ff; letter-spacing: 1px;">OPENAI API (ChatGPT & DALL-E)</span>
+          <label class="switch-container" style="display: flex; align-items: center; gap: 6px; font-size: 10px; cursor: pointer; color: rgba(255,255,255,0.7); font-weight: bold; user-select: none;">
+            <input type="checkbox" id="settings-api-openai-enabled" checked style="cursor: pointer;"> ACTIVÉ
+          </label>
+        </div>
+        <div style="display: flex; gap: 8px; align-items: center;">
+          <div style="position: relative; flex: 1;">
+            <input type="password" id="settings-api-openai-key" placeholder="Entrez votre clé API OpenAI (sk-...)" style="width: 100%; font-family: monospace; font-size: 11px; background: rgba(0, 229, 255, 0.05); border: 1px solid rgba(0, 229, 255, 0.2); color: #fff; padding: 8px 36px 8px 10px; border-radius: 4px; outline: none; transition: border-color 0.3s ease;">
+            <span class="toggle-password-eye" data-target="settings-api-openai-key" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); cursor: pointer; font-size: 14px; user-select: none;" title="Afficher/Masquer la clé">👁️</span>
+          </div>
+          <a href="https://platform.openai.com/api-keys" target="_blank" class="settings-btn" style="text-align: center; text-decoration: none; font-size: 10px; line-height: 20px; padding: 6px 12px; border: 1px solid rgba(0, 229, 255, 0.3); border-radius: 4px; color: #00e5ff; font-weight: bold; background: rgba(0, 229, 255, 0.02); display: inline-block; cursor: pointer;" title="Obtenir une clé API OpenAI">🔑 OBTENIR</a>
+        </div>
+        <div class="ha-hint" style="font-size: 9px; margin-top: 5px; color: rgba(0, 229, 255, 0.5);">Requis pour utiliser ChatGPT (GPT-4o, GPT-4o-mini, o3-mini) et la génération DALL-E 3.</div>
       </div>
 
       <!-- API Groq -->
-      <div class="settings-group" style="margin-bottom: 25px; border-bottom: 1px solid rgba(0, 229, 255, 0.1); padding-bottom: 15px;">
+             <div class="settings-group" style="margin-bottom: 25px; border-bottom: 1px solid rgba(0, 229, 255, 0.1); padding-bottom: 15px;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
           <span style="font-weight: bold; font-size: 11px; color: #00e5ff; letter-spacing: 1px;">GROQ API (Cerveaux alternatifs rapides)</span>
           <label class="switch-container" style="display: flex; align-items: center; gap: 6px; font-size: 10px; cursor: pointer; color: rgba(255,255,255,0.7); font-weight: bold; user-select: none;">
@@ -1079,7 +1128,7 @@
       <div class="settings-group" style="margin-bottom: 25px; border-bottom: 1px solid rgba(0, 229, 255, 0.1); padding-bottom: 15px;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
           <span style="font-weight: bold; font-size: 11px; color: #00e5ff; letter-spacing: 1px;">YOUTUBE API v3 (Recherche de musique)</span>
-          <label class="switch-container" style="display: flex; align-items: center; gap: 6px; font-size: 10px; cursor: pointer; color: rgba(255,255,255,0.7); font-weight: bold; user-select: none;">
+                    <label class="switch-container" style="display: flex; align-items: center; gap: 6px; font-size: 10px; cursor: pointer; color: rgba(255,255,255,0.7); font-weight: bold; user-select: none;">
             <input type="checkbox" id="settings-api-youtube-enabled" checked style="cursor: pointer;"> ACTIVÉ
           </label>
         </div>
@@ -1094,7 +1143,7 @@
       </div>
 
       <!-- API xAI (Grok) -->
-      <div class="settings-group" style="margin-bottom: 25px; border-bottom: 1px solid rgba(0, 229, 255, 0.1); padding-bottom: 15px;">
+             <div class="settings-group" style="margin-bottom: 25px; border-bottom: 1px solid rgba(0, 229, 255, 0.1); padding-bottom: 15px;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
           <span style="font-weight: bold; font-size: 11px; color: #00e5ff; letter-spacing: 1px;">XAI API (Grok AI)</span>
           <label class="switch-container" style="display: flex; align-items: center; gap: 6px; font-size: 10px; cursor: pointer; color: rgba(255,255,255,0.7); font-weight: bold; user-select: none;">
@@ -1112,7 +1161,7 @@
       </div>
 
       <!-- API SerpAPI -->
-      <div class="settings-group" style="margin-bottom: 25px; border-bottom: 1px solid rgba(0, 229, 255, 0.1); padding-bottom: 15px;">
+             <div class="settings-group" style="margin-bottom: 25px; border-bottom: 1px solid rgba(0, 229, 255, 0.1); padding-bottom: 15px;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
           <span style="font-weight: bold; font-size: 11px; color: #00e5ff; letter-spacing: 1px;">SERPAPI (Google Images)</span>
           <label class="switch-container" style="display: flex; align-items: center; gap: 6px; font-size: 10px; cursor: pointer; color: rgba(255,255,255,0.7); font-weight: bold; user-select: none;">
@@ -1136,7 +1185,7 @@
           <label class="switch-container" style="display: flex; align-items: center; gap: 6px; font-size: 10px; cursor: pointer; color: rgba(255,255,255,0.7); font-weight: bold; user-select: none;">
             <input type="checkbox" id="settings-api-anthropic-enabled" checked style="cursor: pointer;"> ACTIVÉ
           </label>
-        </div>
+                  </div>
         <div style="display: flex; gap: 8px; align-items: center;">
           <div style="position: relative; flex: 1;">
             <input type="password" id="settings-api-anthropic-key" placeholder="Entrez votre clé API Anthropic" style="width: 100%; font-family: monospace; font-size: 11px; background: rgba(0, 229, 255, 0.05); border: 1px solid rgba(0, 229, 255, 0.2); color: #fff; padding: 8px 36px 8px 10px; border-radius: 4px; outline: none; transition: border-color 0.3s ease;">
@@ -1155,7 +1204,7 @@
             <input type="checkbox" id="settings-api-mistral-enabled" checked style="cursor: pointer;"> ACTIVÉ
           </label>
         </div>
-        <div style="display: flex; gap: 8px; align-items: center;">
+                <div style="display: flex; gap: 8px; align-items: center;">
           <div style="position: relative; flex: 1;">
             <input type="password" id="settings-api-mistral-key" placeholder="Entrez votre clé API Mistral" style="width: 100%; font-family: monospace; font-size: 11px; background: rgba(0, 229, 255, 0.05); border: 1px solid rgba(0, 229, 255, 0.2); color: #fff; padding: 8px 36px 8px 10px; border-radius: 4px; outline: none; transition: border-color 0.3s ease;">
             <span class="toggle-password-eye" data-target="settings-api-mistral-key" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); cursor: pointer; font-size: 14px; user-select: none;" title="Afficher/Masquer la clé">👁️</span>
@@ -1165,7 +1214,11 @@
         <div class="ha-hint" style="font-size: 9px; margin-top: 5px; color: rgba(0, 229, 255, 0.5);">Permet d'utiliser le modèle souverain français Mistral Large.</div>
       </div>
 
-      <button class="settings-btn primary" id="api-keys-save-btn" style="width: 100%; padding: 12px; font-weight: bold; font-size: 11px; letter-spacing: 2px; border: 1px solid #00e5ff; background: rgba(0, 229, 255, 0.1); color: #00e5ff; cursor: pointer; border-radius: 4px; transition: all 0.3s ease;">SAUVEGARDER & ENREGISTRER</button>
+      <div style="display: flex; gap: 10px; margin-top: 15px;">
+        <button class="settings-btn primary" id="api-keys-save-btn" style="flex: 1; padding: 12px; font-weight: bold; font-size: 11px; letter-spacing: 2px; border: 1px solid #00e5ff; background: rgba(0, 229, 255, 0.15); color: #00e5ff; cursor: pointer; border-radius: 4px; transition: all 0.3s ease;">SAUVEGARDER & ENREGISTRER</button>
+        <button type="button" onclick="const m=document.getElementById('api-keys-modal'); if(m) m.style.display='none';" style="padding: 12px 20px; font-weight: bold; font-size: 11px; letter-spacing: 1px; border: 1px solid rgba(255, 51, 102, 0.5); background: rgba(255, 51, 102, 0.15); color: #ff3366; cursor: pointer; border-radius: 4px;">FERMER</button>
+      </div>
+    </div>
     </div>
   </div>
 
@@ -1173,7 +1226,7 @@
   <div id="os-autopilot-banner" style="display:none;position:fixed;top:0;left:0;width:100%;height:35px;z-index:99999;background:rgba(5,5,8,0.92);border-bottom:1px solid #00e5ff;backdrop-filter:blur(10px);box-shadow:0 5px 20px rgba(0,229,255,0.2);align-items:center;justify-content:center;font-family:'Courier New',monospace;color:#00e5ff;font-size:12px;letter-spacing:2px;">
     <div style="width:10px;height:10px;border-radius:50%;background:#00e5ff;box-shadow:0 0 10px #00e5ff;margin-right:15px;animation:vc-blink 1s infinite;"></div>
     <span id="os-autopilot-log">[JARVIS OS AUTOPILOT] EN ATTENTE...</span>
-  </div>
+      </div>
   <div id="virtual-cursor" style="display:none;position:fixed;top:0;left:0;width:30px;height:30px;z-index:100000;pointer-events:none;transform:translate(-50%, -50%);">
     <div class="vc-ring-outer" style="position:absolute;inset:0;border:2px solid #00e5ff;border-radius:50%;box-shadow:0 0 10px #00e5ff;animation:vc-spin 4s linear infinite;"></div>
     <div class="vc-ring-inner" style="position:absolute;inset:6px;border:1px dashed #00e5ff;border-radius:50%;animation:vc-spin-reverse 3s linear infinite;"></div>
@@ -1200,9 +1253,109 @@
     </div>
   </div>
 
+  <!-- ══ MOBILE APP CONNECTION MODAL ═══════════════════════════════════ -->
+  <div id="mobile-info-modal" class="hidden" style="position: fixed; inset: 0; z-index: 30000; background: rgba(5, 5, 8, 0.85); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); display: none; align-items: center; justify-content: center;">
+    <div style="width: 500px; max-width: 90vw; background: rgba(10, 16, 26, 0.95); border: 1px solid rgba(0, 229, 255, 0.4); border-radius: 16px; padding: 24px; box-shadow: 0 15px 45px rgba(0, 0, 0, 0.75), 0 0 30px rgba(0, 229, 255, 0.2); text-align: center; position: relative;">
+      <button type="button" onclick="const m=document.getElementById('mobile-info-modal'); if(m){ m.classList.add('hidden'); m.style.setProperty('display', 'none', 'important'); }" style="position: absolute; top: 16px; right: 16px; background: transparent; border: none; color: #00e5ff; font-size: 16px; font-weight: bold; cursor: pointer;">[ X ]</button>
+      <div style="font-size: 32px; margin-bottom: 10px;">📱</div>
+      <div style="font-size: 16px; font-weight: bold; color: #00e5ff; letter-spacing: 2px; margin-bottom: 8px;">ÉCOSYSTÈME MOBILE JARVIS v9.0</div>
+      <div style="font-size: 11px; color: rgba(255, 255, 255, 0.7); line-height: 1.6; margin-bottom: 20px;">
+        L'interface et le fonctionnement mobile ont été revus en profondeur pour s'adapter aux nouveaux usages et offrir la meilleure expérience sur smartphone.
+      </div>
+      
+      <div style="background: rgba(0, 229, 255, 0.06); border: 1px solid rgba(0, 229, 255, 0.2); border-radius: 8px; padding: 14px; margin-bottom: 20px;">
+        <div style="font-size: 10px; color: rgba(0, 229, 255, 0.6); letter-spacing: 1px; margin-bottom: 6px;">ADRESSE D'ACCÈS DEPUIS VOTRE SMARTPHONE</div>
+        <div id="mobile-url-display" style="font-size: 16px; font-weight: bold; color: #00ffcc; font-family: monospace; letter-spacing: 1px;">http://192.168.1.XX:8080</div>
+      </div>
+
+      <div style="text-align: left; font-size: 10px; color: rgba(255, 255, 255, 0.5); line-height: 1.7; background: rgba(0,0,0,0.4); padding: 12px; border-radius: 6px;">
+        🔹 <b>Web App / PWA</b> : Ouvrez l'URL dans Chrome / Safari sur votre smartphone.<br>
+        🔹 <b>Voix & Orbe 3D</b> : Reconnaissance vocale temps réel & réponse synthétisée.<br>
+        🔹 <b>Réseau local</b> : Assurez-vous d'être connecté au même Wi-Fi.
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ VOICE VAULT AES-256 ENCRYPTED STORAGE ════════════════════════ -->
+  <div id="vault-panel" class="hidden" style="position: fixed; inset: 0; z-index: 30000; background: rgba(5, 5, 8, 0.85); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); display: none; align-items: center; justify-content: center;">
+    <div style="width: 580px; max-width: 92vw; background: rgba(10, 16, 26, 0.95); border: 1px solid rgba(0, 229, 255, 0.4); border-radius: 16px; padding: 24px; box-shadow: 0 15px 45px rgba(0, 0, 0, 0.75), 0 0 35px rgba(0, 229, 255, 0.2); position: relative; font-family: monospace;">
+      <button type="button" onclick="const m=document.getElementById('vault-panel'); if(m){ m.classList.add('hidden'); m.style.setProperty('display', 'none', 'important'); }" style="position: absolute; top: 16px; right: 16px; background: transparent; border: none; color: #00e5ff; font-size: 16px; font-weight: bold; cursor: pointer;">[ X ]</button>
+      
+      <!-- Vault Lock Header -->
+      <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 20px; border-bottom: 1px solid rgba(0, 229, 255, 0.2); padding-bottom: 12px;">
+        <span style="font-size: 28px;">🔒</span>
+        <div>
+          <div style="font-size: 15px; font-weight: bold; color: #00e5ff; letter-spacing: 2px;">COFFRE-FORT CRYPTÉ AES-256</div>
+          <div style="font-size: 10px; color: rgba(255, 255, 255, 0.5); letter-spacing: 1px;">VOICE VAULT SECURITY // SÉCURITÉ DE NIVEAU MILITAIRE</div>
+        </div>
+      </div>
+
+      <!-- Lock State Screen -->
+      <div id="vault-locked-screen" style="display: flex; flex-direction: column; align-items: center; padding: 20px 0;">
+        <div style="font-size: 48px; margin-bottom: 12px; filter: drop-shadow(0 0 10px rgba(0, 229, 255, 0.4));">🛡️</div>
+        <div id="vault-lock-title" style="font-size: 12px; color: #00e5ff; letter-spacing: 2px; margin-bottom: 15px; text-align: center;">ENTREZ VOTRE CODE PIN OU MOT DE PASSE</div>
+        <div style="display: flex; gap: 10px; width: 100%; max-width: 360px; margin-bottom: 15px;">
+          <input type="password" id="vault-pin-input" placeholder="Mot de passe ou Code PIN..." style="flex: 1; min-width: 0; background: rgba(0, 229, 255, 0.06); border: 1px solid rgba(0, 229, 255, 0.3); color: #fff; padding: 10px 14px; border-radius: 6px; outline: none; font-size: 12px; text-align: left; letter-spacing: normal;">
+          <button id="vault-unlock-btn" style="background: rgba(0, 229, 255, 0.2); border: 1px solid #00e5ff; color: #00e5ff; padding: 10px 20px; border-radius: 6px; font-weight: bold; cursor: pointer; white-space: nowrap;">DÉVERROUILLER</button>
+        </div>
+        <div id="vault-error-msg" style="font-size: 11px; color: #ff3366; min-height: 16px;"></div>
+      </div>
+
+      <!-- Unlocked State Screen -->
+      <div id="vault-unlocked-screen" style="display: none; flex-direction: column; gap: 15px;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <div style="font-size: 11px; color: #00ffcc; letter-spacing: 1px;">✔ COFFRE ACCESSIBLE</div>
+          <button id="vault-lock-btn" style="background: rgba(255, 51, 102, 0.15); border: 1px solid #ff3366; color: #ff3366; padding: 6px 12px; border-radius: 4px; font-size: 10px; font-weight: bold; cursor: pointer;">🔒 VERROUILLER</button>
+        </div>
+
+        <div style="background: rgba(0, 0, 0, 0.4); border: 1px dashed rgba(0, 229, 255, 0.3); border-radius: 8px; padding: 15px; text-align: center;">
+          <input type="file" id="vault-file-input" style="display: none;">
+          <button id="vault-add-btn" style="background: rgba(0, 229, 255, 0.15); border: 1px solid #00e5ff; color: #00e5ff; padding: 8px 16px; border-radius: 6px; font-size: 11px; font-weight: bold; cursor: pointer;">➕ AJOUTER UN FICHIER CRYPTÉ</button>
+          <div style="font-size: 9px; color: rgba(255, 255, 255, 0.4); margin-top: 6px;">Sélectionnez tout fichier confidentiel à chiffrer en AES-256.</div>
+        </div>
+
+        <!-- Files list -->
+        <div style="max-height: 220px; overflow-y: auto; background: rgba(5, 8, 15, 0.6); border: 1px solid rgba(0, 229, 255, 0.15); border-radius: 8px; padding: 10px;" id="vault-files-list">
+          <div style="font-size: 10px; color: rgba(255, 255, 255, 0.4); text-align: center; padding: 20px;">Aucun fichier dans le coffre-fort.</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
   <!-- ══ IPTV & VIDEO PLAYER PANEL — Iron Man HUD ═══════════════════════ -->
-  <div id="iptv-panel" class="iptv-panel hidden">
-    <!-- Le contenu est injecté dynamiquement par iptv_player.ts -->
+  <div id="iptv-panel" class="iptv-panel hidden" style="position: fixed; top: 60px; left: 50%; transform: translateX(-50%); width: 900px; max-width: 90vw; height: 550px; max-height: 80vh; background: rgba(10, 16, 26, 0.95); border: 1px solid rgba(255, 138, 26, 0.4); border-radius: 16px; box-shadow: 0 15px 45px rgba(0, 0, 0, 0.75), 0 0 25px rgba(255, 138, 26, 0.25); z-index: 25000; backdrop-filter: blur(24px); display: none; flex-direction: column; overflow: hidden; font-family: monospace;">
+    <div class="iptv-header" id="iptv-header" style="display:flex; align-items:center; gap:10px; padding:10px 16px; background: rgba(10,16,26,0.85); border-bottom: 1px solid rgba(255,138,26,0.3); color: #ff8a1a;">
+      <div class="iptv-title-area" style="flex:1;">
+        <span class="iptv-label-tag" style="font-size:9px; letter-spacing:2px; color:rgba(255,138,26,0.7);">◈ JARVIS // MEDIA_PLAYER</span>
+        <div class="iptv-current-title" id="iptv-current-title" style="font-size:12px; font-weight:bold; letter-spacing:2px;">AUCUN MÉDIA CHARGÉ</div>
+      </div>
+      <div class="iptv-header-actions" style="display:flex; gap:6px;">
+        <button type="button" class="iptv-hbtn iptv-close-btn" id="iptv-close-btn" onclick="const p=document.getElementById('iptv-panel'); if(p){ p.classList.add('hidden'); p.style.display='none'; }" style="background:rgba(255,59,48,0.15); border:1px solid #ff3366; color:#ff3366; padding:4px 10px; border-radius:4px; cursor:pointer; font-weight:bold;">✕ FERMER</button>
+      </div>
+    </div>
+
+    <!-- Toolbar -->
+    <div class="iptv-toolbar" id="iptv-toolbar" style="display:flex; align-items:center; gap:8px; padding:8px 12px; border-bottom:1px solid rgba(255,138,26,0.2); background:rgba(255,138,26,0.05);">
+      <div class="iptv-url-zone" style="display:flex; gap:8px; flex:1;">
+        <input type="text" id="iptv-url-input" class="iptv-url-input" placeholder="URL stream / lien M3U / IPTV direct..." style="flex:1; background:rgba(255,138,26,0.08); border:1px solid rgba(255,138,26,0.3); color:#ff8a1a; padding:6px 12px; font-family:monospace; font-size:11px; border-radius:4px; outline:none;" />
+        <button class="iptv-tool-btn iptv-load-btn" id="iptv-load-url-btn" style="background:rgba(255,138,26,0.2); border:1px solid #ff8a1a; color:#ff8a1a; padding:6px 14px; font-weight:bold; border-radius:4px; cursor:pointer;">⏩ CHARGER</button>
+      </div>
+    </div>
+
+    <!-- Main content area -->
+    <div class="iptv-body" id="iptv-body" style="display:flex; flex:1; overflow:hidden; position:relative;">
+      <!-- Video area -->
+      <div class="iptv-video-area" id="iptv-video-area" style="flex:1; position:relative; background:#000; display:flex; align-items:center; justify-content:center; width:100%; height:100%;">
+        <div class="iptv-drop-zone" id="iptv-drop-zone" style="position:absolute; inset:0; z-index:5; display:flex; align-items:center; justify-content:center; background:rgba(5,5,8,0.95); border:2px dashed rgba(255,138,26,0.3);">
+          <div class="iptv-drop-content" style="text-align:center; color:rgba(255,138,26,0.7); display:flex; flex-direction:column; align-items:center; gap:12px;">
+            <p style="font-size:13px; font-weight:bold; letter-spacing:2px; margin:0;">📺 LECTEUR IPTV & VIDÉO READY</p>
+            <p style="font-size:10px; color:rgba(255,138,26,0.5); margin:0;">Entrez une URL M3U ou déposez un fichier MP4 / MKV</p>
+          </div>
+        </div>
+        <video id="iptv-video" class="iptv-video" preload="auto" style="width:100%; height:100%; object-fit:contain;"></video>
+      </div>
+    </div>
   </div>
 
   <!-- ══ HOME ASSISTANT PANEL — Iron Man HUD ═══════════════════════ -->
@@ -1239,7 +1392,7 @@
           <button class="ha-tab-btn" data-category="switch">
             <span class="tab-icon">🔌</span> <span class="tab-label">PRISES & INTERS</span>
           </button>
-          <button class="ha-tab-btn" data-category="sensor">
+                    <button class="ha-tab-btn" data-category="sensor">
             <span class="tab-icon">🌡️</span> <span class="tab-label">CAPTEURS</span>
           </button>
           <button class="ha-tab-btn" data-category="fan">
@@ -1268,7 +1421,7 @@
   </div>
 
   <!-- ══ FLOATING BROWSER CONTROLS ON HUD ═══════════════════════════════ -->
-  <div id="hud-browser-controls" class="hidden">
+     <div id="hud-browser-controls" class="hidden">
     <button id="hud-browser-dock-btn" class="hud-browser-btn" title="Ancrer / Détacher le navigateur">⚡ DÉTACHER</button>
     <button id="hud-browser-close-btn" class="hud-browser-btn danger" title="Fermer le navigateur">❌ FERMER</button>
   </div>
@@ -1304,7 +1457,7 @@
     </div>
   </div>
 
-  <!-- ══ TIMER OVERLAY — Iron Man Style ═══════════════════════════════ -->
+    <!-- ══ TIMER OVERLAY — Iron Man Style ═══════════════════════════════ -->
   <div id="timer-hud"
     style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%, -50%);z-index:200;text-align:center;pointer-events:none;">
     <div
@@ -1326,16 +1479,167 @@
     <!-- Widgets will be injected here by JS -->
   </div>
 
-  <!-- ══ AUTONOMOUS DEV SWARM HUD — Iron Man Style (Minimal Progress) ══════════════════ -->
+  <!-- ══ WEBSITE BUILDER CONSOLE HUD — Iron Man / Antivirus Style ══════════════════ -->
+  <div id="website-builder-hud" class="wb-hud hidden" style="display: none;">
+    <div class="wb-header" id="wb-drag-handle">
+      <div class="wb-title-wrap">
+        <span class="wb-icon">🌐</span>
+        <span class="wb-title">JARVIS // WEBSITE GENERATOR CONSOLE</span>
+      </div>
+      <button class="wb-close-btn" id="wb-close-btn">✕</button>
+    </div>
+        <div class="wb-body">
+      <div class="wb-status-row">
+        <span class="wb-step-badge" id="wb-step-badge">[1/4] SPÉCIFICATION</span>
+        <span class="wb-status-text" id="wb-status-text">Initialisation du projet web...</span>
+      </div>
+
+      <div class="wb-folder-row" style="margin-bottom: 10px; display: flex; align-items: center; gap: 8px;">
+        <span style="font-size: 11px; font-weight: 700; color: #00e5ff; white-space: nowrap;">📂 SORTIE :</span>
+        <input type="text" id="wb-folder-input" class="wb-folder-input" placeholder="Ex: D:\MesProjets\MonSite (par défaut: sandbox)" style="flex: 1; background: rgba(0,0,0,0.4); border: 1px solid rgba(0,229,255,0.3); border-radius: 6px; padding: 4px 8px; color: #fff; font-size: 11px; font-family: monospace;" />
+        <button id="wb-browse-btn" style="background: rgba(0,229,255,0.15); border: 1px solid rgba(0,229,255,0.4); border-radius: 6px; padding: 4px 8px; color: #00e5ff; font-size: 11px; cursor: pointer; font-weight: bold; transition: all 0.2s;" onmouseover="this.style.background='rgba(0,229,255,0.3)'" onmouseout="this.style.background='rgba(0,229,255,0.15)'">Parcourir...</button>
+      </div>
+
+      <div class="wb-metrics-row">
+        <div class="wb-metric-card">
+          <span class="wb-metric-label">FICHIERS PROJET</span>
+          <span class="wb-metric-value" id="wb-files-count">0 / 0</span>
+        </div>
+        <div class="wb-metric-card">
+          <span class="wb-metric-label">IMAGES IA GÉNÉRÉES</span>
+          <span class="wb-metric-value" id="wb-images-count">0 / 0</span>
+        </div>
+        <div class="wb-metric-card">
+          <span class="wb-metric-label">AVANCEMENT</span>
+          <span class="wb-metric-value" id="wb-progress-pct">0%</span>
+        </div>
+      </div>
+      <div class="wb-progress-track">
+        <div class="wb-progress-fill" id="wb-progress-fill" style="width: 0%;"></div>
+      </div>
+
+      <div class="wb-files-section-title">FICHIERS DU PROJET (ÉDITION & PRÉVISUALISATION) :</div>
+      <div class="wb-files-list-container" id="wb-files-list-container">
+        <div class="wb-file-btn-empty">Initialisation de la liste des fichiers...</div>
+      </div>
+
+      <div class="wb-terminal-label">JOURNAL D'ACTIVITÉ EN DIRECT :</div>
+      <div class="wb-terminal-logs" id="wb-terminal-logs">
+        <div class="wb-log-entry">[00:00:00] Initialisation de la console de suivi JARVIS...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ DEV SWARM COMMAND CENTER HUD (Full 3D & 6-Agent Cards) ══════════════════ -->
+  <div id="swarm-lounge-hud" class="swarm-lounge-hud hidden" style="display: none;">
+    <div class="swarm-lounge-header">
+      <div class="swarm-lounge-title-wrap">
+        <span class="swarm-lounge-pulse"></span>
+        <span class="swarm-lounge-title">◈ JARVIS // DEV SWARM COMMAND CENTER — 6 AGENTS AUTONOMES ◈</span>
+      </div>
+      <div class="swarm-lounge-header-actions">
+        <span class="swarm-active-badge" id="swarm-active-count">6 AGENTS ACTIFS</span>
+        <button class="swarm-lounge-close" id="swarm-lounge-close">✕</button>
+      </div>
+    </div>
+        <div class="swarm-lounge-main">
+      <!-- Gauche: Visualiseur IDE & Stream de Code en Temps Réel -->
+      <div class="swarm-code-stream-wrap">
+        <div class="swarm-code-stream-header">
+          <div class="swarm-code-tabs" id="swarm-code-tabs">
+            <span class="swarm-code-tab active" id="swarm-current-tab">📄 Initialisation de l'Essaim...</span>
+          </div>
+          <span class="swarm-code-live-badge">● FLUX DIRECT</span>
+        </div>
+        <div class="swarm-code-container">
+          <div class="swarm-code-gutter" id="swarm-code-gutter"></div>
+          <pre class="swarm-code-content" id="swarm-code-content"></pre>
+        </div>
+      </div>
+      
+      <!-- Droite: 6 Agent Cards Live Telemetry -->
+      <div class="swarm-lounge-sidebar">
+        <div class="swarm-sidebar-title">ACTIVITÉ ET ÉCHANGE DES AGENTS (LIVE)</div>
+        <div class="swarm-agent-cards-grid" id="swarm-agent-cards-grid">
+          <div class="agent-card card-pm" id="card-agent-pm">
+            <div class="card-head">
+              <span class="card-dot pm"></span>
+              <span class="card-role">PM (Chef de Projet)</span>
+              <span class="card-status-badge idle" id="status-pm">REPOS</span>
+            </div>
+            <div class="card-msg" id="msg-pm">Conception et architecture multi-pages...</div>
+          </div>
+          <div class="agent-card card-ui" id="card-agent-ui">
+            <div class="card-head">
+              <span class="card-dot ui"></span>
+              <span class="card-role">UI (UI Designer)</span>
+              <span class="card-status-badge idle" id="status-ui">REPOS</span>
+            </div>
+                        <div class="card-msg" id="msg-ui">Design System & Thème Glassmorphic...</div>
+          </div>
+          <div class="agent-card card-dev" id="card-agent-dev">
+            <div class="card-head">
+              <span class="card-dot dev"></span>
+              <span class="card-role">DEV (Developer Lead)</span>
+              <span class="card-status-badge idle" id="status-dev">REPOS</span>
+            </div>
+            <div class="card-msg" id="msg-dev">Développement et implémentation du code...</div>
+          </div>
+          <div class="agent-card card-sec" id="card-agent-sec">
+            <div class="card-head">
+              <span class="card-dot sec"></span>
+              <span class="card-role">SEC (Security Auditor)</span>
+              <span class="card-status-badge idle" id="status-sec">REPOS</span>
+            </div>
+            <div class="card-msg" id="msg-sec">Audit de sécurité et scan d'injections...</div>
+          </div>
+          <div class="agent-card card-qa" id="card-agent-qa">
+            <div class="card-head">
+              <span class="card-dot qa"></span>
+              <span class="card-role">QA (QA Tester)</span>
+              <span class="card-status-badge idle" id="status-qa">REPOS</span>
+            </div>
+            <div class="card-msg" id="msg-qa">Exécution Sandbox et validation réelle...</div>
+          </div>
+          <div class="agent-card card-ops" id="card-agent-ops">
+            <div class="card-head">
+              <span class="card-dot ops"></span>
+              <span class="card-role">OPS (DevOps Agent)</span>
+              <span class="card-status-badge idle" id="status-ops">REPOS</span>
+            </div>
+            <div class="card-msg" id="msg-ops">Packaging, manifestes et déploiement...</div>
+          </div>
+                  </div>
+      </div>
+    </div>
+
+    <!-- Bas: Terminal Logs Stream -->
+    <div class="swarm-lounge-footer">
+      <div class="swarm-terminal-header">JOURNAL DU CORTEX MULTI-AGENT EN TEMPS RÉEL :</div>
+      <div class="swarm-terminal-logs" id="swarm-terminal-logs">
+        <div class="swarm-log-line">[SYS] Command Center 3D Swarm prêt (6 Agents autonomes en écoute).</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ AUTONOMOUS DEV SWARM HUD — Iron Man Premium Style ══════════════════ -->
   <div id="dev-swarm-hud" class="dev-swarm-hud hidden" style="display: none;">
     <div class="swarm-progress-header">
-      <span class="swarm-progress-agent" id="swarm-progress-agent">AGENT: PM</span>
+      <div class="swarm-title-wrap">
+        <span class="swarm-icon">🐝</span>
+        <span class="swarm-title">JARVIS // DEV SWARM MULTI-AGENT ENGINE</span>
+      </div>
       <button class="swarm-close-btn" id="swarm-close-btn">✕</button>
     </div>
-    <div class="swarm-progress-bar-wrap">
-      <div class="swarm-progress-bar" id="swarm-progress-bar-fill"></div>
+    <div class="swarm-body">
+      <div class="swarm-agent-row">
+        <span class="swarm-agent-badge" id="swarm-progress-agent">AGENT: PM</span>
+        <span class="swarm-status-text" id="swarm-progress-msg">Initialisation de la tâche...</span>
+      </div>
+      <div class="swarm-progress-bar-wrap">
+        <div class="swarm-progress-bar" id="swarm-progress-bar-fill"></div>
+              </div>
     </div>
-    <div class="swarm-progress-message" id="swarm-progress-msg">Initialisation de la tâche...</div>
   </div>
 
   <!-- ══ RECIPE MODAL — Iron Man Style ═══════════════════════════════ -->
@@ -1356,6 +1660,26 @@
         <h3>INSTRUCTIONS</h3>
         <ol id="recipe-instructions-list"></ol>
       </div>
+    </div>
+  </div>
+  <!-- ══ CODE INSPECTOR & LIVE EDITOR MODAL ═══════════════════════════════ -->
+  <div id="code-editor-modal" class="code-editor-modal hidden" style="display: none;">
+    <div class="code-editor-header">
+      <div class="code-editor-title-wrap">
+        <span class="code-editor-icon">📝</span>
+        <span class="code-editor-title" id="code-editor-filename">JARVIS // INSPECTEUR & ÉDITEUR DE CODE</span>
+      </div>
+      <button id="close-code-editor" class="close-code-editor">✕</button>
+          </div>
+    <div class="code-editor-body">
+      <div class="code-editor-toolbar">
+        <span class="code-editor-filepath" id="code-editor-filepath">Chargement du fichier...</span>
+        <div class="code-editor-actions">
+          <button id="save-code-btn" class="code-btn primary">💾 Sauvegarder</button>
+          <button id="preview-code-btn" class="code-btn secondary">👁️ Aperçu Plein Écran</button>
+        </div>
+      </div>
+      <textarea id="code-editor-textarea" class="code-editor-textarea" spellcheck="false" placeholder="Chargement du code du fichier..."></textarea>
     </div>
   </div>
 

@@ -382,13 +382,21 @@ async def executer_sequence_actions(sequence):
                     info = _APPS_CATALOGUE[app_to_launch]
                     _boulot_lancer(info["label"], info["noms"], info["hints"])
                 else:
-                    try:
-                        subprocess.Popen(app_to_launch, shell=True)
-                    except Exception:
+                    # Application inconnue du catalogue : le nom vient d'un plan
+                    # généré par le LLM. On ne le passe SURTOUT PAS à un shell
+                    # (`shell=True` exécutait n'importe quelle commande, ex.
+                    # « cmd /c del /s /q C:\\Users\\... »). On valide le nom, puis
+                    # on passe par la boîte « Exécuter » de Windows, qui n'ouvre
+                    # qu'un programme et n'interprète ni « && », ni « | », ni « ; ».
+                    import re as _re_app
+                    _nom_app = str(app_to_launch).strip()
+                    if _re_app.fullmatch(r"[A-Za-z0-9 ._\-]{1,60}", _nom_app):
                         pyautogui.hotkey('win', 'r')
                         time.sleep(0.3)
-                        pyautogui.write(app_to_launch)
+                        pyautogui.write(_nom_app)
                         pyautogui.press('enter')
+                    else:
+                        print(f"[AUTOPILOT] ⛔ Nom d'application refusé (caractères suspects) : {app_to_launch!r}")
                 
                 # Attente et déplacement du curseur virtuel sur la nouvelle fenêtre
                 time.sleep(1.0)

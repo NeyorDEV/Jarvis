@@ -28,7 +28,18 @@ try:
     CONNECTED_CLIENTS = builtins.CONNECTED_CLIENTS
     request_screen_capture = builtins.request_screen_capture
 except AttributeError:
+    # Ce module est importé AVANT que main.py n'ait injecté ses builtins : le
+    # bloc ci-dessus échoue donc systématiquement au démarrage normal.
+    # `parler` n'était pas réassigné ici, donc le nom restait indéfini et
+    # jarvis_vision_camera() levait un NameError, présenté à l'utilisateur
+    # comme « une erreur technique ». On résout maintenant à l'APPEL.
     client = CHOSEN_MODEL = demander_ia_vision = CONNECTED_CLIENTS = request_screen_capture = None
+
+    def parler(*args, **kwargs):
+        _f = getattr(builtins, "parler", None)
+        if _f:
+            return _f(*args, **kwargs)
+        print("[VISION]", *args)
 
 load_dotenv()
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
@@ -296,7 +307,14 @@ async def jarvis_vision_navigateur(question_utilisateur=None):
 async def jarvis_vision_analyse_live(question_utilisateur):
     """Analyse l'écran actuel pour aider l'utilisateur ou répondre à une question contextuelle."""
     try:
-        from main2 import client, CHOSEN_MODEL
+        # `main2` n'existe plus (l'orchestrateur s'appelle main.py) : cet import
+        # levait un ModuleNotFoundError avalé plus bas, si bien que l'action
+        # « analyse_live » répondait toujours « j'ai une difficulté technique ».
+        # On récupère le client via builtins, comme le reste du module.
+        client = getattr(builtins, "client", None)
+        CHOSEN_MODEL = getattr(builtins, "CHOSEN_MODEL", None)
+        if client is None:
+            return "Ma vision nécessite une clé Gemini valide, mylane."
         path_ss = "jarvis_vision_live.png"
         screenshot = pyautogui.screenshot()
         screenshot.save(path_ss)

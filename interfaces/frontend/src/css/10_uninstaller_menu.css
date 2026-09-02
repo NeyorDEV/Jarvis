@@ -2,8 +2,13 @@
    UNINSTALLER PANEL — Iron Man HUD Custom App Uninstaller (Revo style)
    ============================================================================== */
 .uninstaller-panel {
-  --un-color: #ff8a1a; /* Orange Néon HUD */
-  --un-glow: rgba(255, 138, 26, 0.35);
+  /* Thème du panneau. --un-rgb permet de décliner la teinte à n'importe quelle
+     opacité : toutes les règles internes doivent l'utiliser plutôt que de coder
+     l'orange en dur, sinon les panneaux qui surchargent la teinte (ex :
+     #winget-panel en cyan) gardent un cadre coloré mais un intérieur orange. */
+  --un-rgb: 255, 138, 26;         /* Orange Néon HUD (défaut) */
+  --un-color: rgb(var(--un-rgb));
+  --un-glow: rgba(var(--un-rgb), 0.35);
   --un-bg: rgba(0, 6, 15, 0.9);
   
   position: fixed;
@@ -11,7 +16,7 @@
   height: 550px;
   background: var(--un-bg);
   border: 1px solid var(--un-color);
-  box-shadow: 0 0 35px var(--un-glow), inset 0 0 20px rgba(255, 138, 26, 0.05);
+  box-shadow: 0 0 35px var(--un-glow), inset 0 0 20px rgba(var(--un-rgb), 0.05);
   border-radius: 6px;
   font-family: 'Courier New', monospace;
   color: var(--un-color);
@@ -27,6 +32,13 @@
   pointer-events: auto;
   left: 200px;
   top: 150px;
+}
+
+/* Le panneau des mises à jour réutilise le gabarit du désinstallateur mais en
+   cyan (identité JARVIS). Il suffit de redéfinir la teinte : tout l'intérieur
+   (lignes, cases, boutons, scrollbar, radar…) suit automatiquement. */
+#winget-panel {
+  --un-rgb: 0, 229, 255;
 }
 
 .uninstaller-panel.hidden {
@@ -45,8 +57,8 @@
     0deg,
     transparent,
     transparent 3px,
-    rgba(255, 138, 26, 0.012) 3px,
-    rgba(255, 138, 26, 0.012) 4px
+    rgba(var(--un-rgb), 0.012) 3px,
+    rgba(var(--un-rgb), 0.012) 4px
   );
   pointer-events: none;
   border-radius: 5px;
@@ -80,7 +92,7 @@
   align-items: center;
   justify-content: space-between;
   padding: 10px 14px;
-  background: rgba(255, 138, 26, 0.06);
+  background: rgba(var(--un-rgb), 0.06);
   border-bottom: 1px solid var(--un-color);
   cursor: grab;
   border-radius: 6px 6px 0 0;
@@ -165,8 +177,8 @@
 
 .uninstaller-search-box input {
   width: 100%;
-  background: rgba(255, 138, 26, 0.05);
-  border: 1px solid rgba(255, 138, 26, 0.3);
+  background: rgba(var(--un-rgb), 0.05);
+  border: 1px solid rgba(var(--un-rgb), 0.3);
   border-radius: 4px;
   padding: 8px 12px;
   color: var(--un-color);
@@ -177,7 +189,7 @@
 }
 
 .uninstaller-search-box input::placeholder {
-  color: rgba(255, 138, 26, 0.4);
+  color: rgba(var(--un-rgb), 0.4);
 }
 
 .uninstaller-apps-list {
@@ -198,7 +210,7 @@
 }
 
 .uninstaller-apps-list::-webkit-scrollbar-thumb {
-  background: rgba(255, 138, 26, 0.3);
+  background: rgba(var(--un-rgb), 0.3);
   border-radius: 2px;
 }
 
@@ -211,16 +223,16 @@
   justify-content: space-between;
   align-items: center;
   padding: 8px 12px;
-  background: rgba(255, 138, 26, 0.03);
-  border: 1px solid rgba(255, 138, 26, 0.15);
+  background: rgba(var(--un-rgb), 0.03);
+  border: 1px solid rgba(var(--un-rgb), 0.15);
   border-radius: 4px;
   transition: all 0.2s ease;
 }
 
 .uninstaller-app-item:hover {
-  background: rgba(255, 138, 26, 0.08);
-  border-color: rgba(255, 138, 26, 0.4);
-  box-shadow: 0 0 10px rgba(255, 138, 26, 0.15);
+  background: rgba(var(--un-rgb), 0.08);
+  border-color: rgba(var(--un-rgb), 0.4);
+  box-shadow: 0 0 10px rgba(var(--un-rgb), 0.15);
 }
 
 .uninstaller-app-info {
@@ -242,14 +254,14 @@
 
 .uninstaller-app-publisher {
   font-size: 9px;
-  color: rgba(255, 138, 26, 0.6);
+  color: rgba(var(--un-rgb), 0.6);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .uninstaller-app-btn {
-  background: rgba(255, 138, 26, 0.1);
+  background: rgba(var(--un-rgb), 0.1);
   border: 1px solid var(--un-color);
   color: var(--un-color);
   font-family: 'Courier New', monospace;
@@ -273,7 +285,7 @@
   text-align: center;
   padding: 30px 0;
   letter-spacing: 2px;
-  color: rgba(255, 138, 26, 0.6);
+  color: rgba(var(--un-rgb), 0.6);
 }
 
 /* Radar Animation / Status View */
@@ -290,9 +302,9 @@
   width: 140px;
   height: 140px;
   border-radius: 50%;
-  border: 1px solid rgba(255, 138, 26, 0.25);
+  border: 1px solid rgba(var(--un-rgb), 0.25);
   position: relative;
-  background: radial-gradient(circle, rgba(255, 138, 26, 0.05) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(var(--un-rgb), 0.05) 0%, transparent 70%);
   overflow: hidden;
 }
 
@@ -301,7 +313,7 @@
   position: absolute;
   inset: 20px;
   border-radius: 50%;
-  border: 1px dashed rgba(255, 138, 26, 0.15);
+  border: 1px dashed rgba(var(--un-rgb), 0.15);
 }
 
 .uninstaller-radar-circle::after {
@@ -309,7 +321,7 @@
   position: absolute;
   inset: 50px;
   border-radius: 50%;
-  border: 1px solid rgba(255, 138, 26, 0.1);
+  border: 1px solid rgba(var(--un-rgb), 0.1);
 }
 
 .uninstaller-radar-sweep {
@@ -331,7 +343,7 @@
 .uninstaller-radar-grid {
   position: absolute;
   border-radius: 50%;
-  border: 1px solid rgba(255, 138, 26, 0.05);
+  border: 1px solid rgba(var(--un-rgb), 0.05);
   pointer-events: none;
 }
 
@@ -359,7 +371,7 @@
   align-items: center;
   font-size: 10px;
   font-weight: bold;
-  border-bottom: 1px solid rgba(255, 138, 26, 0.2);
+  border-bottom: 1px solid rgba(var(--un-rgb), 0.2);
   padding-bottom: 8px;
   margin-bottom: 8px;
 }
@@ -370,7 +382,7 @@
   gap: 5px;
   font-size: 9px;
   cursor: pointer;
-  color: rgba(255, 138, 26, 0.8);
+  color: rgba(var(--un-rgb), 0.8);
 }
 
 .uninstaller-leftovers-list {
@@ -391,13 +403,13 @@
 }
 
 .uninstaller-leftovers-list::-webkit-scrollbar-thumb {
-  background: rgba(255, 138, 26, 0.3);
+  background: rgba(var(--un-rgb), 0.3);
   border-radius: 2px;
 }
 
 .uninstaller-leftover-item {
-  background: rgba(255, 138, 26, 0.02);
-  border: 1px solid rgba(255, 138, 26, 0.1);
+  background: rgba(var(--un-rgb), 0.02);
+  border: 1px solid rgba(var(--un-rgb), 0.1);
   border-radius: 4px;
   padding: 6px 10px;
 }
@@ -440,13 +452,13 @@
 
 .uninstaller-leftover-desc {
   font-size: 7.5px;
-  color: rgba(255, 138, 26, 0.55);
+  color: rgba(var(--un-rgb), 0.55);
 }
 
 .uninstaller-leftover-empty {
   font-size: 10px;
   text-align: center;
-  color: rgba(255, 138, 26, 0.6);
+  color: rgba(var(--un-rgb), 0.6);
   padding: 40px 0;
 }
 
@@ -486,7 +498,7 @@
 }
 
 .uninstaller-btn.secondary {
-  background: rgba(255, 138, 26, 0.1);
+  background: rgba(var(--un-rgb), 0.1);
   border: 1px solid var(--un-color);
   color: var(--un-color);
 }
@@ -502,11 +514,11 @@
   justify-content: space-between;
   align-items: center;
   padding: 10px 14px;
-  border-top: 1px solid rgba(255, 138, 26, 0.15);
+  border-top: 1px solid rgba(var(--un-rgb), 0.15);
   font-size: 8px;
   letter-spacing: 2px;
-  color: rgba(255, 138, 26, 0.4);
-  background: rgba(255, 138, 26, 0.02);
+  color: rgba(var(--un-rgb), 0.4);
+  background: rgba(var(--un-rgb), 0.02);
   border-radius: 0 0 6px 6px;
 }
 
@@ -845,36 +857,36 @@ body.browser-open #hud-browser-controls {
 
 /* --- SECTION 2 : PERFORMANCES & ACCÈS (GOLD/ORANGE THEME) --- */
 .dropdown-section:nth-child(2) .section-title {
-  color: #ff8a1a !important;
-  text-shadow: 0 0 6px rgba(255, 138, 26, 0.35) !important;
-  border-bottom: 1px solid rgba(255, 138, 26, 0.2) !important;
+  color: var(--un-color) !important;
+  text-shadow: 0 0 6px rgba(var(--un-rgb), 0.35) !important;
+  border-bottom: 1px solid rgba(var(--un-rgb), 0.2) !important;
   padding-bottom: 4px;
   margin-bottom: 8px;
 }
 
 .dropdown-section:nth-child(2) .menu-action-btn {
-  background: rgba(255, 138, 26, 0.03) !important;
-  border: 1px solid rgba(255, 138, 26, 0.2) !important;
+  background: rgba(var(--un-rgb), 0.03) !important;
+  border: 1px solid rgba(var(--un-rgb), 0.2) !important;
   color: rgba(255, 255, 255, 0.75) !important;
 }
 .dropdown-section:nth-child(2) .menu-action-btn .btn-icon {
-  color: #ff8a1a !important;
+  color: var(--un-color) !important;
 }
 
 .dropdown-section:nth-child(2) .menu-action-btn:hover {
-  background: rgba(255, 138, 26, 0.08) !important;
-  border-color: rgba(255, 138, 26, 0.55) !important;
+  background: rgba(var(--un-rgb), 0.08) !important;
+  border-color: rgba(var(--un-rgb), 0.55) !important;
   color: #fff !important;
-  box-shadow: 0 0 12px rgba(255, 138, 26, 0.2) !important;
+  box-shadow: 0 0 12px rgba(var(--un-rgb), 0.2) !important;
 }
 
 .dropdown-section:nth-child(2) .menu-action-btn[aria-pressed="true"],
 .dropdown-section:nth-child(2) .menu-action-btn.active {
-  background: rgba(255, 138, 26, 0.16) !important;
-  border-color: #ff8a1a !important;
-  color: #ff8a1a !important;
-  box-shadow: 0 0 15px rgba(255, 138, 26, 0.3) !important;
-  text-shadow: 0 0 8px rgba(255, 138, 26, 0.45) !important;
+  background: rgba(var(--un-rgb), 0.16) !important;
+  border-color: var(--un-color) !important;
+  color: var(--un-color) !important;
+  box-shadow: 0 0 15px rgba(var(--un-rgb), 0.3) !important;
+  text-shadow: 0 0 8px rgba(var(--un-rgb), 0.45) !important;
 }
 
 /* --- SECTION 3 : OUTILS SYSTEME (CYAN/BLUE THEME) --- */

@@ -15,7 +15,10 @@ client = genai.Client(api_key=GEMINI_API_KEY)
 
 # Détermination du dossier racine de JARVIS de manière dynamique (compatible toutes installations)
 _dir_courant = os.path.dirname(os.path.abspath(__file__))
-ROOT_DIR = os.path.dirname(_dir_courant) if os.path.basename(_dir_courant) == "plugins" else _dir_courant
+# backend/plugins/ → racine du projet = 3 niveaux au-dessus. L'ancien calcul
+# s'arrêtait à backend/, si bien que « frontend/ » et « main.py » étaient
+# introuvables : toute tentative d'auto-édition du code échouait à chaque essai.
+ROOT_DIR = os.path.dirname(os.path.dirname(_dir_courant))
 
 def nettoyer_accent(texte):
     """Supprime les accents pour faciliter la comparaison."""
@@ -104,15 +107,48 @@ builtins.resoudre_mon_resolver = resoudre_mon_resolver
 ---------------------------------------------
 """
 
+def _chemin_projet(file_path: str):
+    """Résout file_path sous ROOT_DIR sans permettre d'en sortir.
+
+    Les chemins proviennent d'un plan d'édition généré par le LLM : sans ce
+    contrôle, « ../../AppData/.../Startup/x.bat » ou un chemin absolu
+    permettaient d'écrire n'importe où sur la machine.
+    """
+    if not file_path or not isinstance(file_path, str):
+        return None
+    if os.path.isabs(file_path) or (len(file_path) > 1 and file_path[1] == ":"):
+        return None
+    try:
+        cible = os.path.abspath(os.path.join(ROOT_DIR, file_path))
+        if os.path.commonpath([cible, ROOT_DIR]) != ROOT_DIR:
+            return None
+        return cible
+    except Exception:
+        return None
+
+
+# Dernier lot de fichiers modifiés, pour le rollback demandé à la voix
+_DERNIERS_FICHIERS_MODIFIES = []
+
+
 def appliquer_edits(edits):
-    """Applique les modifications de code de façon sécurisée."""
+    """Applique les modifications de code de façon sécurisée.
+
+    Retourne la liste des chemins relatifs touchés, pour permettre une annulation
+    ciblée en cas d'échec de validation (cf. _annuler_modifications).
+    """
+    global _DERNIERS_FICHIERS_MODIFIES
+    touches = []
     for edit in edits:
         file_path = edit.get("file_path", "")
         target = edit.get("target_code", "")
         replacement = edit.get("replacement_code", "")
-        
-        path = os.path.join(ROOT_DIR, file_path)
-        
+
+        path = _chemin_projet(file_path)
+        if path is None:
+            raise ValueError(f"Chemin refusé (hors projet) : {file_path!r}")
+        touches.append(file_path)
+
         # 1. Création de fichier
         if target == "":
             os.makedirs(os.path.dirname(path), exist_ok=True)
@@ -141,18 +177,50 @@ def appliquer_edits(edits):
             with open(path, "w", encoding="utf-8") as f:
                 f.write(new_content)
             print(f"[MUTATOR] Fichier modifié : {path}")
+    _DERNIERS_FICHIERS_MODIFIES = list(touches)
+    return touches
+
+
+def _annuler_modifications(fichiers):
+    """Annule UNIQUEMENT les fichiers que nous venons de toucher.
+
+    Remplace l'ancien « git reset --hard HEAD » + « git clean -fd », qui
+    détruisait l'intégralité du travail non commité de l'utilisateur (y compris
+    les fichiers non suivis) à chaque échec de validation.
+    """
+    for rel in fichiers or []:
+        chemin = _chemin_projet(rel)
+        if chemin is None:
+            continue
+        suivi = subprocess.run(["git", "ls-files", "--error-unmatch", rel],
+                               cwd=ROOT_DIR, capture_output=True)
+        if suivi.returncode == 0:
+            subprocess.run(["git", "checkout", "--", rel], cwd=ROOT_DIR, capture_output=True)
+            print(f"[MUTATOR] Restauré depuis git : {rel}")
+        else:
+            # Fichier créé par nous et non suivi : on le retire
+            try:
+                if os.path.exists(chemin):
+                    os.remove(chemin)
+                    print(f"[MUTATOR] Fichier créé supprimé : {rel}")
+            except Exception as e:
+                print(f"[MUTATOR] Impossible de supprimer {rel} : {e}")
+
 
 def compiler_et_valider():
     """Valide les modifications par compilation statique TypeScript et vérification Python."""
     # 1. Validation Frontend (TypeScript)
     print("[MUTATOR] Lancement de la validation statique TypeScript...")
-    res_ts = subprocess.run("npx tsc --noEmit", shell=True, cwd=os.path.join(ROOT_DIR, "frontend"), capture_output=True, text=True)
+    _dir_front = os.path.join(ROOT_DIR, "interfaces", "frontend")  # ex-« frontend/ » avant réorg
+    if not os.path.isdir(_dir_front):
+        return False, f"Dossier frontend introuvable : {_dir_front}"
+    res_ts = subprocess.run("npx tsc --noEmit", shell=True, cwd=_dir_front, capture_output=True, text=True)
     if res_ts.returncode != 0:
         return False, f"TypeScript compilation error:\n{res_ts.stderr or res_ts.stdout}"
         
     # 2. Validation Backend (Python)
     print("[MUTATOR] Lancement de la validation des modules Python...")
-    plugins_dir = os.path.join(ROOT_DIR, "plugins")
+    plugins_dir = os.path.join(ROOT_DIR, "backend", "plugins")  # ex-« plugins/ » avant réorg
     for file in os.listdir(plugins_dir):
         if file.endswith(".py"):
             res_py = subprocess.run([sys.executable, "-m", "py_compile", os.path.join(plugins_dir, file)], capture_output=True, text=True)
@@ -164,7 +232,7 @@ def compiler_et_valider():
 def recharger_plugins_python():
     """Recharge dynamiquement à chaud tous les modules du package plugins et charge les nouveaux."""
     # 1. Scanner et importer les nouveaux modules plugins
-    plugins_dir = os.path.join(ROOT_DIR, "plugins")
+    plugins_dir = os.path.join(ROOT_DIR, "backend", "plugins")  # ex-« plugins/ » avant réorg
     if os.path.exists(plugins_dir):
         for file in os.listdir(plugins_dir):
             if file.endswith(".py") and not file.startswith("__"):
@@ -200,9 +268,14 @@ async def resoudre_developpement(cmd):
     ]
     if any(kw in t for kw in mots_cles_rollback):
         print("[MUTATOR] Déclenchement du protocole de rollback Git...")
-        # Lancer le reset Git
-        subprocess.run(["git", "reset", "--hard", "HEAD"], cwd=ROOT_DIR, capture_output=True)
-        subprocess.run(["git", "clean", "-fd"], cwd=ROOT_DIR, capture_output=True)
+        # Annulation CIBLÉE du dernier lot de fichiers modifiés par JARVIS.
+        # (Avant : « git reset --hard » + « git clean -fd » sur tout le dépôt,
+        #  ce qui détruisait aussi le travail non commité de l'utilisateur.)
+        if not _DERNIERS_FICHIERS_MODIFIES:
+            return ("Je n'ai aucune modification récente à annuler, mylane. "
+                    "Je n'effectue plus de restauration globale du dépôt : "
+                    "elle effacerait aussi vos propres changements non enregistrés.")
+        _annuler_modifications(_DERNIERS_FICHIERS_MODIFIES)
         
         # Envoyer une carte visuelle au HUD
         if hasattr(builtins, "envoyer_carte_contextuelle"):
@@ -227,7 +300,22 @@ async def resoudre_developpement(cmd):
         "ajoute un commentaire de test", "modifie l'orbe", "ajoute un effet",
         "ajoute-moi", "cree-moi", "crée-moi", "developpe-moi"
     ]
-    is_mutation_req = any(kw in t for kw in mots_cles_mutation) or t.startswith("modifie ") or t.startswith("ajoute ") or t.startswith("cree ") or t.startswith("developpe ") or t.startswith("ajoute-moi ") or t.startswith("cree-moi ")
+    # Les préfixes nus « ajoute … » / « cree … » ont été retirés : ils faisaient
+    # entrer dans l'auto-modification du code des phrases du quotidien comme
+    # « ajoute du lait a ma liste de courses » ou « cree une alarme a 8h », avec
+    # à la clé un aller-retour LLM, des écritures de fichiers et une annulation
+    # git. On exige maintenant une intention explicite (mots-clés ciblés, ou un
+    # préfixe accompagné d'un terme du domaine technique).
+    _termes_techniques = (
+        "code", "widget", "bouton", "resolver", "plugin", "fonctionnalite",
+        "orbe", "hud", "interface", "module", "script", "commande vocale",
+        "effet", "animation", "style", "css", "page",
+    )
+    _prefixe_dev = (t.startswith("modifie ") or t.startswith("ajoute ")
+                    or t.startswith("cree ") or t.startswith("developpe ")
+                    or t.startswith("ajoute-moi ") or t.startswith("cree-moi "))
+    is_mutation_req = (any(kw in t for kw in mots_cles_mutation)
+                       or (_prefixe_dev and any(x in t for x in _termes_techniques)))
     
     if is_mutation_req:
         description = cmd
@@ -289,7 +377,9 @@ async def resoudre_developpement(cmd):
                     test_instructions = response_data.get("test_instructions", "")
                 
                 print(f"[MUTATOR] Application des modifications (tentative {attempt+1})...")
-                appliquer_edits(edits)
+                # On mémorise les fichiers touchés pour pouvoir les restaurer
+                # individuellement en cas d'échec (annulation ciblée).
+                _fichiers_touches = appliquer_edits(edits)
                 
                 # Validation par compilation
                 valid, msg = compiler_et_valider()
@@ -299,13 +389,15 @@ async def resoudre_developpement(cmd):
                 else:
                     err_prev = msg
                     # Annuler les modifications incorrectes avant la prochaine tentative
-                    subprocess.run(["git", "reset", "--hard", "HEAD"], cwd=ROOT_DIR, capture_output=True)
-                    subprocess.run(["git", "clean", "-fd"], cwd=ROOT_DIR, capture_output=True)
+                    # Annulation CIBLÉE : « git reset --hard » + « git clean -fd »
+                    # effaçaient tout le travail non commité de l'utilisateur.
+                    _annuler_modifications(locals().get("_fichiers_touches"))
                     
             except Exception as ex:
                 err_prev = str(ex)
-                subprocess.run(["git", "reset", "--hard", "HEAD"], cwd=ROOT_DIR, capture_output=True)
-                subprocess.run(["git", "clean", "-fd"], cwd=ROOT_DIR, capture_output=True)
+                # Annulation CIBLÉE : « git reset --hard » + « git clean -fd »
+                # effaçaient tout le travail non commité de l'utilisateur.
+                _annuler_modifications(locals().get("_fichiers_touches"))
                 
         # D. Résultat final
         if success:
@@ -325,9 +417,9 @@ async def resoudre_developpement(cmd):
             test_msg = f" {test_instructions}" if test_instructions else ""
             return f"Les modifications ont été écrites, compilées avec succès, et injectées à chaud dans mes processeurs, mylane. La nouvelle fonctionnalité est active.{test_msg}"
         else:
-            # Restauration finale propre en cas d'échec de toutes les tentatives (remise au dernier commit stable)
-            subprocess.run(["git", "reset", "--hard", "HEAD"], cwd=ROOT_DIR, capture_output=True)
-            subprocess.run(["git", "clean", "-fd"], cwd=ROOT_DIR, capture_output=True)
+            # Restauration finale après échec de toutes les tentatives : on ne
+            # restaure QUE les fichiers que nous avons touchés.
+            _annuler_modifications(_DERNIERS_FICHIERS_MODIFIES)
             
             if hasattr(builtins, "envoyer_carte_contextuelle"):
                 await builtins.envoyer_carte_contextuelle(

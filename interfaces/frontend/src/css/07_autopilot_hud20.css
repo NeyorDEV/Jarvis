@@ -77,7 +77,8 @@
   bottom: 86px; /* Remonté pour loger les indicateurs en-dessous */
   left: 50%;
   transform: translateX(-50%);
-  z-index: 500;
+  z-index: 20000 !important;
+  pointer-events: auto !important;
   display: block !important; /* Permet au viewport de prendre 100% de la largeur */
   touch-action: none;
   padding: 0;
@@ -124,15 +125,13 @@
 }
 
 .carousel-track {
-  display: flex !important;
-  align-items: center !important;
+  display: block !important;
   position: absolute !important;
+  width: 100% !important;
   height: 100% !important;
-  left: 50% !important; /* Calé au centre du viewport horizontalement */
+  left: 0 !important;
   top: 0 !important;
-  transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) !important;
   will-change: transform;
-  gap: 15px !important;
 }
 
 /* Cache le séparateur obsolète */
@@ -142,9 +141,8 @@
 
 /* Base style for ALL buttons inside the bar (Dynamic Island style) */
 .carousel-track > button {
-  position: relative !important;
-  top: auto !important;
-  left: auto !important;
+  position: absolute !important;
+  top: 9px !important;
   z-index: 2 !important;
   pointer-events: auto !important;
   
@@ -200,11 +198,14 @@
   z-index: 10 !important;
 }
 
-/* Pour les boutons à bascule (comme GPU boost ou HUD text), s'ils sont à true mais pas actifs au centre */
-.carousel-track > button[aria-pressed="true"]:not(.active) {
-  border-color: rgba(0, 229, 255, 0.4) !important;
-  background: rgba(0, 229, 255, 0.05) !important;
-  color: rgba(0, 229, 255, 0.8) !important;
+/* Styling for buttons toggled ON (active panels / features) */
+.carousel-track > button[aria-pressed="true"],
+.carousel-track > button.is-toggled-on {
+  border-color: #00e5ff !important;
+  background: rgba(0, 229, 255, 0.28) !important;
+  color: #00e5ff !important;
+  box-shadow: 0 0 18px rgba(0, 229, 255, 0.45), inset 0 0 8px rgba(0, 229, 255, 0.15) !important;
+  text-shadow: 0 0 6px rgba(0, 229, 255, 0.6) !important;
 }
 
 /* Indicators (pagination dots) */

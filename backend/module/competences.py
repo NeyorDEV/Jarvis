@@ -8,6 +8,7 @@ send_web_broadcast_sync est un hook injecté par main2.py après import
 (évite l'import circulaire).
 """
 
+import ast
 import os
 
 _BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -15,6 +16,103 @@ _BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # Hook remplacé par main2.py après import (envoi d'un payload au HUD web)
 def send_web_broadcast_sync(payload):
     pass
+
+
+# ── CONTRÔLE DE SÛRETÉ DU CODE GÉNÉRÉ ─────────────────────────────────────────
+# Une compétence est du code Python écrit par un LLM, puis importé dans le
+# processus JARVIS avec tous les droits de l'utilisateur. Sans filtrage, un code
+# malformé ou détourné (injection de prompt) s'exécutait DÈS L'IMPORT — donc
+# avant même l'appel à executer() — et pouvait par exemple effacer le disque.
+# On analyse donc l'AST avant d'écrire le fichier ET avant de l'exécuter.
+
+_MODULES_INTERDITS = {
+    "subprocess", "ctypes", "shutil", "winreg", "_winreg",
+    "multiprocessing", "pty", "pickle", "marshal",
+}
+
+_APPELS_INTERDITS = {
+    "eval", "exec", "compile", "__import__", "breakpoint",
+    "system", "popen", "spawn", "spawnl", "spawnv", "execv", "execve",
+    "rmtree", "remove", "unlink", "rmdir", "removedirs", "chmod", "chown",
+    "kill", "killpg", "startfile",
+}
+
+
+def scanner_appels_dangereux(code: str):
+    """Scan générique : imports et appels destructeurs. (True, "") si propre.
+
+    Réutilisable pour tout code Python généré par un LLM (compétences, plugins).
+    """
+    try:
+        arbre = ast.parse(code)
+    except SyntaxError as e:
+        return False, f"code Python invalide (ligne {e.lineno} : {e.msg})"
+
+    for noeud in ast.walk(arbre):
+        if isinstance(noeud, ast.Import):
+            for alias in noeud.names:
+                if alias.name.split(".")[0] in _MODULES_INTERDITS:
+                    return False, f"import interdit : {alias.name}"
+        elif isinstance(noeud, ast.ImportFrom):
+            if (noeud.module or "").split(".")[0] in _MODULES_INTERDITS:
+                return False, f"import interdit : {noeud.module}"
+        elif isinstance(noeud, ast.Call):
+            f = noeud.func
+            nom = f.id if isinstance(f, ast.Name) else (f.attr if isinstance(f, ast.Attribute) else None)
+            if nom in _APPELS_INTERDITS:
+                return False, f"appel interdit : {nom}() (ligne {getattr(noeud, 'lineno', '?')})"
+    return True, ""
+
+
+def valider_code_competence(code: str):
+    """Retourne (True, "") si le code est acceptable, sinon (False, raison)."""
+    try:
+        arbre = ast.parse(code)
+    except SyntaxError as e:
+        return False, f"code Python invalide (ligne {e.lineno} : {e.msg})"
+
+    # 1. Aucun effet de bord au niveau module : seuls imports, définitions et
+    #    constantes sont tolérés. C'est ce qui neutralise le code « qui s'exécute
+    #    à l'import », et le contrat impose de toute façon une fonction executer().
+    autorises_au_module = (
+        ast.Import, ast.ImportFrom, ast.FunctionDef, ast.AsyncFunctionDef,
+        ast.ClassDef, ast.Assign, ast.AnnAssign, ast.Pass,
+    )
+    for noeud in arbre.body:
+        if isinstance(noeud, ast.Expr) and isinstance(noeud.value, ast.Constant):
+            continue  # docstring
+        if isinstance(noeud, ast.If):
+            # Tolère uniquement le garde if __name__ == "__main__":
+            test = ast.dump(noeud.test)
+            if "__name__" in test:
+                continue
+            return False, "instruction conditionnelle exécutée à l'import"
+        if not isinstance(noeud, autorises_au_module):
+            return False, (f"instruction exécutée à l'import "
+                           f"({type(noeud).__name__}, ligne {getattr(noeud, 'lineno', '?')})")
+
+    # 2. Interdictions globales (y compris à l'intérieur des fonctions)
+    for noeud in ast.walk(arbre):
+        if isinstance(noeud, ast.Import):
+            for alias in noeud.names:
+                racine = alias.name.split(".")[0]
+                if racine in _MODULES_INTERDITS:
+                    return False, f"import interdit : {alias.name}"
+        elif isinstance(noeud, ast.ImportFrom):
+            racine = (noeud.module or "").split(".")[0]
+            if racine in _MODULES_INTERDITS:
+                return False, f"import interdit : {noeud.module}"
+        elif isinstance(noeud, ast.Call):
+            f = noeud.func
+            nom = f.id if isinstance(f, ast.Name) else (f.attr if isinstance(f, ast.Attribute) else None)
+            if nom in _APPELS_INTERDITS:
+                return False, f"appel interdit : {nom}() (ligne {getattr(noeud, 'lineno', '?')})"
+
+    if not any(isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef)) and n.name == "executer"
+               for n in arbre.body):
+        return False, "la fonction obligatoire executer() est absente"
+
+    return True, ""
 
 # ── ANIMATION VISUELLE & SYSTEME DE COMPETENCES AUTONOMES ─────────────────────
 
@@ -151,13 +249,23 @@ def jarvis_creer_competence(nom_competence: str, description_demande: str) -> st
                 lines = lines[:-1]
             code_genere = "\n".join(lines).strip()
 
+        # Contrôle de sûreté AVANT écriture : on refuse d'installer du code
+        # comportant des effets de bord à l'import ou des appels destructeurs.
+        ok, raison = valider_code_competence(code_genere)
+        if not ok:
+            stop_event.set()
+            thread_anim.join()
+            print(f"[JARVIS PLUGINS] ⛔ Compétence refusée par le contrôle de sûreté : {raison}")
+            return (f"J'ai refusé d'installer cette compétence, Mylane : le code généré "
+                    f"n'a pas passé le contrôle de sûreté ({raison}).")
+
         # Écriture du fichier compétence
         with open(filename, "w", encoding="utf-8") as f:
             f.write(code_genere)
 
         stop_event.set()
         thread_anim.join()
-        
+
         print(f"[JARVIS PLUGINS] Nouvelle compétence écrite dans {filename}")
         return f"La compétence '{nom_competence}' a été générée et installée avec succès. Elle est prête à être exécutée."
 
@@ -198,6 +306,19 @@ def executer_competence_vocale(nom_competence: str, texte_recu: str = None) -> s
 
     if not os.path.exists(filename):
         return f"Désolé Mylane, la compétence '{nom_competence}' n'est pas disponible."
+
+    # Second contrôle, juste avant exécution : couvre les fichiers déjà présents
+    # sur le disque (générés avant l'ajout du filtre, ou modifiés à la main).
+    try:
+        with open(filename, "r", encoding="utf-8") as _fc:
+            _code_disque = _fc.read()
+        ok, raison = valider_code_competence(_code_disque)
+        if not ok:
+            print(f"[JARVIS PLUGINS] ⛔ Exécution refusée ({nom_formate}) : {raison}")
+            return (f"J'ai refusé d'exécuter la compétence '{nom_competence}' : "
+                    f"son code ne passe pas le contrôle de sûreté ({raison}).")
+    except Exception as e_val:
+        return f"Impossible de vérifier la compétence '{nom_competence}' : {e_val}"
 
     try:
         # Importation à chaud

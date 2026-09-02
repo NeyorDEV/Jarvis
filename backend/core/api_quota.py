@@ -61,13 +61,16 @@ class APIQuotaManager:
         "ollama"  : 10,
     }
 
-    # Mots-clés indiquant un quota épuisé (insensible à la casse)
+    # Mots-clés indiquant un quota épuisé (insensible à la casse).
+    # Volontairement précis : « exceeded » et « context_length_exceeded » ont été
+    # retirés car un simple prompt trop long était classé comme dépassement de
+    # quota et mettait le fournisseur en pause 60 s, masquant le vrai problème.
     QUOTA_KEYWORDS = [
         "429", "503", "quota", "rate limit", "rate_limit", "ratelimit",
         "too many requests", "resource_exhausted", "resource exhausted",
-        "exceeded", "tokens per", "requests per", "rateLimitExceeded",
-        "quota_exceeded", "RATE_LIMIT_EXCEEDED", "insufficient_quota",
-        "context_length_exceeded", "unavailable", "overloaded",
+        "quota exceeded", "quota_exceeded", "tokens per", "requests per",
+        "rateLimitExceeded", "RATE_LIMIT_EXCEEDED", "insufficient_quota",
+        "overloaded",
     ]
 
     def __init__(self):

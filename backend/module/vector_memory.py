@@ -93,8 +93,11 @@ def ajouter_souvenir(user_text, model_text):
     timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
     full_content = f"Date: {timestamp}\nUser: {user_text}\nAssistant: {model_text}"
     
-    # ID unique basé sur l'heure actuelle
-    entry_id = f"msg_{int(time.time())}"
+    # ID réellement unique. Avant, la résolution était à la seconde : deux
+    # échanges dans la même seconde produisaient le même identifiant, ChromaDB
+    # rejetait le doublon et le second souvenir était perdu (exception avalée).
+    import uuid as _uuid
+    entry_id = f"msg_{int(time.time())}_{_uuid.uuid4().hex[:8]}"
     
     try:
         coll.add(

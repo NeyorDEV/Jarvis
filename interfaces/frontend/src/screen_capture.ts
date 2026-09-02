@@ -10,6 +10,15 @@ export async function enableScreenCapture(): Promise<boolean> {
     stream.getVideoTracks()[0].addEventListener("ended", () => {
       stream = null;
       console.warn("[VISION] Partage d'écran arrêté par l'utilisateur");
+      // Remettre le bouton dans l'état réel : sans cela, arrêter le partage via
+      // la barre du navigateur laissait « VISION » affiché comme actif alors que
+      // chaque capture renvoyait null, sans aucun signe visible pour l'utilisateur.
+      const btn = document.getElementById("vision-button");
+      if (btn) {
+        btn.setAttribute("aria-pressed", "false");
+        btn.classList.remove("is-toggled-on", "active");
+        btn.innerHTML = '<span class="btn-icon">👁️</span> VISION';
+      }
     });
     console.log("[VISION] Capture d'écran activée");
     return true;
@@ -66,19 +75,61 @@ export async function captureFrame(): Promise<string | null> {
   });
 }
 
-export function injectVisionButton() {
-  const track = document.getElementById('carousel-track');
-  const target = track || document.body;
+export function stopScreenCapture() {
+  if (stream) {
+    try {
+      stream.getTracks().forEach(track => track.stop());
+    } catch (e) {
+      console.error("[VISION] Erreur lors de l'arrêt du stream:", e);
+    }
+    stream = null;
+    console.log("[VISION] Capture d'écran arrêtée");
+  }
+}
 
-  const btn = document.createElement('button');
-  btn.id = 'vision-button';
-  btn.textContent = 'VISION';
+let isEnablingVision = false;
 
-  btn.onclick = async () => {
+export async function toggleVision(btn?: HTMLElement) {
+  if (isEnablingVision) {
+    console.warn("[VISION] Activation déjà en cours, appel ignoré");
+    return;
+  }
+  isEnablingVision = true;
+
+  try {
+    const targetBtn = btn || document.getElementById('vision-button');
+    
+    // 1. Si le stream est actif -> ÉTEINDRE LA VISION
+    if (stream) {
+      console.log("[VISION] Demande d'arrêt de la vision...");
+      stopScreenCapture();
+      if (targetBtn) {
+        targetBtn.innerHTML = '<span class="btn-icon">👁️</span> VISION';
+        targetBtn.classList.remove('is-toggled-on', 'vision-active', 'vision-error');
+        targetBtn.setAttribute('aria-pressed', 'false');
+      }
+      return;
+    }
+
+    // 2. Si le stream est inactif -> DÉMARRAGE DE LA VISION
+    console.log("[VISION] Demande d'activation de la vision...");
     const ok = await enableScreenCapture();
-    btn.textContent = ok ? 'VISION • ON' : 'VISION KO';
-    btn.classList.toggle('vision-active', ok);
-    btn.classList.toggle('vision-error', !ok);
-  };
-  target.appendChild(btn);
+    if (targetBtn) {
+      targetBtn.innerHTML = ok ? '<span class="btn-icon">👁️</span> VISION • ON' : '<span class="btn-icon">👁️</span> VISION KO';
+      targetBtn.classList.toggle('is-toggled-on', ok);
+      targetBtn.classList.toggle('vision-active', ok);
+      targetBtn.classList.toggle('vision-error', !ok);
+      targetBtn.setAttribute('aria-pressed', ok ? 'true' : 'false');
+    }
+  } finally {
+    isEnablingVision = false;
+  }
+}
+
+export function injectVisionButton() {
+  // L'action est gérée de façon centralisée par main.ts (bindCarouselAction)
+  const btn = document.getElementById('vision-button');
+  if (btn) {
+    btn.setAttribute('title', 'Activer/Désactiver la vision par capture d\'écran');
+  }
 }

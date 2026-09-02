@@ -48,11 +48,23 @@ async def resoudre_recipe(cmd):
         if ctx.get("awaiting_people_count"):
             recipe_name = ctx.get("recipe_name")
             nb_personnes = extraire_nombre(t)
-            
-            # Si aucun nombre n'est détecté, on utilise 4 personnes par défaut
+
+            # Le contexte expire au bout de 2 minutes : sans cela il restait actif
+            # indéfiniment et détournait la commande suivante, quelle qu'elle soit.
+            import time as _t_rec
+            _pose_a = ctx.get("_pose_a", 0)
+            if _pose_a and (_t_rec.time() - _pose_a) > 120:
+                builtins.recipe_context = None
+                return None
+
+            # Si la phrase ne contient AUCUN nombre, c'est que l'utilisateur est
+            # passé à autre chose (« allume la télé ») : on abandonne le contexte
+            # et on rend la main, au lieu de servir une recette pour 4 personnes.
             if not nb_personnes:
-                nb_personnes = 4
-                
+                builtins.recipe_context = None
+                print("[Recipe Resolver] Pas de nombre détecté : contexte recette abandonné.")
+                return None
+
             print(f"[Recipe Resolver] Contexte actif pour {recipe_name}. Nombre de personnes choisi : {nb_personnes}")
             
             # Réinitialiser le contexte immédiatement
@@ -207,9 +219,11 @@ async def resoudre_recipe(cmd):
                 return "Désolé, une erreur est survenue lors de la recherche de la recette."
 
         # SINON : Enregistrer le contexte et poser la question du nombre de personnes
+        import time as _t_ctx
         builtins.recipe_context = {
             "recipe_name": recipe_name,
-            "awaiting_people_count": True
+            "awaiting_people_count": True,
+            "_pose_a": _t_ctx.time(),   # horodatage : le contexte expire après 2 min
         }
         
         # Formatage grammatical naturel en français

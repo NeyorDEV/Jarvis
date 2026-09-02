@@ -30,21 +30,39 @@ def set_sonner_callback(fn):
 
 # ── Persistance ──────────────────────────────────────────────────────────────
 
+# Verrou partagé : le démon relit/réécrit le fichier toutes les secondes tandis
+# que le thread de commande y ajoute ou en retire. Sans lui, poser une alarme au
+# moment exact où une autre sonne faisait disparaître silencieusement la nouvelle
+# (le démon réécrivait sa liste périmée par-dessus).
+_VERROU_ALARMES = threading.RLock()
+
+
 def _charger_alarmes() -> list:
-    if not os.path.exists(ALARM_FILE):
-        return []
-    try:
-        with open(ALARM_FILE, "r", encoding="utf-8") as f:
-            return json.load(f)
-    except Exception:
-        return []
+    with _VERROU_ALARMES:
+        if not os.path.exists(ALARM_FILE):
+            return []
+        try:
+            with open(ALARM_FILE, "r", encoding="utf-8") as f:
+                donnees = json.load(f)
+                return donnees if isinstance(donnees, list) else []
+        except Exception as e:
+            print(f"[ALARME] Fichier illisible ({e}) — liste vide utilisée.")
+            return []
 
 def _sauvegarder_alarmes(alarmes: list):
-    try:
-        with open(ALARM_FILE, "w", encoding="utf-8") as f:
-            json.dump(alarmes, f, ensure_ascii=False, indent=2)
-    except Exception as e:
-        print(f"[ALARME] Erreur sauvegarde : {e}")
+    # Écriture atomique : une coupure en plein open("w") laissait un JSON
+    # tronqué, donc toutes les alarmes perdues au redémarrage.
+    with _VERROU_ALARMES:
+        try:
+            os.makedirs(os.path.dirname(ALARM_FILE), exist_ok=True)
+            temporaire = ALARM_FILE + ".tmp"
+            with open(temporaire, "w", encoding="utf-8") as f:
+                json.dump(alarmes, f, ensure_ascii=False, indent=2)
+                f.flush()
+                os.fsync(f.fileno())
+            os.replace(temporaire, ALARM_FILE)
+        except Exception as e:
+            print(f"[ALARME] Erreur sauvegarde : {e}")
 
 
 # ── Parsing de l'heure ───────────────────────────────────────────────────────
@@ -95,20 +113,23 @@ def ajouter_alarme(heure_texte: str, label: str = "Alarme") -> tuple[bool, str]:
     if cible is None:
         return False, f"Je n'ai pas compris l'heure '{heure_texte}'. Essayez '14h30' ou 'dans 2 heures'."
 
-    alarmes = _charger_alarmes()
+    # Le verrou couvre lecture + écriture d'un seul tenant, sinon le démon
+    # (qui recharge/réécrit chaque seconde) pouvait écraser l'ajout.
+    with _VERROU_ALARMES:
+        alarmes = _charger_alarmes()
 
-    # Vérification doublon
-    ts = cible.isoformat()
-    for a in alarmes:
-        if a["heure"] == ts and a["label"] == label:
-            return False, f"Vous avez déjà une alarme '{label}' à {cible.strftime('%H:%M')}."
+        # Vérification doublon
+        ts = cible.isoformat()
+        for a in alarmes:
+            if a["heure"] == ts and a["label"] == label:
+                return False, f"Vous avez déjà une alarme '{label}' à {cible.strftime('%H:%M')}."
 
-    alarmes.append({
-        "heure": ts,
-        "label": label,
-        "sonne": False
-    })
-    _sauvegarder_alarmes(alarmes)
+        alarmes.append({
+            "heure": ts,
+            "label": label,
+            "sonne": False
+        })
+        _sauvegarder_alarmes(alarmes)
 
     # Formatage du message
     maintenant = datetime.now()
@@ -127,20 +148,22 @@ def annuler_alarme(heure_texte: str = "", label: str = "") -> tuple[bool, str]:
     """
     Annule une alarme par heure ou par label.
     """
-    alarmes = _charger_alarmes()
-    if not alarmes:
+    # Verrou tenu sur toute la séquence lecture → filtrage → écriture
+    with _VERROU_ALARMES:
+      alarmes = _charger_alarmes()
+      if not alarmes:
         return False, "Vous n'avez aucune alarme active, mylane."
 
-    # Gestion de l'annulation globale
-    mots_globaux = {"toutes", "tout", "tous", "all", "clear"}
-    if (heure_texte and heure_texte.lower().strip() in mots_globaux) or (label and label.lower().strip() in mots_globaux):
+      # Gestion de l'annulation globale
+      mots_globaux = {"toutes", "tout", "tous", "all", "clear"}
+      if (heure_texte and heure_texte.lower().strip() in mots_globaux) or (label and label.lower().strip() in mots_globaux):
         _sauvegarder_alarmes([])
         return True, f"Toutes vos alarmes ont été annulées ({len(alarmes)} alarmes supprimées), mylane."
 
-    nouvelles = []
-    supprimees = []
+      nouvelles = []
+      supprimees = []
 
-    for a in alarmes:
+      for a in alarmes:
         heure_dt = datetime.fromisoformat(a["heure"])
         match = False
         if label and label.lower() in a["label"].lower():
@@ -154,11 +177,11 @@ def annuler_alarme(heure_texte: str = "", label: str = "") -> tuple[bool, str]:
         else:
             nouvelles.append(a)
 
-    if not supprimees:
+      if not supprimees:
         desc = label or heure_texte or "cette alarme"
         return False, f"Je n'ai pas trouvé d'alarme correspondant à '{desc}'."
 
-    _sauvegarder_alarmes(nouvelles)
+      _sauvegarder_alarmes(nouvelles)
     noms = ", ".join(f"'{a['label']}' à {datetime.fromisoformat(a['heure']).strftime('%H:%M')}" for a in supprimees)
     return True, f"Alarme(s) annulée(s) : {noms}."
 
@@ -188,37 +211,47 @@ def _surveiller_alarmes():
         time.sleep(1)
         try:
             maintenant = datetime.now()
-            alarmes = _charger_alarmes()
-            modifie = False
+            a_sonner = []
 
-            for a in alarmes:
-                if a.get("sonne"):
-                    continue
-                heure_dt = datetime.fromisoformat(a["heure"])
-                
-                # Déclenche dès qu'on dépasse l'heure (précision à 1s)
-                if maintenant >= heure_dt:
-                    print(f"[ALARME] 🔔 Alarme déclenchée : {a['label']} à {heure_dt.strftime('%H:%M:%S')}")
-                    a["sonne"] = True
-                    modifie = True
+            # Section critique la plus courte possible : on relit, on marque les
+            # alarmes échues et on réécrit d'un seul tenant. Les callbacks (son,
+            # parole) sont exécutés APRÈS la libération du verrou pour ne pas
+            # bloquer une commande utilisateur pendant l'énoncé.
+            with _VERROU_ALARMES:
+                alarmes = _charger_alarmes()
+                modifie = False
 
-                    # Jouer le son et parler
-                    if _alarme_sonner_callback:
-                        _alarme_sonner_callback(a["label"])
-                    elif _parler_callback:
-                        import asyncio
-                        loop = asyncio.new_event_loop()
-                        loop.run_until_complete(_parler_callback(f"🔔 Alarme ! {a['label']}, mylane."))
+                for a in alarmes:
+                    if a.get("sonne"):
+                        continue
+                    heure_dt = datetime.fromisoformat(a["heure"])
+
+                    # Déclenche dès qu'on dépasse l'heure (précision à 1s)
+                    if maintenant >= heure_dt:
+                        print(f"[ALARME] 🔔 Alarme déclenchée : {a['label']} à {heure_dt.strftime('%H:%M:%S')}")
+                        a["sonne"] = True
+                        modifie = True
+                        a_sonner.append(a["label"])
+
+                if modifie:
+                    # Nettoyer les alarmes déjà sonnées depuis plus de 5 minutes
+                    seuil = maintenant - timedelta(minutes=5)
+                    alarmes = [
+                        a for a in alarmes
+                        if not a.get("sonne") or datetime.fromisoformat(a["heure"]) > seuil
+                    ]
+                    _sauvegarder_alarmes(alarmes)
+
+            for label_alarme in a_sonner:
+                if _alarme_sonner_callback:
+                    _alarme_sonner_callback(label_alarme)
+                elif _parler_callback:
+                    import asyncio
+                    loop = asyncio.new_event_loop()
+                    try:
+                        loop.run_until_complete(_parler_callback(f"🔔 Alarme ! {label_alarme}, mylane."))
+                    finally:
                         loop.close()
-
-            if modifie:
-                # Nettoyer les alarmes déjà sonnées depuis plus de 5 minutes
-                seuil = maintenant - timedelta(minutes=5)
-                alarmes = [
-                    a for a in alarmes
-                    if not a.get("sonne") or datetime.fromisoformat(a["heure"]) > seuil
-                ]
-                _sauvegarder_alarmes(alarmes)
 
         except Exception as e:
             print(f"[ALARME] Erreur surveillance : {e}")

@@ -56,7 +56,7 @@ export function makeDraggable(el: HTMLElement): void {
     dragging = false;
     document.body.style.userSelect = "";
     el.style.cursor = "grab";
-    el.style.zIndex = "70";
+    el.style.zIndex = "1100";
   });
 }
 

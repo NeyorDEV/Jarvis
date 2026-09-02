@@ -41,7 +41,9 @@ async def resoudre_listes_locales(texte):
         cible = None
         if "course" in t: cible = "courses"
         elif "note" in t: cible = "notes"
-        elif "tâche" in t or "todo" in t: cible = "todo"
+        # On accepte les deux orthographes : selon le chemin d'entrée, le texte
+        # peut arriver dé-accentué (« tache ») et ne matchait alors jamais.
+        elif "tâche" in t or "tache" in t or "todo" in t: cible = "todo"
         
         if cible:
             # Nettoyage et extraction de l'article de façon robuste
@@ -52,9 +54,10 @@ async def resoudre_listes_locales(texte):
             
             # Nettoyage des suffixes de listes
             for pattern in [
-                "sur ma liste de courses", "à ma liste de courses", "dans ma liste de courses", "ma liste de courses", "la liste de courses",
-                "sur ma liste de notes", "à ma liste de notes", "dans ma liste de notes", "ma liste de notes", "la liste de notes",
-                "sur ma liste de tâches", "à ma liste de tâches", "dans ma liste de tâches", "ma liste de tâches", "la liste de tâches", "todo", "ma to-do", "tâches", "tâche"
+                "sur ma liste de courses", "à ma liste de courses", "a ma liste de courses", "dans ma liste de courses", "ma liste de courses", "la liste de courses",
+                "sur ma liste de notes", "à ma liste de notes", "a ma liste de notes", "dans ma liste de notes", "ma liste de notes", "la liste de notes",
+                "sur ma liste de tâches", "à ma liste de tâches", "a ma liste de taches", "sur ma liste de taches", "dans ma liste de tâches", "dans ma liste de taches",
+                "ma liste de tâches", "ma liste de taches", "la liste de tâches", "la liste de taches", "todo", "ma to-do", "tâches", "tâche", "taches", "tache"
             ]:
                 item = item.replace(pattern, "")
             

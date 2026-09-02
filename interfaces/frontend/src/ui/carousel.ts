@@ -13,6 +13,14 @@ export function showCarouselArrow(): void {
   _arrowControls?.show();
 }
 
+// Redessine le dock (opacités/échelles) — utile quand l'état « allumé » d'un
+// bouton change depuis l'extérieur (commande vocale, menu, WebSocket).
+let _refresh: (() => void) | null = null;
+
+export function refreshCarousel(): void {
+  _refresh?.();
+}
+
 export function initCarouselDock(): void {
 // ── Carousel toggle arrow ─────────────────────────────────────────────────────
 const _carouselBar   = document.getElementById("hud-control-bar");
@@ -22,6 +30,10 @@ const _carouselArrow = document.getElementById("carousel-toggle-arrow") as HTMLB
 // La flèche reste TOUJOURS à bottom:8px, seule son apparence change
 function _positionArrow(open: boolean) {
   if (!_carouselArrow) return;
+  // Si la flèche a été masquée (mode hologramme), on ne la ré-affiche pas :
+  // Object.assign forçait display:'flex' à chaque redimensionnement de fenêtre
+  // et la faisait réapparaître par-dessus l'hologramme.
+  if (_carouselArrow.style.display === "none") return;
   const w = 36, h = 22;
   Object.assign(_carouselArrow.style, {
     position:   'fixed',
@@ -46,7 +58,7 @@ function _positionArrow(open: boolean) {
   });
 }
 
-let _carouselOpen = false;
+let _carouselOpen = false;   // replié au démarrage
 
 function _toggleCarousel(force?: boolean) {
   if (!_carouselBar) return;
@@ -55,16 +67,24 @@ function _toggleCarousel(force?: boolean) {
   _positionArrow(_carouselOpen);
 }
 
-// Hover sur la flèche = toggle, debounce 300ms pour éviter le flash sur les bords
+// Clic ou survol de la flèche = bascule l'affichage du carrousel.
+// Le verrou temporel est partagé par les deux gestes : sans lui, un clic (qui est
+// toujours précédé d'un mouseenter) basculerait deux fois et rien ne changerait.
 let _carouselLastToggle = 0;
-_carouselArrow?.addEventListener("mouseenter", () => {
+
+function _basculerDepuisFleche() {
   const now = Date.now();
   if (now - _carouselLastToggle < 300) return;
   _carouselLastToggle = now;
-  _toggleCarousel();
-});
+  _toggleCarousel();   // vraie bascule : ouvre ET ferme (avant : forcé ouvert au survol)
+}
 
-// Init — visible dès le départ (couvert par le boot overlay comme tous les autres éléments)
+_carouselArrow?.addEventListener("click", _basculerDepuisFleche);
+_carouselArrow?.addEventListener("mouseenter", _basculerDepuisFleche);
+
+// Init — carrousel replié au démarrage (le HTML porte déjà .carousel-hidden) :
+// on le déploie au survol ou au clic sur la flèche.
+_toggleCarousel(false);
 _positionArrow(false);
 window.addEventListener("resize", () => _positionArrow(_carouselOpen));
 
@@ -76,41 +96,57 @@ let activeIndex = 0;
 
 function renderCarousel(progress = 0) {
   const buttons = getCarouselButtons();
-  if (buttons.length === 0) return;
+  const N = buttons.length;
+  if (N === 0) return;
 
-  // Index virtuel basé sur le drag ou scroll
-  let virtualIndex = activeIndex - progress;
-  
-  // Limiter l'index pour ne pas défiler dans le vide
-  virtualIndex = Math.max(0, Math.min(virtualIndex, buttons.length - 1));
+  // Modulo index pour défilement infini sans aucun trou
+  let virtualIndex = (activeIndex - progress) % N;
+  if (virtualIndex < 0) virtualIndex += N;
 
-  // Chaque bouton fait 120px de large + 15px de gap = 135px de décalage
-  const buttonOffset = 135;
+  const buttonOffset = 135; // 120px + 15px gap
+  const halfBarWidth = 340; // 680px bar width / 2
   const halfButtonWidth = 60; // 120px / 2
 
-  if (track) {
-    // Calcule la translation négative par rapport au left: 50% de la track
-    track.style.transform = `translateX(-${(virtualIndex * buttonOffset) + halfButtonWidth}px)`;
-  }
-
-  // Arrondir l'index pour savoir quel bouton est actif visuellement
-  const roundedActive = Math.round(virtualIndex);
-
   buttons.forEach((btn, idx) => {
-    if (idx === roundedActive) {
+    let diff = idx - virtualIndex;
+
+    // Englober la distance dans [-N/2, N/2] pour un anneau infini continu
+    if (diff > N / 2) diff -= N;
+    if (diff < -N / 2) diff += N;
+
+    const xPos = Math.round(halfBarWidth + (diff * buttonOffset) - halfButtonWidth);
+
+    btn.style.position = "absolute";
+    btn.style.left = `${xPos}px`;
+    btn.style.top = "9px";
+    btn.style.transition = isPointerDown ? "none" : "left 0.35s cubic-bezier(0.16, 1, 0.3, 1), transform 0.35s ease, opacity 0.35s ease";
+
+    const isCenter = Math.abs(diff) < 0.5;
+    const isToggledOn = btn.getAttribute("aria-pressed") === "true" || btn.classList.contains("is-toggled-on");
+
+    if (isCenter) {
       btn.classList.add("active");
       btn.style.opacity = "1";
+      btn.style.transform = "scale(1.08)";
+      btn.style.zIndex = "10";
     } else {
       btn.classList.remove("active");
-      btn.style.opacity = "0.5";
+      btn.style.opacity = isToggledOn ? "0.9" : (Math.abs(diff) > 2.5 ? "0" : Math.max(0.35, 1 - Math.abs(diff) * 0.35).toString());
+      btn.style.transform = "scale(0.92)";
+      btn.style.zIndex = "2";
     }
+
+    // Un bouton totalement transparent doit être « traversable » : sinon il
+    // reste posé (position absolue) au bord du viewport et intercepte les clics
+    // destinés aux boutons visibles voisins.
+    btn.style.pointerEvents = parseFloat(btn.style.opacity || "1") < 0.05 ? "none" : "auto";
   });
 
-  // Mettre à jour les points indicateurs
+  // Mettre à jour les points indicateurs (modulo N : Math.round peut donner N)
   const dots = document.querySelectorAll(".carousel-dot");
-  const N = buttons.length / 3;
+  const roundedActive = Math.round(virtualIndex) % N;
   dots.forEach((dot, idx) => {
-    if (N > 0 && idx === (roundedActive % N)) {
+    if (idx === roundedActive) {
       dot.classList.add("active");
     } else {
       dot.classList.remove("active");
@@ -128,15 +164,19 @@ function createIndicators() {
   if (!indicatorsContainer) return;
   indicatorsContainer.innerHTML = "";
   const buttons = getCarouselButtons();
-  const N = buttons.length / 3;
+  // Un point par bouton. (L'ancien "/ 3" était un reste de l'époque où la piste
+  // était triplée pour simuler la boucle infinie : il ne créait plus qu'un tiers
+  // des points.)
+  const N = buttons.length;
   if (N === 0) return;
 
   for (let idx = 0; idx < N; idx++) {
     const dot = document.createElement("span");
-    dot.className = `carousel-dot${(activeIndex % N) === idx ? " active" : ""}`;
+    dot.className = `carousel-dot${activeIndex === idx ? " active" : ""}`;
     dot.setAttribute("data-page", idx.toString());
+    dot.title = buttons[idx].textContent?.trim() || `Bouton ${idx + 1}`;
     dot.addEventListener("click", () => {
-      activeIndex = N + idx; // Aligner sur la 2ème copie
+      activeIndex = idx;
       updateCarousel();
     });
     indicatorsContainer.appendChild(dot);
@@ -153,24 +193,36 @@ if (controlBar && track) {
   controlBar.addEventListener("dragstart", (e) => e.preventDefault());
   controlBar.addEventListener("selectstart", (e) => e.preventDefault());
 
-  // 1. Capture click events in capture phase to prevent click action when dragging
+  // 1. Click listener: Center carousel AND trigger registered action via global dispatcher
   controlBar.addEventListener("click", (e) => {
-    if (wasDragging) {
-      e.preventDefault();
-      e.stopPropagation();
-      return;
-    }
+    e.stopPropagation();
 
     const btn = (e.target as HTMLElement).closest("button");
     if (!btn) return;
 
+    const targetId = btn.id || btn.getAttribute("data-original-id");
+
+    if (wasDragging) {
+      e.preventDefault();
+      return;
+    }
+
     const buttons = getCarouselButtons();
     const idx = buttons.indexOf(btn);
-    if (idx !== -1 && idx !== activeIndex) {
+    if (idx !== -1) {
       activeIndex = idx;
       updateCarousel();
     }
-  }, true); // Use capture phase!
+
+    // Déclencher l'action métier enregistrée pour ce bouton
+    if (targetId && (window as any)._carouselActions && typeof (window as any)._carouselActions[targetId] === "function") {
+      try {
+        (window as any)._carouselActions[targetId](btn);
+      } catch (errAction) {
+        console.error(`[CAROUSEL] Erreur action "${targetId}":`, errAction);
+      }
+    }
+  });
 
   // 2. Pointer down listener (on controlBar)
   controlBar.addEventListener("pointerdown", (e) => {
@@ -180,20 +232,19 @@ if (controlBar && track) {
     wasDragging = false;
   });
 
-  // 3. Pointer move listener (on document to avoid setPointerCapture issues blocking clicks)
+  // 3. Pointer move listener (on document) — Seul un glissement supérieur à 25px annule le clic
   document.addEventListener("pointermove", (e) => {
     if (!isPointerDown) return;
     const dx = e.clientX - startX;
-    if (Math.abs(dx) > 8) {
+    if (Math.abs(dx) > 25) {
       if (!wasDragging) {
         wasDragging = true;
-        // Disable transitions on buttons during drag for instant responsiveness
         const buttons = getCarouselButtons();
         buttons.forEach(btn => btn.style.transition = "none");
       }
     }
     if (wasDragging) {
-      const progress = dx / 150; // swipe factor based on 150px spacing
+      const progress = dx / 135;
       renderCarousel(progress);
     }
   });
@@ -203,7 +254,6 @@ if (controlBar && track) {
     if (!isPointerDown) return;
     isPointerDown = false;
 
-    // Re-enable CSS transitions on buttons for smooth snapback
     const buttons = getCarouselButtons();
     buttons.forEach(btn => btn.style.transition = "");
 
@@ -211,7 +261,7 @@ if (controlBar && track) {
     const len = buttons.length;
 
     if (len > 0 && wasDragging) {
-      const progress = dx / 150;
+      const progress = dx / 135;
       const offset = Math.round(-progress);
       activeIndex = (activeIndex + offset) % len;
       if (activeIndex < 0) activeIndex += len;
@@ -220,10 +270,9 @@ if (controlBar && track) {
     updateCarousel();
 
     if (wasDragging) {
-      // Delay resetting wasDragging slightly to ensure click event is blocked
       setTimeout(() => {
         wasDragging = false;
-      }, 50);
+      }, 100);
     }
   });
 
@@ -248,69 +297,13 @@ if (controlBar && track) {
       activeIndex = (activeIndex - 1 + len) % len;
     }
     updateCarousel();
-    setTimeout(() => checkInfiniteBoundaries(), 400);
   }, { passive: false });
 }
 
-// ── FONCTIONS POUR LA BOUCLE INFINIE DU CAROUSEL (3 COPIES) ──
-function checkInfiniteBoundaries() {
-  const buttons = getCarouselButtons();
-  const N = buttons.length / 3;
-  if (N === 0) return;
-  
-  let snapped = false;
-  if (activeIndex < N) {
-    activeIndex += N;
-    snapped = true;
-  } else if (activeIndex >= 2 * N) {
-    activeIndex -= N;
-    snapped = true;
-  }
-  
-  if (snapped && track) {
-    const prevTransition = track.style.transition;
-    track.style.transition = "none";
-    const buttonOffset = 135;
-    const halfButtonWidth = 60;
-    track.style.transform = `translateX(-${(activeIndex * buttonOffset) + halfButtonWidth}px)`;
-    track.offsetHeight; // Forcer reflow
-    track.style.transition = prevTransition;
-  }
-}
-
-function initInfiniteCarousel() {
-  if (!track) return;
-  const originalButtons = Array.from(track.children) as HTMLButtonElement[];
-  const N = originalButtons.length;
-  if (N === 0) return;
-
-  // Assigner l'attribut data-original-id
-  originalButtons.forEach(btn => {
-    btn.setAttribute("data-original-id", btn.id);
-  });
-
-  // Vider et dupliquer en 3 copies
-  track.innerHTML = "";
-  for (let c = 0; c < 3; c++) {
-    originalButtons.forEach(btn => {
-      const clone = btn.cloneNode(true) as HTMLButtonElement;
-      track.appendChild(clone);
-    });
-  }
-
-  // Démarrer au début de la 2ème copie
-  activeIndex = N;
-
-  // Gérer la fin de transition pour le snap invisible
-  track.addEventListener("transitionend", () => {
-    checkInfiniteBoundaries();
-  });
-}
-
-// Initialize
-initInfiniteCarousel();
-createIndicators();
+// Initialize single-copy carousel dock
+createIndicators();   // (n'était plus appelé : aucun point indicateur n'apparaissait)
 updateCarousel();
+_refresh = updateCarousel;
 
 // Exposer les contrôles de la flèche pour le mode hologramme
 _arrowControls = {

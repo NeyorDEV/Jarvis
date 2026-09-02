@@ -43,6 +43,8 @@ echo  [2/3] Suppression du cache WebView2...
 
 set "CACHE_DIR=%APPDATA%\pywebview\EBWebView\Default"
 set "CACHE_DIR2=%APPDATA%\JARVIS\EBWebView"
+set "CACHE_DIR3=%LOCALAPPDATA%\JARVIS_Local\EBWebView\Default"
+
 
 if exist "%CACHE_DIR%" (
     rd /S /Q "%CACHE_DIR%\Cache"               >nul 2>&1
@@ -57,6 +59,16 @@ if exist "%CACHE_DIR%" (
 
 if exist "%CACHE_DIR2%" (
     rd /S /Q "%CACHE_DIR2%"                    >nul 2>&1
+)
+if exist "%CACHE_DIR3%" (
+    rd /S /Q "%CACHE_DIR3%\Cache"               >nul 2>&1
+    rd /S /Q "%CACHE_DIR3%\Code Cache"          >nul 2>&1
+    rd /S /Q "%CACHE_DIR3%\Service Worker"      >nul 2>&1
+    rd /S /Q "%CACHE_DIR3%\GPUCache"            >nul 2>&1
+    rd /S /Q "%CACHE_DIR3%\DawnGraphiteCache"   >nul 2>&1
+    rd /S /Q "%CACHE_DIR3%\DawnWebGPUCache"     >nul 2>&1
+    rd /S /Q "%CACHE_DIR3%\blob_storage"        >nul 2>&1
+    rd /S /Q "%CACHE_DIR3%\Session Storage"     >nul 2>&1
 )
 
 echo  [OK] Cache supprime.

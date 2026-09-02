@@ -139,8 +139,18 @@ class AudioStreamManager:
 
     def _stop_unlocked(self):
         self.running = False
-        if self.thread:
-            self.thread = None
+        # On ATTEND la fin réelle du thread de lecture avant de rouvrir un flux.
+        # Auparavant la référence était simplement mise à None : l'ancien thread,
+        # bloqué dans stream.read(), reprenait la main après qu'un nouveau flux
+        # ait été démarré (running déjà repassé à True) et l'on se retrouvait avec
+        # DEUX threads lisant le même périphérique — chunks entrelacés, donc VAD
+        # et wakeword alimentés avec de l'audio corrompu jusqu'au redémarrage.
+        ancien = self.thread
+        self.thread = None
+        if ancien is not None and ancien.is_alive() and ancien is not threading.current_thread():
+            ancien.join(timeout=2.0)
+            if ancien.is_alive():
+                print("[AudioStreamManager] ⚠ Le thread de capture ne s'est pas arrêté dans les temps.")
         if self.stream:
             try:
                 self.stream.stop_stream()
@@ -240,5 +250,12 @@ class AudioStreamManager:
                 with self.subscribers_lock:
                     for q in self.subscribers:
                         q.put(data_to_send)
+                _echecs = 0
             except Exception as e:
+                # Un flux définitivement mort produisait une boucle silencieuse à
+                # 100 Hz. On signale (une fois, puis rarement) au lieu de tourner
+                # à vide sans aucun diagnostic.
+                _echecs = locals().get("_echecs", 0) + 1
+                if _echecs in (1, 50) or _echecs % 500 == 0:
+                    print(f"[AudioStreamManager] Erreur de lecture ({_echecs}x) : {e}")
                 time.sleep(0.01)

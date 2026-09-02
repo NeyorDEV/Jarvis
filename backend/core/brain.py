@@ -18,24 +18,57 @@ builtins.CHOSEN_MODEL = CHOSEN_MODEL
 class _QuotaExceededError(Exception):
     pass
 
+# Modèle Groq de secours (llama-3.3-70b-versatile a été retiré du catalogue)
+GROQ_FALLBACK_MODEL = "openai/gpt-oss-120b"
+
+# Délai maximal d'attente d'une réponse LLM. Sans lui, une connexion qui reste
+# ouverte sans répondre bloquait indéfiniment toute la chaîne de réponse.
+TIMEOUT_LLM = 30
+
+
 async def generer_reponse_ia(prompt, historique=None):
     """Gère la génération de réponse avec failover entre Gemini et Groq."""
     try:
-        # Tentative Gemini
-        response = await client.aio.models.generate_content(
-            model=CHOSEN_MODEL,
-            contents=historique or [prompt],
-            config=types.GenerateContentConfig(
-                system_instruction="Tu es JARVIS, l'IA de Tony Stark. Sois concis et efficace."
-            )
+        # Tentative Gemini (bornée dans le temps)
+        response = await asyncio.wait_for(
+            client.aio.models.generate_content(
+                model=CHOSEN_MODEL,
+                contents=historique or [prompt],
+                config=types.GenerateContentConfig(
+                    system_instruction="Tu es JARVIS, l'IA de Tony Stark. Sois concis et efficace."
+                )
+            ),
+            timeout=TIMEOUT_LLM
         )
         return response.text
     except Exception as e:
-        if "429" in str(e) or "RESOURCE_EXHAUSTED" in str(e):
-            print("[BRAIN] Quota Gemini atteint, bascule sur Groq...")
-            if groq_client:
-                # Logique simplifiée Groq pour l'exemple
-                return "Je rencontre des difficultés avec mes serveurs principaux, mais je reste à votre écoute via mes systèmes de secours."
+        est_quota = "429" in str(e) or "RESOURCE_EXHAUSTED" in str(e)
+        est_timeout = isinstance(e, asyncio.TimeoutError)
+        if (est_quota or est_timeout) and groq_client:
+            # Bascule RÉELLE sur Groq. Auparavant cette branche se contentait de
+            # renvoyer une phrase d'excuse toute faite : le client Groq était
+            # construit mais jamais appelé, donc il n'y avait aucun secours.
+            raison = "Quota Gemini atteint" if est_quota else "Gemini ne répond pas"
+            print(f"[BRAIN] {raison}, bascule sur Groq ({GROQ_FALLBACK_MODEL})...")
+            try:
+                messages = [
+                    {"role": "system", "content": "Tu es JARVIS, l'IA de Tony Stark. Sois concis et efficace."},
+                    {"role": "user", "content": prompt},
+                ]
+                completion = await asyncio.wait_for(
+                    asyncio.to_thread(
+                        groq_client.chat.completions.create,
+                        model=GROQ_FALLBACK_MODEL,
+                        messages=messages,
+                        temperature=0.7,
+                    ),
+                    timeout=TIMEOUT_LLM
+                )
+                return completion.choices[0].message.content
+            except Exception as e_groq:
+                print(f"[BRAIN] Secours Groq indisponible : {e_groq}")
+                return ("Je rencontre des difficultés avec mes serveurs principaux "
+                        "et mon système de secours, mylane.")
         return f"Erreur système : {e}"
 
 # Exportation

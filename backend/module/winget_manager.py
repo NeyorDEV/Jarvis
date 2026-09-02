@@ -116,9 +116,25 @@ def run_winget_upgrade_sync(args, loop, websocket_client):
             is_admin = False
             
         if not is_admin:
-            # Reconstruct the arguments for Start-Process
-            winget_args = " ".join([f'"{a}"' if " " in a else a for a in args[1:]])
-            elevated_cmd = f"Start-Process winget -ArgumentList '{winget_args}' -Verb RunAs -Wait"
+            # Élévation UAC : les arguments sont interpolés dans une commande
+            # PowerShell, il faut donc les échapper rigoureusement.
+            # Auparavant ils étaient insérés bruts entre apostrophes : un simple
+            # « ' » dans un identifiant de paquet fermait la chaîne et permettait
+            # d'exécuter du PowerShell arbitraire AVEC les droits administrateur.
+            # On valide d'abord chaque argument, puis on double les apostrophes
+            # (échappement PowerShell) et on construit un tableau explicite.
+            import re as _re_w
+
+            def _arg_sur(a: str) -> str:
+                a = str(a)
+                # Jeu de caractères volontairement restreint : identifiants winget,
+                # versions, sources et options. Tout le reste est rejeté.
+                if not _re_w.fullmatch(r"[A-Za-z0-9 ._\-+:/\\@]{1,200}", a):
+                    raise ValueError(f"Argument winget refusé (caractères interdits) : {a!r}")
+                return "'" + a.replace("'", "''") + "'"
+
+            winget_args = ", ".join(_arg_sur(a) for a in args[1:])
+            elevated_cmd = f"Start-Process winget -ArgumentList @({winget_args}) -Verb RunAs -Wait"
             
             asyncio.run_coroutine_threadsafe(
                 websocket_client.send(json.dumps({

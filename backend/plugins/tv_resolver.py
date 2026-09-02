@@ -14,7 +14,12 @@ from adb_shell.auth.keygen import keygen
 TV_NAME = "43PUS7906/12"
 TV_IP   = "192.168.0.151"
 TV_MAC  = "24-b7-2a-74-97-db"
-ADB_KEY_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "config", "adb_key")
+# backend/plugins/ → racine du projet = 3 niveaux au-dessus (le calcul précédent
+# s'arrêtait à backend/ et cherchait la clé dans backend/config/, inexistant :
+# une nouvelle clé ADB était donc régénérée à chaque fois, obligeant à ré-autoriser
+# la connexion sur la TV.)
+_RACINE = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+ADB_KEY_PATH = os.path.join(_RACINE, "config", "adb_key")
 
 def get_adb_signer():
     """Génère ou récupère la clé de signature ADB."""
@@ -28,15 +33,26 @@ def get_adb_signer():
 
 async def adb_command(cmd_shell):
     """Exécute une commande shell ADB sur la télé."""
+    device = None
     try:
         signer = get_adb_signer()
         device = AdbDeviceTcp(TV_IP, 5555, default_transport_timeout_s=3)
         device.connect(rsa_keys=[signer], auth_timeout_s=3)
-        res = device.shell(cmd_shell)
-        device.close()
+        device.shell(cmd_shell)
         return True
-    except Exception:
+    except Exception as e:
+        print(f"[TV] Commande ADB échouée ({cmd_shell!r}) : {e}")
         return False
+    finally:
+        # La fermeture était placée après le shell() : dès qu'une exception
+        # survenait, la connexion TCP vers le port 5555 de la TV restait
+        # ouverte. À force d'échecs, les emplacements ADB de la TV étaient
+        # tous occupés et plus aucune commande ne passait.
+        if device is not None:
+            try:
+                device.close()
+            except Exception:
+                pass
 
 # --- LOGIQUE TECHNIQUE ---
 
@@ -60,6 +76,15 @@ async def tv_quitter_app():
 async def tv_volume(direction, steps=5):
     """Gère le volume via ADB par paquets."""
     key = "24" if direction == "monter" else "25"
+    # Bornage : le nombre de pas provient d'un chiffre extrait de la phrase.
+    # « monte le son de la tv à 200 » envoyait réellement 200 appuis, soit une
+    # dizaine de secondes de martèlement sur une socket au timeout de 10 s.
+    try:
+        steps = max(1, min(int(steps), 30))
+    except (TypeError, ValueError):
+        steps = 5
+
+    device = None
     try:
         signer = get_adb_signer()
         device = AdbDeviceTcp(TV_IP, 5555, default_transport_timeout_s=10)
@@ -71,10 +96,19 @@ async def tv_volume(direction, steps=5):
             device.shell(f"input keyevent {touches}")
             remaining -= batch
             if remaining > 0: await asyncio.sleep(0.1)
-        device.close()
         return f"Volume de la télé ajusté de {steps} points, Monsieur."
-    except:
-        return "Le volume de la télé a été modifié."
+    except Exception as e:
+        # On ne prétend plus que l'opération a réussi : l'ancien message
+        # « Le volume de la télé a été modifié » était affiché même en cas
+        # d'échec total de la connexion.
+        print(f"[TV] Réglage du volume échoué : {e}")
+        return "Je n'ai pas réussi à joindre la télé pour régler le volume, mylane."
+    finally:
+        if device is not None:
+            try:
+                device.close()
+            except Exception:
+                pass
 
 async def tv_lancer_app(app_name):
     apps = {
@@ -106,11 +140,21 @@ def chercher_youtube(recherche):
 
 # --- RÉSOLVEUR ---
 
+def _sans_accent(s: str) -> str:
+    """Minuscule sans accents, pour comparer indifféremment « télé » et « tele »."""
+    import unicodedata
+    return "".join(c for c in unicodedata.normalize("NFD", s.lower().strip())
+                   if unicodedata.category(c) != "Mn")
+
+
 async def resoudre_tv_localement(texte):
     """Analyse les ordres relatifs à la télévision."""
-    t = texte.lower().strip()
-    
-    if any(k in t for k in ["télé", "tv", "philips", "télévision"]):
+    # On compare sur la version dé-accentuée : selon le chemin d'entrée (STT,
+    # clavier, phrase canonique du dispatch LLM), le texte peut arriver avec ou
+    # sans accents. Les mots-clés ci-dessous sont donc écrits sans accent.
+    t = _sans_accent(texte)
+
+    if any(k in t for k in ["tele", "tv", "philips", "television"]):
         # Volume précis
         if any(k in t for k in ["son", "volume"]):
             direction = "monter" if any(k in t for k in ["monte", "augmente", "plus", "hausse"]) else "baisser"
@@ -122,9 +166,9 @@ async def resoudre_tv_localement(texte):
             return await tv_volume(direction, steps)
 
         # Allumage / Extinction
-        if any(k in t for k in ["allume", "démarre", "lance"]):
+        if any(k in t for k in ["allume", "demarre", "lance"]):
             if len(t.split()) < 5: return await tv_allumer()
-        if any(k in t for k in ["éteins", "veille", "arrête"]):
+        if any(k in t for k in ["eteins", "veille", "arrete"]):
             return await tv_eteindre()
 
         # Quitter / Accueil
@@ -134,7 +178,7 @@ async def resoudre_tv_localement(texte):
         # YouTube spécifique
         if "youtube" in t and any(k in t for k in ["lance", "mets", "joue"]):
             recherche = t
-            for p in ["sur ma télé", "sur la télé", "sur ma tv", "sur la tv", "youtube", "mets", "joue", "lance", "ouvre", "sur la", "sur ma", "sur"]:
+            for p in ["sur ma tele", "sur la tele", "sur ma tv", "sur la tv", "youtube", "mets", "joue", "lance", "ouvre", "sur la", "sur ma", "sur"]:
                 recherche = recherche.replace(p, "")
             recherche = recherche.strip()
             if recherche:

@@ -1,4 +1,4 @@
-# J.A.R.V.I.S — Guide des Fichiers & Architecture
+# J.A.R.V.I.S — Guide des Fichiers & Architecture (v8.9)
 
 Ce document propose un inventaire complet et détaillé de chaque fichier et dossier constituant le projet **J.A.R.V.I.S**. Il est conçu pour être lu par l'IA au début de chaque nouvelle conversation afin de comprendre instantanément le rôle de chaque composant et d'éviter toute perte de repères.
 
@@ -124,8 +124,9 @@ Ces fichiers interceptent la commande vocale de l'utilisateur *avant* qu'elle ne
 *   **[list_manager.py](file:///n:/JARVIS/backend/plugins/list_manager.py)** : Ajoute, supprime ou liste les éléments des todos et listes de courses (ciblant `data/jarvis_listes.json`).
 *   **[os_autopilot_resolver.py](file:///n:/JARVIS/backend/plugins/os_autopilot_resolver.py)** : Route vers l'autopilote du système d'exploitation.
 *   **[spatial_explorer.py](file:///n:/JARVIS/backend/plugins/spatial_explorer.py)** : Gère l'affichage de l'explorateur de fichiers 3D.
-*   **[dev_swarm_resolver.py](file:///n:/JARVIS/backend/plugins/dev_swarm_resolver.py)** : Orchestrateur multi-agent (PM, DEV, QA) capable de concevoir, d'écrire et de vérifier des fichiers de code autonomes dans le dossier `sandbox/`.
+*   **[dev_swarm_resolver.py](file:///n:/JARVIS/backend/plugins/dev_swarm_resolver.py)** : Orchestrateur de l'essaim d'élite à 6 agents autonomes (PM, UI, DEV, SEC, QA, OPS). Conçoit et crée des projets web complets, effectue l'audit visuel multi-scroll par captures d'écran et valide 100% des fonctionnalités en sandbox.
 *   **[developer_resolver.py](file:///n:/JARVIS/backend/plugins/developer_resolver.py)** : Permet à JARVIS de modifier son propre code source et de lancer des diagnostics système.
+*   **[website_resolver.py](file:///n:/JARVIS/backend/plugins/website_resolver.py)** : Résout la génération de sites web à la volée et le protocole d'énigme secret d'anniversaire ("lance l'énigme") avec ouverture plein écran automatique dans Opera GX.
 *   **[competence_check_connexion.py](file:///n:/JARVIS/backend/plugins/competence_check_connexion.py)** : Effectue des vérifications rapides d'état de connexion.
 
 ---

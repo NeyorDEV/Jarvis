@@ -14,14 +14,19 @@ from google.genai import types
 from core.brain import client
 
 # Modèle rapide et peu coûteux : le routage est une tâche simple
-INTENT_MODEL = "gemini-2.5-flash-lite"
+INTENT_MODEL = "gemini-3.1-flash-lite"
 
 _SYSTEM_INSTRUCTION = (
     "Tu es le routeur d'intentions de JARVIS, un assistant vocal domestique français. "
     "La phrase de l'utilisateur n'a pas été reconnue par les commandes par mots-clés. "
-    "Si elle correspond CLAIREMENT à une des fonctions disponibles, appelle cette fonction. "
-    "Sinon (conversation, question générale, demande d'information, requête complexe), "
-    "ne fais AUCUN appel de fonction et ne réponds rien."
+    "Si elle correspond CLAIREMENT et SANS AMBIGUÏTÉ à une des fonctions disponibles, appelle cette fonction. "
+    "Sinon (conversation, question générale, demande d'information, requête complexe, "
+    "phrase vague, interjection, ponctuation isolée, bruit de transcription, ou simplement "
+    "le mot de réveil « jarvis » seul sans suite exploitable), "
+    "ne fais AUCUN appel de fonction et ne réponds rien. "
+    "En cas de doute, NE PAS appeler de fonction : un faux négatif est sans conséquence "
+    "(la conversation continue normalement), un faux positif peut déclencher une action "
+    "réelle non voulue par l'utilisateur."
 )
 
 _FUNCTION_DECLARATIONS = [
@@ -132,6 +137,13 @@ _FUNCTION_DECLARATIONS = [
             "required": ["contenu"],
         },
     },
+    # NOTE : « créer un site web » a été retiré de ce dispatcher. C'est une action
+    # lourde (mobilise un swarm de 6 agents LLM, écrit des fichiers, prend des
+    # minutes) qui a déjà son propre resolver dédié avec une vraie détection
+    # verbe+nom (website_resolver.py). La confier à un modèle de classification
+    # rapide sur du texte parfois très court est exactement le genre de décision
+    # qui ne doit pas dépendre d'une heuristique faillible — vécu en réel : un
+    # simple « Jarvis ! » sans suite a été classifié comme demande de site web.
 ]
 
 _TOOLS = [types.Tool(function_declarations=_FUNCTION_DECLARATIONS)]

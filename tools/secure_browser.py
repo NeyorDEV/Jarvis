@@ -391,25 +391,23 @@ def trigger_browser(url_or_search=None, main_window_ref=None):
     print(f"[BROWSER] Lancement du navigateur securise sur : {target_url}")
     _is_docked = False  # Flottant par défaut au démarrage
     
-    # Création de la fenêtre pywebview (avec cadres/bordures standards au démarrage)
-    _browser_window = webview.create_window(
-        title="Navigateur Securise J.A.R.V.I.S",
-        url=target_url,
-        width=1024,
-        height=768,
-        frameless=False,
-        background_color="#0a0a0f",
-        js_api=BrowserAPI()
-    )
-    
-    # Événements pywebview
-    _browser_window.events.loaded += _on_browser_loaded
-    _browser_window.events.closed += _on_browser_closed
-    
-    # Lancement de la recherche d'HWND et du centrage/owner
-    threading.Thread(target=_find_hwnd_and_dock_loop, daemon=True).start()
-    # Note : webview.start() est géré par la boucle principale de JARVIS (mode natif pywebview).
-    # En mode FORCE_BROWSER_MODE, la fenêtre ne peut pas s'afficher (pas de boucle pywebview).
+    try:
+        _browser_window = webview.create_window(
+            title="Navigateur Securise J.A.R.V.I.S",
+            url=target_url,
+            width=1024,
+            height=768,
+            frameless=False,
+            background_color="#0a0a0f",
+            js_api=BrowserAPI()
+        )
+        _browser_window.events.loaded += _on_browser_loaded
+        _browser_window.events.closed += _on_browser_closed
+        threading.Thread(target=_find_hwnd_and_dock_loop, daemon=True).start()
+    except Exception as err_create:
+        print(f"[BROWSER] Impossibilité de créer la fenêtre pywebview ({err_create}). Ouverture sécurisée dans le navigateur système...")
+        import webbrowser
+        webbrowser.open(target_url)
 
 def _find_hwnd_and_dock_loop():
     global _browser_hwnd, _main_hwnd

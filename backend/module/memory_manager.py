@@ -1,5 +1,7 @@
 import os
 import json
+import shutil
+import threading
 import time
 from google.genai import types
 
@@ -8,34 +10,75 @@ from google.genai import types
 _ROOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # racine projet (backend/module/ -> N:\JARVIS)
 MEMOIRE_FILE = os.path.join(_ROOT_DIR, "data", "jarvis_memoire.json")
 
+# Verrou : la mémoire est écrite depuis plusieurs threads (boucle vocale,
+# handler WebSocket, consolidation en arrière-plan). Sans lui, deux
+# lecture-modification-écriture concurrentes se écrasent l'une l'autre.
+_VERROU_MEMOIRE = threading.RLock()
+
+
+def _ecrire_json_atomique(chemin, donnees):
+    """Écrit un JSON sans jamais laisser le fichier à moitié écrit.
+
+    On écrit dans un fichier temporaire voisin puis on le renomme : os.replace
+    est atomique. Avant, un plantage (ou une coupure) au milieu du open("w")
+    tronquait le fichier, et au démarrage suivant le JSON illisible était
+    silencieusement remplacé par un dictionnaire vide — toute la mémoire perdue.
+    """
+    os.makedirs(os.path.dirname(chemin), exist_ok=True)
+    temporaire = chemin + ".tmp"
+    with open(temporaire, "w", encoding="utf-8") as f:
+        json.dump(donnees, f, ensure_ascii=False, indent=2)
+        f.flush()
+        os.fsync(f.fileno())
+    os.replace(temporaire, chemin)
+
+
+def _sauvegarder_fichier_corrompu(chemin, erreur):
+    """Met de côté un fichier illisible au lieu de l'écraser en silence."""
+    try:
+        secours = f"{chemin}.corrompu-{time.strftime('%Y%m%d-%H%M%S')}"
+        shutil.copy2(chemin, secours)
+        print(f"[MEMOIRE] ⚠ Fichier illisible ({erreur}). Copie de sécurité : {secours}")
+    except Exception as e:
+        print(f"[MEMOIRE] ⚠ Fichier illisible ({erreur}), sauvegarde impossible : {e}")
+
+
 def charger_memoire():
-    if os.path.exists(MEMOIRE_FILE):
-        try:
-            with open(MEMOIRE_FILE, "r", encoding="utf-8") as f:
-                return json.load(f)
-        except Exception:
-            return {}
-    return {}
+    with _VERROU_MEMOIRE:
+        if os.path.exists(MEMOIRE_FILE):
+            try:
+                with open(MEMOIRE_FILE, "r", encoding="utf-8") as f:
+                    return json.load(f)
+            except Exception as e:
+                # On conserve une copie : sans elle, la première écriture qui
+                # suivait remplaçait définitivement le contenu par « {} ».
+                _sauvegarder_fichier_corrompu(MEMOIRE_FILE, e)
+                return {}
+        return {}
 
 def sauvegarder_memoire(memoire):
-    try:
-        with open(MEMOIRE_FILE, "w", encoding="utf-8") as f:
-            json.dump(memoire, f, ensure_ascii=False, indent=2)
-    except Exception as e:
-        print(f"Erreur sauvegarde memoire : {e}")
+    with _VERROU_MEMOIRE:
+        try:
+            _ecrire_json_atomique(MEMOIRE_FILE, memoire)
+        except Exception as e:
+            print(f"Erreur sauvegarde memoire : {e}")
 
 def ajouter_memoire(cle, valeur):
-    memoire      = charger_memoire()
-    memoire[cle] = {"valeur": valeur, "timestamp": time.strftime("%d/%m/%Y %H:%M")}
-    sauvegarder_memoire(memoire)
+    # Le verrou couvre lecture ET écriture : sinon deux ajouts simultanés
+    # repartaient de la même copie et le second écrasait le premier.
+    with _VERROU_MEMOIRE:
+        memoire      = charger_memoire()
+        memoire[cle] = {"valeur": valeur, "timestamp": time.strftime("%d/%m/%Y %H:%M")}
+        sauvegarder_memoire(memoire)
 
 def supprimer_memoire(cle):
-    memoire = charger_memoire()
-    if cle in memoire:
-        del memoire[cle]
-        sauvegarder_memoire(memoire)
-        return True
-    return False
+    with _VERROU_MEMOIRE:
+        memoire = charger_memoire()
+        if cle in memoire:
+            del memoire[cle]
+            sauvegarder_memoire(memoire)
+            return True
+        return False
 
 def construire_contexte_memoire():
     memoire = charger_memoire()
@@ -55,23 +98,31 @@ MAX_ECHANGES_CHARGE  = 30    # échanges rechargés au démarrage (contexte IA)
 
 def _sauvegarder_echange_conv(user_text: str, model_text: str):
     """Ajoute un échange user/model au fichier JSON persistant."""
-    try:
-        echanges = []
-        if os.path.exists(HISTORIQUE_CONV_FILE):
-            with open(HISTORIQUE_CONV_FILE, "r", encoding="utf-8") as f:
-                echanges = json.load(f)
-        echanges.append({
-            "date":  time.strftime("%d/%m/%Y"),
-            "heure": time.strftime("%H:%M"),
-            "user":  user_text[:2000],
-            "model": model_text[:3000],
-        })
-        if len(echanges) > MAX_ECHANGES_FICHIER:
-            echanges = echanges[-MAX_ECHANGES_FICHIER:]
-        with open(HISTORIQUE_CONV_FILE, "w", encoding="utf-8") as f:
-            json.dump(echanges, f, ensure_ascii=False, indent=2)
-    except Exception as e:
-        print(f"[CONV] Erreur sauvegarde historique: {e}")
+    # Verrou + écriture atomique : deux requêtes qui se chevauchent partaient
+    # sinon de la même liste et la seconde écrasait l'échange de la première.
+    with _VERROU_MEMOIRE:
+        try:
+            echanges = []
+            if os.path.exists(HISTORIQUE_CONV_FILE):
+                try:
+                    with open(HISTORIQUE_CONV_FILE, "r", encoding="utf-8") as f:
+                        echanges = json.load(f)
+                except Exception as e_lect:
+                    _sauvegarder_fichier_corrompu(HISTORIQUE_CONV_FILE, e_lect)
+                    echanges = []
+            if not isinstance(echanges, list):
+                echanges = []
+            echanges.append({
+                "date":  time.strftime("%d/%m/%Y"),
+                "heure": time.strftime("%H:%M"),
+                "user":  user_text[:2000],
+                "model": model_text[:3000],
+            })
+            if len(echanges) > MAX_ECHANGES_FICHIER:
+                echanges = echanges[-MAX_ECHANGES_FICHIER:]
+            _ecrire_json_atomique(HISTORIQUE_CONV_FILE, echanges)
+        except Exception as e:
+            print(f"[CONV] Erreur sauvegarde historique: {e}")
 
 def _charger_historique_recent():
     """Charge les derniers échanges et retourne une liste types.Content."""

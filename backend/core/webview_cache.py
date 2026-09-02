@@ -35,6 +35,19 @@ def vider_cache_webview_si_nouvelle_version(CURRENT_VERSION):
 
     # Nouvelle version ou premier lancement → vider le cache WebView2
     print(f"[CACHE] Version changée ({version_en_cache} → {CURRENT_VERSION}) : nettoyage du cache WebView2...")
+    # Libérer les verrous en fermant les processus WebView2 résiduels
+    import subprocess
+    try:
+        subprocess.run(["taskkill", "/F", "/IM", "msedgewebview2.exe"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    except Exception:
+        pass
+
+    # Libérer les verrous en fermant les processus WebView2 résiduels
+    import subprocess
+    try:
+        subprocess.run(["taskkill", "/F", "/IM", "msedgewebview2.exe"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    except Exception:
+        pass
 
     # Le cache pywebview est dans %APPDATA%\pywebview\EBWebView\Default\
     appdata = os.environ.get("APPDATA", "")
@@ -75,7 +88,8 @@ def vider_cache_webview_si_nouvelle_version(CURRENT_VERSION):
 
 def vider_cache_webview_complet():
     """
-    Vide intégralement le cache WebView2 (appelé manuellement via le bouton frontend).
+    Vide le cache WebView2 (appelé manuellement via le bouton frontend).
+    Sans tuer les processus actifs pour éviter tout écran noir ou crash de fenêtre.
     Retourne True si succès, False sinon.
     """
     import shutil

@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # --- VERSION ---
-CURRENT_VERSION = "4.5"
+CURRENT_VERSION = "8.9.5"
 UPDATE_JSON_URL = "https://www.techenclair.fr/updates/jarvis_update.json"
 
 # --- RÉSEAU ---
@@ -37,7 +37,7 @@ def _cle_valide(key):
     return bool(key) and str(key).strip() not in _API_PLACEHOLDERS
 
 # --- CONFIGURATION IA ---
-MODELS_LIST     = ["gemini-2.5-flash", "gemini-flash-latest", "gemini-2.0-flash", "gemini-pro-latest"]
+MODELS_LIST     = ["gemini-3.7-flash", "gemini-3.6-flash", "gemini-3.5-flash", "gemini-3.1-pro", "gemini-3.1-flash-lite", "gemini-2.5-flash", "gemini-2.5-pro", "gemini-2.0-flash", "gemini-flash-latest", "gemini-pro-latest"]
 CHOSEN_MODEL    = MODELS_LIST[0]
 
 # --- CONFIGURATION VOIX ---

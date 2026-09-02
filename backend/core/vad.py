@@ -25,6 +25,37 @@ VAD_MODEL_PATH = os.path.join(_CORE_DIR, "silero_vad.onnx")
 SPEAKER_MODEL_PATH = os.path.join(_CORE_DIR, "3dspeaker_speech_campplus_sv_zh_en_16k-common_advanced.onnx")
 VOICEPRINTS_DIR = os.path.join(_CORE_DIR, "voiceprints")
 
+def _telecharger_atomique(url, destination, timeout=60, taille_min=10_000):
+    """Télécharge vers un .part puis renomme, avec délai et contrôle de taille.
+
+    urllib.request.urlretrieve() écrivait directement dans le fichier final et
+    sans timeout : une coupure à mi-parcours laissait un modèle .onnx tronqué.
+    Comme la garde d'installation ne teste que os.path.exists(), le fichier
+    corrompu était conservé indéfiniment et onnxruntime plantait à chaque
+    démarrage suivant. Une connexion qui ne répond jamais bloquait par ailleurs
+    tout le démarrage.
+    """
+    import socket
+    partiel = destination + ".part"
+    try:
+        with urllib.request.urlopen(url, timeout=timeout) as reponse, open(partiel, "wb") as sortie:
+            while True:
+                bloc = reponse.read(65536)
+                if not bloc:
+                    break
+                sortie.write(bloc)
+        if os.path.getsize(partiel) < taille_min:
+            raise IOError(f"fichier trop petit ({os.path.getsize(partiel)} octets) — téléchargement incomplet")
+        os.replace(partiel, destination)
+    except (socket.timeout, Exception):
+        if os.path.exists(partiel):
+            try:
+                os.remove(partiel)
+            except Exception:
+                pass
+        raise
+
+
 def init_models():
     """Télécharge automatiquement les modèles de VAD et de biométrie vocale s'ils sont absents."""
     os.makedirs(_CORE_DIR, exist_ok=True)
@@ -34,7 +65,7 @@ def init_models():
         url_vad = "https://github.com/snakers4/silero-vad/raw/master/src/silero_vad/data/silero_vad.onnx"
         print("🎙  [VAD] Téléchargement du modèle Silero VAD (2 Mo)...")
         try:
-            urllib.request.urlretrieve(url_vad, VAD_MODEL_PATH)
+            _telecharger_atomique(url_vad, VAD_MODEL_PATH)
             print("✔  [VAD] Silero VAD téléchargé avec succès.")
         except Exception as e:
             print(f"❌  [VAD] Échec du téléchargement Silero VAD : {e}")
@@ -44,7 +75,7 @@ def init_models():
         url_speaker = "https://huggingface.co/csukuangfj/speaker-embedding-models/resolve/main/3dspeaker_speech_campplus_sv_zh_en_16k-common_advanced.onnx"
         print("🎙  [BIOMETRICS] Téléchargement du modèle de reconnaissance vocale (23 Mo)...")
         try:
-            urllib.request.urlretrieve(url_speaker, SPEAKER_MODEL_PATH)
+            _telecharger_atomique(url_speaker, SPEAKER_MODEL_PATH)
             print("✔  [BIOMETRICS] Modèle de reconnaissance vocale téléchargé avec succès.")
         except Exception as e:
             print(f"❌  [BIOMETRICS] Échec du téléchargement du modèle de reconnaissance vocale : {e}")
@@ -209,18 +240,35 @@ class SpeakerBiometrics:
             
         best_name = "guest"
         best_score = 0.0
-        
+
         # Normalisation du vecteur d'entrée
         emb_norm = emb / (np.linalg.norm(emb) + 1e-8)
-        
+
         for name, emb_list in voiceprints.items():
+            # Score 1 : meilleur échantillon individuel (comme avant). Un seul
+            # échantillon de référence propre suffit à reconnaître l'utilisateur.
             for ref_emb in emb_list:
                 ref_norm = ref_emb / (np.linalg.norm(ref_emb) + 1e-8)
                 score = float(np.dot(emb_norm, ref_norm))
                 if score > best_score:
                     best_score = score
                     best_name = name
-                
+
+            # Score 2 : centroïde des échantillons du profil. Chaque échantillon
+            # individuel peut être bruité (enrôlement trop court, micro), mais le
+            # bruit tend à s'annuler en moyenne — le centroïde capture mieux la
+            # direction "vraie" de la voix. On ne garde ce score que s'il est
+            # meilleur : le centroïde ne peut donc jamais faire baisser la
+            # reconnaissance par rapport à l'ancien comportement.
+            if len(emb_list) >= 2:
+                refs_norm = [e / (np.linalg.norm(e) + 1e-8) for e in emb_list]
+                centroid = np.mean(refs_norm, axis=0)
+                centroid_norm = centroid / (np.linalg.norm(centroid) + 1e-8)
+                centroid_score = float(np.dot(emb_norm, centroid_norm))
+                if centroid_score > best_score:
+                    best_score = centroid_score
+                    best_name = name
+
         if best_score >= threshold:
             return best_name, best_score
         return "guest", best_score

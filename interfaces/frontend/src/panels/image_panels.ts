@@ -3,6 +3,9 @@
 
 import { makePanelDraggable } from "../ui/draggable";
 
+// Intervalle de l'animation de balayage en cours (un seul à la fois)
+let scanIntervalActif: number | null = null;
+
 export function showImageHUD(url: string, prompt: string) {
   const container = document.getElementById("image-hud")!;
   const img = document.getElementById("image-display") as HTMLImageElement;
@@ -18,17 +21,24 @@ export function showImageHUD(url: string, prompt: string) {
   statusEl.style.color = "#ff3d00";
   scan.style.display = "block";
 
-  // Scan animation
+  // Animation de balayage.
+  // Le handle est conservé au niveau du module : si une deuxième image arrive
+  // avant la fin du chargement de la première, img.onload est écrasé et
+  // l'intervalle précédent devenait inatteignable — il continuait à tourner
+  // toutes les 30 ms pour toujours, en modifiant sans cesse #image-scan.
+  if (scanIntervalActif !== null) clearInterval(scanIntervalActif);
   let pos = 0;
-  const scanInterval = setInterval(() => {
+  const scanInterval = window.setInterval(() => {
     pos += 5;
     scan.style.top = `${pos % 100}%`;
   }, 30);
+  scanIntervalActif = scanInterval;
 
   // Sécurité : Si l'image met trop de temps (15s), on arrête tout
   const timeout = setTimeout(() => {
     if (img.style.opacity === "0") {
       clearInterval(scanInterval);
+      if (scanIntervalActif === scanInterval) scanIntervalActif = null;
       scan.style.display = "none";
       statusEl.textContent = "[ERROR: RECONSTRUCTION_FAILED]";
       statusEl.style.color = "#ff3d00";
@@ -40,6 +50,7 @@ export function showImageHUD(url: string, prompt: string) {
     clearTimeout(timeout);
     setTimeout(() => {
       clearInterval(scanInterval);
+      if (scanIntervalActif === scanInterval) scanIntervalActif = null;
       scan.style.display = "none";
       img.style.opacity = "1";
       statusEl.textContent = "[RECONSTRUCTION_COMPLETE]";
@@ -50,6 +61,7 @@ export function showImageHUD(url: string, prompt: string) {
   img.onerror = () => {
     clearTimeout(timeout);
     clearInterval(scanInterval);
+    if (scanIntervalActif === scanInterval) scanIntervalActif = null;
     scan.style.display = "none";
     statusEl.textContent = "[ERROR: SOURCE_UNREACHABLE]";
     statusEl.style.color = "#ff3d00";
@@ -58,7 +70,13 @@ export function showImageHUD(url: string, prompt: string) {
 }
 
 document.getElementById("image-close")?.addEventListener("click", () => {
-  document.getElementById("image-hud")!.style.display = "none";
+  const hud = document.getElementById("image-hud");
+  if (hud) hud.style.display = "none";
+  // Fermer à la main pendant le chargement laissait l'animation tourner sans fin.
+  if (scanIntervalActif !== null) {
+    clearInterval(scanIntervalActif);
+    scanIntervalActif = null;
+  }
 });
 
 

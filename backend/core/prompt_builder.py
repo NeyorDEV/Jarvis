@@ -245,7 +245,20 @@ def construire_system_prompt(souvenirs=""):
     
     # Restriction de sécurité et adaptation de la personnalité selon l'utilisateur actif identifié
     speaker = getattr(builtins, "ACTIVE_SPEAKER", "mylane")
-    if speaker == "guest":
+    if speaker == "mylane":
+        # Sans cette consigne explicite, le prompt ne mentionne mylane qu'à la
+        # 3e personne ("aide mylane à...", "mylane est ton créateur"), sans
+        # jamais dire que la personne qui parle EST lui — contrairement aux
+        # branches invité/utilisateur secondaire ci-dessous qui, elles,
+        # précisent toujours l'identité. Résultat observé en réel : mylane
+        # authentifié se faisait répondre que « l'accès complet reste réservé
+        # à mylane », le LLM ne sachant pas qu'il s'adressait déjà à lui.
+        base += (
+            "\n\n[CONSIGNE D'IDENTITÉ] :\n"
+            "La personne qui te parle actuellement EST mylane, ton créateur (identité confirmée par biométrie vocale). "
+            "Tu peux lui accorder l'accès complet à toutes les fonctionnalités sans restriction ni justification."
+        )
+    elif speaker == "guest":
         base += (
             "\n\n[CONSIGNE DE SÉCURITÉ CRITIQUE - MODE INVITÉ ACTIVÉ] :\n"
             "L'utilisateur actuel est un INVITÉ (non reconnu par la biométrie vocale).\n"

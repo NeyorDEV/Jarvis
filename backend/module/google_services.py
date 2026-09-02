@@ -38,10 +38,14 @@ def get_google_creds():
         return None
 
     # Chemins absolus basés sur l'emplacement de la racine de JARVIS
-    _dir = os.path.dirname(os.path.abspath(__file__))
-    _root = os.path.dirname(_dir) if os.path.basename(_dir) == "module" else _dir
+    # backend/module/google_services.py → racine du projet = 3 niveaux au-dessus.
+    # L'ancien calcul s'arrêtait à backend/, donc les identifiants étaient cherchés
+    # dans backend/config/ (dossier vide) : TOUS les services Google (Gmail, Drive,
+    # Agenda, Docs, Sheets) échouaient silencieusement avec « credentials introuvable ».
+    _root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     token_path       = os.path.join(_root, "config", "token.pickle")
     credentials_path = os.path.join(_root, "config", "credentials.json")
+    os.makedirs(os.path.dirname(token_path), exist_ok=True)  # sinon l'écriture du token échoue
 
     creds = None
     if os.path.exists(token_path):

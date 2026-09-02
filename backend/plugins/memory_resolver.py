@@ -38,8 +38,16 @@ async def resoudre_memoire_locale(texte):
                         valeur = " ".join(parties[1:]).strip()
                         if len(sujet) > 2 and len(valeur) > 1:
                             ajouter_memoire(sujet, valeur)
-                            sujet_poli = sujet.replace("mon ", "votre ").replace("ma ", "votre ").replace("mes ", "vos ")
-                            return f"C'est fait mylane, j'ai enregistré que {sujet_poli} {sep.strip()} {valeur}."
+                            def _a_la_deuxieme_personne(texte_a_corriger):
+                                # "mon/ma/mes" (1re personne, côté utilisateur) doivent devenir
+                                # "votre/vos" une fois répétés par JARVIS (2e personne). Avant ce
+                                # correctif, seul le sujet était corrigé : "mémorise que clara est
+                                # ma copine" faisait dire à JARVIS "j'ai enregistré que ... ma
+                                # copine", comme si c'était SA copine à lui.
+                                return re.sub(r'\bmon\b', 'votre', re.sub(r'\bma\b', 'votre', re.sub(r'\bmes\b', 'vos', texte_a_corriger)))
+                            sujet_poli = _a_la_deuxieme_personne(sujet)
+                            valeur_polie = _a_la_deuxieme_personne(valeur)
+                            return f"C'est fait mylane, j'ai enregistré que {sujet_poli} {sep.strip()} {valeur_polie}."
                 
                 ajouter_memoire("note_rapide", content)
                 return f"C'est noté mylane, j'ai mis cela en mémoire : {content}."
@@ -90,8 +98,12 @@ async def resoudre_memoire_locale(texte):
                 
                 if success_kv or success_vect:
                     return "Information oubliée, mylane."
-                else:
-                    return "Je n'avais pas cette information en mémoire, mylane."
+                # Rien trouvé en mémoire : on rend la main (None) au lieu de
+                # répondre. Les déclencheurs incluent les verbes nus « supprime »,
+                # « efface », « oublie » : répondre ici interceptait des phrases
+                # comme « supprime le rendez-vous de demain » ou « efface l'écran »
+                # et empêchait tous les resolvers suivants — et l'IA — de les voir.
+                return None
 
     # ── RÉCUPÉRATION (ex: "quel est mon code ?", "code du portail ?")
     _triggers_get = ["comment s'appelle", "quel est le nom de", "où se trouve", "où est", "quelle est ma", "quel est mon", "quel est le", "quelle est la", "qu'est-ce que", "qui est", "qu'est ce que"]

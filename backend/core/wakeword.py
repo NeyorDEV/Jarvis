@@ -36,10 +36,24 @@ class WakeWordDetector:
             print(f"🎙  [WAKEWORD] Modèle custom français détecté : {os.path.basename(CUSTOM_MODEL_PATH)}")
         else:
             modele = WAKEWORD_MODEL_NAME
-        self.model = Model(
-            wakeword_models=[modele],
-            inference_framework="onnx",
-        )
+
+        try:
+            self.model = Model(
+                wakeword_models=[modele],
+                inference_framework="onnx",
+            )
+        except Exception as e:
+            # Repli sur le modèle fourni par openWakeWord si le modèle custom est
+            # corrompu/tronqué : sans ce garde, l'exception remontait et pouvait
+            # empêcher tout le démarrage de l'assistant.
+            if modele != WAKEWORD_MODEL_NAME:
+                print(f"⚠  [WAKEWORD] Modèle custom illisible ({e}). Repli sur « {WAKEWORD_MODEL_NAME} ».")
+                self.model = Model(
+                    wakeword_models=[WAKEWORD_MODEL_NAME],
+                    inference_framework="onnx",
+                )
+            else:
+                raise
 
     def __call__(self, audio_chunk_int16) -> float:
         if not isinstance(audio_chunk_int16, np.ndarray):

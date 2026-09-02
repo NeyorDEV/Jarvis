@@ -80,9 +80,14 @@ export function initDynamicUserTips() {
     }, delay);
   }
 
+  // Horodatage du dernier changement d'astuce, partagé par le survol et le clic
+  // (voir le commentaire dans le gestionnaire de clic).
+  let dernierChangement = 0;
+
   // Événements d'interaction
   tipPanelEl.addEventListener("mouseenter", () => {
     if (isCollapsed) {
+      dernierChangement = Date.now();
       expandPanel();
     } else {
       // Si l'utilisateur survole alors qu'il est déjà étendu, on garde ouvert
@@ -98,6 +103,14 @@ export function initDynamicUserTips() {
   });
 
   tipPanelEl.addEventListener("click", () => {
+    // Un clic physique est TOUJOURS précédé d'un « mouseenter » : celui-ci a déjà
+    // déplié le panneau et avancé d'une astuce. Sans ce verrou, le clic en
+    // avançait une seconde — on sautait donc deux astuces d'un coup et
+    // l'animation de frappe repartait en plein milieu d'un mot.
+    const maintenant = Date.now();
+    if (maintenant - dernierChangement < 400) return;
+    dernierChangement = maintenant;
+
     if (isCollapsed) {
       expandPanel();
     } else {

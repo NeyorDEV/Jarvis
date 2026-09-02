@@ -87,10 +87,10 @@ function resizeCanvas() {
 /**
  * Active ou désactive le suivi gestuel
  */
-export async function toggleHandTracking(active: boolean): Promise<boolean> {
-  if (active === isTrackingActive) return isTrackingActive;
+export async function toggleHandTracking(active?: boolean): Promise<boolean> {
+  const targetState = active !== undefined ? active : !isTrackingActive;
 
-  if (active) {
+  if (targetState) {
     try {
       const started = await startTracking();
       if (started) {
@@ -100,6 +100,38 @@ export async function toggleHandTracking(active: boolean): Promise<boolean> {
         // Minimiser l'orbe principal en bas à gauche de façon synchronisée
         const orbCanvas = document.getElementById("orb-canvas");
         if (orbCanvas) orbCanvas.classList.add("minimized");
+
+        // Créer un bouton de sortie flottant d'urgence "QUITTER AR" au sommet de l'écran
+        let exitBtn = document.getElementById("ar-exit-floating-btn");
+        if (!exitBtn) {
+          exitBtn = document.createElement("button");
+          exitBtn.id = "ar-exit-floating-btn";
+          exitBtn.innerHTML = "✖ QUITTER LE MODE AR";
+          Object.assign(exitBtn.style, {
+            position: "fixed",
+            top: "20px",
+            left: "50%",
+            transform: "translateX(-50%)",
+            zIndex: "35000",
+            background: "rgba(255, 51, 102, 0.85)",
+            border: "1px solid #ff3366",
+            borderRadius: "20px",
+            color: "#fff",
+            fontFamily: "monospace",
+            fontSize: "12px",
+            fontWeight: "bold",
+            padding: "8px 20px",
+            cursor: "pointer",
+            boxShadow: "0 0 20px rgba(255, 51, 102, 0.6)",
+            letterSpacing: "1.5px",
+          });
+          exitBtn.onclick = () => {
+            toggleHandTracking(false);
+          };
+          document.body.appendChild(exitBtn);
+        } else {
+          exitBtn.style.display = "block";
+        }
       }
       return isTrackingActive;
     } catch (err) {
@@ -111,6 +143,17 @@ export async function toggleHandTracking(active: boolean): Promise<boolean> {
     stopTracking();
     isTrackingActive = false;
     document.body.classList.remove("ar-mode-active");
+    
+    const exitBtn = document.getElementById("ar-exit-floating-btn");
+    if (exitBtn) exitBtn.style.display = "none";
+
+    // Mettre à jour les boutons d'état AR dans la page
+    const btn = document.getElementById("gestures-toggle");
+    if (btn) {
+      btn.setAttribute("aria-pressed", "false");
+      btn.classList.remove("active", "ar-active");
+      btn.innerHTML = '<span class="btn-icon">🖐️</span> MODE AR';
+    }
     
     // Restaurer l'orbe principal si le globe n'est pas affiché
     const orbCanvas = document.getElementById("orb-canvas");

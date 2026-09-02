@@ -8,8 +8,21 @@ import asyncio
 # On importe les fonctions du fichier existant si possible
 try:
     from controller.app_launcher import _APPS_CATALOGUE, _boulot_lancer, mode_boulot, mode_gaming, mode_rocket_league
-except ImportError:
+except ImportError as _e_app:
+    # Le repli ne définissait que _APPS_CATALOGUE : si l'import échouait,
+    # « mode boulot » levait un NameError au lieu de retourner None, et
+    # l'utilisateur n'avait qu'un silence sans explication.
+    print(f"[APP LAUNCHER] Import du contrôleur impossible ({_e_app}) — modes désactivés.")
     _APPS_CATALOGUE = {}
+
+    def _boulot_lancer(*args, **kwargs):
+        return False
+
+    async def _mode_indisponible(*args, **kwargs):
+        return ("Le module de lancement d'applications n'est pas disponible sur "
+                "cette installation, mylane.")
+
+    mode_boulot = mode_gaming = mode_rocket_league = _mode_indisponible
 
 async def resoudre_apps_localement(texte):
     """Gère l'ouverture et la fermeture des applications PC et les modes de travail/jeu."""

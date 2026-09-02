@@ -8,7 +8,7 @@
  */
 
 import { createOrb, type OrbState } from "./orb";
-import { injectVisionButton, captureFrame } from "./screen_capture";
+import { injectVisionButton, captureFrame, toggleVision } from "./screen_capture";
 import { initJarvisGlobe } from "./globe";
 import { initWidgets, updateWeatherUI, updateMusicUI } from "./widgets";
 import { cardManager } from "./cards";
@@ -26,12 +26,14 @@ import { wsRef } from "./ws_link";
 import { makeDraggable, makePanelDraggable } from "./ui/draggable";
 import { initDynamicUserTips } from "./ui/tips";
 import { initDynamicAmbientGlow, initMagneticButtons } from "./ui/effects";
-import { initCarouselDock, hideCarouselArrow, showCarouselArrow } from "./ui/carousel";
+import { initCarouselDock, hideCarouselArrow, showCarouselArrow, refreshCarousel } from "./ui/carousel";
 import { showImageHUD, showImagePanel } from "./panels/image_panels";
-import { openAntivirusPanel, handleAntivirusWSMessage } from "./panels/antivirus_panel";
+import { openAntivirusPanel, closeAntivirusPanel, handleAntivirusWSMessage } from "./panels/antivirus_panel";
 import { setShoppingList, openShoppingPanel } from "./panels/shopping_panel";
 import { openUninstallerPanel, closeUninstallerPanel, handleInstalledPrograms, updateUninstallProgress, showUninstallComplete, showCleanComplete } from "./panels/uninstaller_panel";
-import { openWingetPanel, handleWingetUpgrades, appendWingetProgress } from "./panels/winget_panel";
+import { openWingetPanel, closeWingetPanel, handleWingetUpgrades, appendWingetProgress } from "./panels/winget_panel";
+import { LiveAudioEngine } from "./live_audio";
+import { SwarmLounge } from "./swarm_lounge";
 
 // Expose SpatialFileExplorer class globally for hologramme.js
 (window as any).SpatialFileExplorer = SpatialFileExplorer;
@@ -104,12 +106,53 @@ const appDetectBtn = document.getElementById("app-detect-btn") as HTMLButtonElem
 const appDetectSelect = document.getElementById("app-detect-select") as HTMLSelectElement;
 
 // (Refs courses extraites dans panels/shopping_panel.ts)
-// Swarm HUD DOM refs (Minimal)
-const devSwarmHud = document.getElementById("dev-swarm-hud") as HTMLDivElement;
-const swarmCloseBtn = document.getElementById("swarm-close-btn") as HTMLButtonElement;
-const swarmProgressAgent = document.getElementById("swarm-progress-agent") as HTMLSpanElement;
-const swarmProgressBarFill = document.getElementById("swarm-progress-bar-fill") as HTMLDivElement;
-const swarmProgressMsg = document.getElementById("swarm-progress-msg") as HTMLSpanElement;
+// Swarm 3D Command Center Modal DOM refs
+const swarmLoungeHud = document.getElementById("swarm-lounge-hud") as HTMLDivElement;
+const swarmLoungeClose = document.getElementById("swarm-lounge-close") as HTMLButtonElement;
+const swarmTerminalLogs = document.getElementById("swarm-terminal-logs") as HTMLDivElement;
+
+let swarmLoungeInstance: SwarmLounge | null = null;
+window.addEventListener("DOMContentLoaded", () => {
+  try {
+    const canvasEl = document.getElementById("swarm-lounge-canvas") as HTMLCanvasElement;
+    if (canvasEl) {
+      swarmLoungeInstance = new SwarmLounge("swarm-lounge-canvas");
+      swarmLoungeInstance.start();
+      (window as any).swarmLounge = swarmLoungeInstance;
+    }
+  } catch (e) {
+    console.warn("Could not init SwarmLounge 3D Canvas:", e);
+  }
+});
+
+swarmLoungeClose?.addEventListener("click", () => {
+  swarmLoungeHud?.classList.add("hidden");
+  if (swarmLoungeHud) swarmLoungeHud.style.display = "none";
+});
+
+// Website Builder Console HUD DOM refs
+const wbHud = document.getElementById("website-builder-hud") as HTMLDivElement;
+const wbCloseBtn = document.getElementById("wb-close-btn") as HTMLButtonElement;
+const wbStepBadge = document.getElementById("wb-step-badge") as HTMLSpanElement;
+const wbStatusText = document.getElementById("wb-status-text") as HTMLSpanElement;
+const wbImagesCount = document.getElementById("wb-images-count") as HTMLSpanElement;
+const wbProgressPct = document.getElementById("wb-progress-pct") as HTMLSpanElement;
+const wbProgressFill = document.getElementById("wb-progress-fill") as HTMLDivElement;
+const wbTerminalLogs = document.getElementById("wb-terminal-logs") as HTMLDivElement;
+
+wbCloseBtn?.addEventListener("click", () => {
+  wbHud?.classList.add("hidden");
+  if (wbHud) wbHud.style.display = "none";
+});
+
+const wbBrowseBtn = document.getElementById("wb-browse-btn");
+if (wbBrowseBtn) {
+  wbBrowseBtn.addEventListener("click", () => {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: "select_folder" }));
+    }
+  });
+}
 
 // (Refs winget extraites dans panels/winget_panel.ts)
 
@@ -129,7 +172,6 @@ let keyboardEnabled = false;
 let timerInterval: number | null = null;
 let timerSeconds = 0;
 let timerTotalSeconds = 0;
-
 const HELP_COMMANDS = [
   // Heure & Date
   "Quelle heure est-il ?",
@@ -176,7 +218,7 @@ const HELP_COMMANDS = [
   "Trie mes fichiers par type",
   "Trie mes fichiers par date",
   "Crée le dossier Projets",
-  "Renomme ancien_dossier en nouveau_dossier",
+    "Renomme ancien_dossier en nouveau_dossier",
   "Déplace photo.jpg vers Images",
   "Analyse le fichier de notes",
 
@@ -218,7 +260,7 @@ const HELP_COMMANDS = [
   "Affiche mes fichiers en 3D",
   "Affiche ma maison en 3D",
   "Affiche la carte domotique 3D",
-
+  
   // Cortex Neuronal 3D
   "Affiche ton cortex",
   "Ouvre le cortex neuronal",
@@ -255,7 +297,7 @@ const HELP_COMMANDS = [
   "Reprends la télé",
   "Monte le son de la télé",
 
-  // Musique Spotify & Deezer
+    // Musique Spotify & Deezer
   "Lance Spotify",
   "Joue Billie Jean sur Spotify",
   "Suivant sur Spotify",
@@ -292,7 +334,7 @@ const HELP_COMMANDS = [
   "Aspire la maison",
   "Retour à la base de l'aspirateur",
 
-  // Intelligence & Assistance IA
+    // Intelligence & Assistance IA
   "Recherche approfondie sur l'intelligence artificielle",
   "Analyse mon écran",
   "Aide-moi",
@@ -330,7 +372,7 @@ const HELP_COMMANDS = [
   "Lance la démo",
   "Écris le mot JARVIS",
 
-  // Configuration & Flux
+    // Configuration & Flux
   "Prends la voix d'homme",
   "Prends la voix de femme",
   "Active le mode Iron Man",
@@ -369,7 +411,7 @@ function applyState(state: OrbState): void {
   if (state === "listening" || state === "thinking") {
     visualizerHudEl?.classList.add("visible");
     visualizerHudEl?.classList.toggle("listening", state === "listening");
-    visualizerHudEl?.classList.toggle("thinking", state === "thinking");
+        visualizerHudEl?.classList.toggle("thinking", state === "thinking");
   } else {
     visualizerHudEl?.classList.remove("visible", "listening", "thinking");
   }
@@ -446,8 +488,7 @@ function animateVirtualCursorTo(element: HTMLElement): Promise<void> {
       resolve();
       return;
     }
-
-    if (virtualCursorHideTimeout) {
+        if (virtualCursorHideTimeout) {
       clearTimeout(virtualCursorHideTimeout);
       virtualCursorHideTimeout = null;
     }
@@ -485,6 +526,17 @@ function connect(): void {
   wsRef.current = ws;
   (window as any)._jarvisWs = ws;
   updateIPTVWS(ws);
+
+  const previousLiveEngine = (window as any).liveAudioEngine as LiveAudioEngine | undefined;
+  if (previousLiveEngine) {
+    previousLiveEngine.stopLiveSession();
+  }
+  const liveEngine = new LiveAudioEngine((data) => {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify(data));
+    }
+  });
+  (window as any).liveAudioEngine = liveEngine;
 
   ws.addEventListener("open", () => {
     setConnected(true);
@@ -525,8 +577,7 @@ function connect(): void {
 
     const element = domAction.selector ? document.querySelector(domAction.selector) as HTMLElement : null;
     if (!element) return;
-
-    // Scroll automatique : amener l'élément dans la zone visible avant toute interaction
+        // Scroll automatique : amener l'élément dans la zone visible avant toute interaction
     element.scrollIntoView({ behavior: "smooth", block: "center", inline: "nearest" });
     await new Promise(r => setTimeout(r, 300)); // Laisser le scroll se terminer
 
@@ -568,7 +619,7 @@ function connect(): void {
       (element as HTMLSelectElement).value = domAction.text || "";
       element.dispatchEvent(new Event('change', { bubbles: true }));
       await new Promise(r => setTimeout(r, 500)); // Pacing de 500ms post-sélection
-    } else if (domAction.action === "add_class") {
+          } else if (domAction.action === "add_class") {
       element.classList.add(domAction.class_name || "");
     } else if (domAction.action === "remove_class") {
       element.classList.remove(domAction.class_name || "");
@@ -605,7 +656,7 @@ function connect(): void {
 
   ws.addEventListener("message", async (event: MessageEvent) => {
     try {
-      const data = JSON.parse(event.data as string) as {
+            const data = JSON.parse(event.data as string) as {
         state?: string;
         action?: string;
         muted?: boolean;
@@ -625,9 +676,16 @@ function connect(): void {
         weather_type?: string;
         status_text?: string;
         data?: Record<string, any>;
+        pcm_base64?: string;
+        sample_rate?: number;
       };
 
-
+      // ── Gemini Multimodal Live Audio Handler ──
+      if (data.action === "live_audio_output" && data.pcm_base64) {
+        if ((window as any).liveAudioEngine) {
+          (window as any).liveAudioEngine.playIncomingPCM(data.pcm_base64, data.sample_rate || 24000);
+        }
+      }
 
       // ── OS Autopilot & Virtual Cursor ──
       if (data.action === "draw_virtual_cursor" && (data as any).x !== undefined && (data as any).y !== undefined) {
@@ -638,8 +696,7 @@ function connect(): void {
           
           // Injecter la durée de transition dynamique
           cursor.style.transition = `left ${animDuration}s cubic-bezier(0.25, 0.8, 0.25, 1), top ${animDuration}s cubic-bezier(0.25, 0.8, 0.25, 1), transform 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275)`;
-          
-          if (wasHidden) {
+                    if (wasHidden) {
             // Positionner initialement au centre pour un premier déplacement fluide
             cursor.style.left = "50%";
             cursor.style.top = "50%";
@@ -682,7 +739,7 @@ function connect(): void {
           }, duration + 3000);
         }
         return;
-      }
+              }
 
       if (data.action === "os_agent_status") {
         const banner = document.getElementById("os-autopilot-banner");
@@ -728,8 +785,7 @@ function connect(): void {
         if (explorer) explorer.handleServerResponse(data);
         return;
       }
-
-      // ── Image Search ──
+            // ── Image Search ──
       if (data.type === "show_images") {
         showImagePanel((data as any).query || "IMAGE_SCAN", (data as any).images || []);
         return;
@@ -771,8 +827,7 @@ function connect(): void {
         showCleanComplete(data);
         return;
       }
-
-      // ── Winget WS Messages ──
+            // ── Winget WS Messages ──
       if (data.action === "winget_open" || data.type === "winget_open") {
         openWingetPanel();
         return;
@@ -797,48 +852,322 @@ function connect(): void {
         return;
       }
 
-      // ── Autonomous Dev Swarm HUD (Minimal Progress) ──
-      if (data.action === "dev_swarm_update") {
-        const swarmData = data as any;
-        if (devSwarmHud) {
-          devSwarmHud.classList.remove("hidden");
+      // ── WS File Inspector Read/Write Events ──
+      if (data.type === "file_content" || data.action === "file_content") {
+        const fileData = data as any;
+        const textarea = document.getElementById("code-editor-textarea") as HTMLTextAreaElement;
+        const filepathEl = document.getElementById("code-editor-filepath");
+        if (textarea && fileData.filepath) {
+          textarea.value = fileData.content || (fileData.error ? `// Erreur : ${fileData.error}` : "");
         }
-        if (swarmProgressAgent) {
-          swarmProgressAgent.textContent = `AGENT: ${swarmData.agent || 'SYSTEM'}`;
-        }
-        if (swarmProgressMsg) {
-          swarmProgressMsg.textContent = swarmData.message || '';
-        }
-        if (swarmProgressBarFill) {
-          let pct = 0;
-          swarmProgressBarFill.classList.remove("success", "failure");
-          if (swarmData.status === "success") {
-            pct = 100;
-            swarmProgressBarFill.classList.add("success");
-          } else if (swarmData.status === "failure") {
-            pct = 100;
-            swarmProgressBarFill.classList.add("failure");
-          } else {
-            if (swarmData.agent === "PM") {
-              pct = 20;
-            } else if (swarmData.agent === "DEV") {
-              pct = 60;
-            } else if (swarmData.agent === "QA") {
-              pct = 90;
-            } else {
-              pct = 10;
-            }
-          }
-          swarmProgressBarFill.style.width = `${pct}%`;
-        }
-        // Auto-fermeture progressive du HUD après 8 secondes si terminé
-        if (swarmData.status === "success" || swarmData.status === "failure") {
-          setTimeout(() => {
-            devSwarmHud?.classList.add("hidden");
-          }, 8000);
+        if (filepathEl && fileData.filepath) {
+          filepathEl.textContent = `Fichier : ${fileData.filepath}`;
         }
         return;
       }
+            if (data.type === "file_saved" || data.action === "file_saved") {
+        const fileData = data as any;
+        const saveBtn = document.getElementById("save-code-btn");
+        if (saveBtn) {
+          const oldText = saveBtn.textContent;
+          saveBtn.textContent = fileData.success ? "✅ Sauvegardé !" : "❌ Échec !";
+          setTimeout(() => { saveBtn.textContent = oldText; }, 2000);
+        }
+        return;
+      }
+
+      if (data.type === "folder_selected") {
+        const folderInput = document.getElementById("wb-folder-input") as HTMLInputElement | null;
+        if (folderInput && (data as any).folder) {
+          folderInput.value = (data as any).folder;
+        }
+        return;
+      }
+
+const _projectWrittenCode: Record<string, string> = {};
+let _activeStreamFile: string = "";
+
+function getFileBadgeHTML(filename: string): string {
+  if (!filename || typeof filename !== "string") return '<span class="file-icon-tag default">FILE</span>';
+  const clean = filename.toLowerCase();
+  if (clean.endsWith(".html")) {
+    return '<span class="file-icon-tag html"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> HTML</span>';
+  }
+  if (clean.endsWith(".css")) {
+    return '<span class="file-icon-tag css"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2l9 4.9v10.2L12 22l-9-4.9V6.9L12 2z"/></svg> CSS</span>';
+  }
+    if (clean.endsWith(".js")) {
+    return '<span class="file-icon-tag js"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg> JS</span>';
+  }
+  return '<span class="file-icon-tag default"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/></svg> FILE</span>';
+}
+
+function updateLiveCodeStream(fileName?: string, codeContent?: string) {
+  const tabsContainer = document.getElementById("swarm-code-tabs");
+  const codeContentEl = document.getElementById("swarm-code-content");
+  const codeGutterEl = document.getElementById("swarm-code-gutter");
+
+  if (fileName) {
+    if (codeContent) {
+      _projectWrittenCode[fileName] = codeContent;
+    }
+    _activeStreamFile = fileName;
+  }
+
+  const targetFile = fileName || _activeStreamFile;
+
+  if (tabsContainer) {
+    tabsContainer.innerHTML = "";
+    const fileKeys = Object.keys(_projectWrittenCode);
+    if (fileKeys.length === 0 && targetFile) fileKeys.push(targetFile);
+
+    fileKeys.forEach((fKey) => {
+      const tabBtn = document.createElement("button");
+      tabBtn.className = `swarm-code-tab ${fKey === targetFile ? "active" : ""}`;
+      tabBtn.innerHTML = `${getFileBadgeHTML(fKey)} ${fKey}`;
+      tabBtn.style.cursor = "pointer";
+      tabBtn.onclick = (e) => {
+        e.stopPropagation();
+        _activeStreamFile = fKey;
+        updateLiveCodeStream(fKey, _projectWrittenCode[fKey]);
+      };
+      tabsContainer.appendChild(tabBtn);
+    });
+  }
+    const displayCode = (targetFile && _projectWrittenCode[targetFile]) || codeContent || "";
+  if (codeContentEl) {
+    codeContentEl.textContent = displayCode;
+
+    if (codeGutterEl) {
+      const lines = displayCode.split('\n');
+      codeGutterEl.innerHTML = lines.map((_, i) => `<span class="ln">${i + 1}</span>`).join('');
+    }
+
+    codeContentEl.scrollTop = codeContentEl.scrollHeight;
+    if (codeGutterEl) codeGutterEl.scrollTop = codeContentEl.scrollTop;
+
+    codeContentEl.onscroll = () => {
+      if (codeGutterEl) codeGutterEl.scrollTop = codeContentEl.scrollTop;
+    };
+  }
+}
+
+      // ── Autonomous Dev Swarm Command Center HUD (Full 3D & 6-Agents) ──
+      if (data.action === "dev_swarm_update") {
+        const swarmData = data as any;
+
+        // 1. Ouvrir le grand Command Center 3D Swarm Modal
+        if (swarmLoungeHud) {
+          swarmLoungeHud.classList.remove("hidden");
+          swarmLoungeHud.style.display = "flex";
+        }
+
+        // 2. Mettre à jour l'état de la scène 3D Three.js
+        if (swarmLoungeInstance) {
+          swarmLoungeInstance.updateSwarmStatus(
+            swarmData.agent || null,
+            swarmData.status || 'in_progress',
+            swarmData.message || '',
+            swarmData.project || ''
+          );
+        }
+                // 3. Mettre à jour les 6 cartes d'agents du volet latéral
+        const currentRole = (swarmData.agent || '').toLowerCase();
+        const rolesOrder = ['pm', 'ui', 'dev', 'sec', 'qa', 'ops'];
+        const currentIndex = rolesOrder.indexOf(currentRole);
+
+        rolesOrder.forEach((r, idx) => {
+          const cardEl = document.getElementById(`card-agent-${r}`);
+          const statusBadge = document.getElementById(`status-${r}`);
+          const msgEl = document.getElementById(`msg-${r}`);
+
+          if (cardEl && statusBadge && msgEl) {
+            if (swarmData.status === 'success') {
+              cardEl.classList.remove("active");
+              statusBadge.className = "card-status-badge success";
+              statusBadge.textContent = "SUCCÈS";
+            } else if (r === currentRole) {
+              cardEl.classList.add("active");
+              statusBadge.className = "card-status-badge active";
+              statusBadge.textContent = "ACTION";
+              if (swarmData.message) msgEl.textContent = swarmData.message;
+            } else if (idx < currentIndex) {
+              cardEl.classList.remove("active");
+              statusBadge.className = "card-status-badge success";
+              statusBadge.textContent = "VALIDÉ";
+            } else {
+              cardEl.classList.remove("active");
+              statusBadge.className = "card-status-badge idle";
+              statusBadge.textContent = "EN ATTENTE";
+            }
+          }
+        });
+
+        // 4. Mettre à jour le visualiseur de code en direct (Live Stream IDE)
+        if (swarmData.current_file) {
+          _activeStreamFile = swarmData.current_file;
+          updateLiveCodeStream(swarmData.current_file, swarmData.current_code || _projectWrittenCode[swarmData.current_file]);
+        }
+
+        // 5. Ajouter une ligne de log au terminal du Command Center
+        if (swarmTerminalLogs && (swarmData.log || swarmData.message)) {
+                    const logEntry = document.createElement("div");
+          logEntry.className = "swarm-log-line";
+          const timestamp = new Date().toLocaleTimeString();
+          logEntry.textContent = `[${timestamp}] [${swarmData.agent || 'SYS'}] ${swarmData.message || swarmData.log}`;
+          swarmTerminalLogs.appendChild(logEntry);
+          swarmTerminalLogs.scrollTop = swarmTerminalLogs.scrollHeight;
+        }
+
+        return;
+      }
+
+      // ── Website Builder Console HUD Event ──
+      if (data.action === "website_builder_update") {
+        const wbData = data as any;
+        if (wbHud) {
+          wbHud.classList.remove("hidden");
+          wbHud.style.display = "block";
+        }
+        if (wbStepBadge && wbData.step_label) {
+          wbStepBadge.textContent = wbData.step_label;
+        }
+        if (wbStatusText && wbData.message) {
+          wbStatusText.textContent = wbData.message;
+        }
+        const wbFilesCount = document.getElementById("wb-files-count");
+        if (wbFilesCount && wbData.files_count) {
+          wbFilesCount.textContent = `${wbData.files_count.generated} / ${wbData.files_count.total}`;
+        }
+                if (wbImagesCount && wbData.images_count) {
+          const imgGen = wbData.images_count.generated !== undefined ? wbData.images_count.generated : 0;
+          const imgTot = wbData.images_count.total !== undefined ? wbData.images_count.total : 0;
+          wbImagesCount.textContent = `${imgGen} / ${imgTot}`;
+        }
+        if (wbProgressPct) {
+          wbProgressPct.textContent = `${wbData.progress || 0}%`;
+        }
+        if (wbProgressFill) {
+          wbProgressFill.style.width = `${wbData.progress || 0}%`;
+        }
+        const filesContainer = document.getElementById("wb-files-list-container");
+        if (filesContainer && wbData.files_list && Array.isArray(wbData.files_list)) {
+          filesContainer.innerHTML = "";
+          wbData.files_list.forEach((fItem: any) => {
+            const filePath = typeof fItem === "string" ? fItem : (fItem.file_path || fItem.name || String(fItem));
+            const btn = document.createElement("button");
+            btn.className = "wb-file-btn";
+            btn.innerHTML = `${getFileBadgeHTML(filePath)}<span>${filePath}</span>`;
+            btn.title = `Cliquer pour éditer / voir ${filePath}`;
+            btn.onclick = (e) => {
+              e.stopPropagation();
+              openCodeEditorModal(filePath, wbData.project_name);
+            };
+            filesContainer.appendChild(btn);
+          });
+        }
+        if (wbTerminalLogs && wbData.logs && Array.isArray(wbData.logs)) {
+          wbTerminalLogs.innerHTML = "";
+          wbData.logs.forEach((logStr: string) => {
+            const entry = document.createElement("div");
+            entry.className = "wb-log-entry";
+            if (logStr.includes("IMAGE IA")) entry.classList.add("image");
+            else if (logStr.includes("CODE ENGINE")) entry.classList.add("code");
+            else if (logStr.includes("succès") || logStr.includes("RÉUSSI")) entry.classList.add("success");
+
+            const fileMatch = logStr.match(/([\w\-\\./]+\.(?:html|css|js|json))/i);
+            if (fileMatch) {
+              const matchedFile = fileMatch[1];
+              const parts = logStr.split(matchedFile);
+              entry.appendChild(document.createTextNode(parts[0]));
+              
+              const fileLink = document.createElement("span");
+              fileLink.className = "file-click-link";
+              fileLink.textContent = matchedFile;
+              fileLink.title = "Cliquer pour ouvrir et éditer ce fichier";
+                            fileLink.onclick = (e) => {
+                e.stopPropagation();
+                openCodeEditorModal(matchedFile, wbData.project_name);
+              };
+              entry.appendChild(fileLink);
+              entry.appendChild(document.createTextNode(parts.slice(1).join(matchedFile)));
+            } else {
+              entry.textContent = logStr;
+            }
+            wbTerminalLogs.appendChild(entry);
+          });
+          wbTerminalLogs.scrollTop = wbTerminalLogs.scrollHeight;
+        }
+        if (wbData.status === "success" || wbData.status === "failure") {
+          setTimeout(() => {
+            wbHud?.classList.add("hidden");
+            if (wbHud) wbHud.style.display = "none";
+          }, 14000);
+        }
+        return;
+      }
+
+function openCodeEditorModal(filePath: string, projectName?: string) {
+  const modal = document.getElementById("code-editor-modal");
+  const filenameEl = document.getElementById("code-editor-filename");
+  const filepathEl = document.getElementById("code-editor-filepath");
+  const textarea = document.getElementById("code-editor-textarea") as HTMLTextAreaElement;
+  const closeBtn = document.getElementById("close-code-editor");
+  const saveBtn = document.getElementById("save-code-btn");
+  const previewBtn = document.getElementById("preview-code-btn");
+
+  if (!modal || !textarea) return;
+
+  modal.classList.remove("hidden");
+  modal.style.display = "flex";
+
+  const folderInput = document.getElementById("wb-folder-input") as HTMLInputElement | null;
+  const customFolder = folderInput?.value.trim() || "";
+    let fullPath = filePath;
+  if (!filePath.includes(":") && !filePath.startsWith("/")) {
+    if (customFolder) {
+      fullPath = `${customFolder}\\${filePath}`;
+    } else {
+      const proj = projectName || "apexmind_studio_saas";
+      fullPath = `n:\\JARVIS\\backend\\sandbox\\${proj}\\${filePath}`;
+    }
+  }
+
+  if (filenameEl) filenameEl.textContent = `JARVIS // ÉDITEUR (${filePath})`;
+  if (filepathEl) filepathEl.textContent = `Fichier : ${fullPath}`;
+
+  textarea.value = `// Chargement de ${filePath} depuis le disque...`;
+
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({ type: "read_file", action: "read_file", filepath: fullPath }));
+  }
+
+  if (closeBtn) {
+    closeBtn.onclick = () => {
+      modal.classList.add("hidden");
+      modal.style.display = "none";
+    };
+  }
+
+  if (saveBtn) {
+    saveBtn.onclick = () => {
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({
+          type: "write_file",
+          action: "write_file",
+          filepath: fullPath,
+          content: textarea.value
+        }));
+      }
+    };
+  }
+    if (previewBtn) {
+    previewBtn.onclick = () => {
+      const cleanPath = fullPath.replace(/\\/g, "/");
+      window.open(`file:///${cleanPath}`, "_blank");
+    };
+  }
+}
 
       // ── Chess Map 3D ──
       if (data.action === "chess_start") {
@@ -871,7 +1200,7 @@ function connect(): void {
 
                 // Démarrer la partie avec les paramètres si fournis
                 if (anyData.difficulty && anyData.player_color && anyData.use_timer) {
-                  chess.startFromConfig(anyData.difficulty, anyData.player_color, anyData.use_timer === 'yes');
+                                    chess.startFromConfig(anyData.difficulty, anyData.player_color, anyData.use_timer === 'yes');
                 }
 
                 chess.handleGameState(data.state);
@@ -913,8 +1242,7 @@ function connect(): void {
         }
         return;
       }
-
-      // ── Network Radar 3D ──
+            // ── Network Radar 3D ──
       if (data.action === "network_radar_show") {
         if (!_holoActive) _openHolo();
         setTimeout(() => {
@@ -953,8 +1281,7 @@ function connect(): void {
         if (domMap) domMap.handleServerResponse(data);
         return;
       }
-
-      // ── Cortex Neuronal 3D ──
+            // ── Cortex Neuronal 3D ──
       if (data.action === "cortex_list" || 
           data.action === "cortex_update" || 
           data.action === "cortex_new_memory" || 
@@ -996,7 +1323,7 @@ function connect(): void {
         if (!_holoActive) {
           _openHolo();
         }
-        setTimeout(() => {
+                setTimeout(() => {
           const app = (window as any)._holoApp;
           if (app) {
             if (!app.spatialExplorer) {
@@ -1038,8 +1365,7 @@ function connect(): void {
         }, 150);
         return;
       }
-
-      if (data.action === "open_cortex") {
+            if (data.action === "open_cortex") {
         if (!_holoActive) {
           _openHolo();
         }
@@ -1078,7 +1404,7 @@ function connect(): void {
       if (data.action === "weather_update" && data.weather) {
         updateWeatherUI(data.weather, data.weather_type as 'local' | 'monistrol');
         return;
-      }
+              }
       if (data.action === "music_update" && data.data) {
         updateMusicUI(data.data);
         return;
@@ -1118,7 +1444,7 @@ function connect(): void {
           });
           appDetectBtn.textContent = `🔍 APPS (${appsList.length})`;
         }
-        return;
+                return;
       }
 
       if (data.type === "settings_data" && data.data) {
@@ -1159,7 +1485,7 @@ function connect(): void {
         currentCustomCapteurs = settings.custom_capteurs || [];
         renderHaEntities();
         // Orb Style & Antivirus Live
-        const settingsOrbStyleEl = document.getElementById("settings-orb-style") as HTMLSelectElement;
+                const settingsOrbStyleEl = document.getElementById("settings-orb-style") as HTMLSelectElement;
         if (settingsOrbStyleEl) {
           settingsOrbStyleEl.value = settings.orb_style || "default";
           orb.setTheme(settingsOrbStyleEl.value);
@@ -1173,6 +1499,7 @@ function connect(): void {
         // Remplissage des clés API
         if (settings.api_keys) {
           const geminiKeyEl = document.getElementById("settings-api-gemini-key") as HTMLInputElement;
+          const openaiKeyEl = document.getElementById("settings-api-openai-key") as HTMLInputElement;
           const groqKeyEl = document.getElementById("settings-api-groq-key") as HTMLInputElement;
           const youtubeKeyEl = document.getElementById("settings-api-youtube-key") as HTMLInputElement;
           const grokKeyEl = document.getElementById("settings-api-grok-key") as HTMLInputElement;
@@ -1181,6 +1508,7 @@ function connect(): void {
           const mistralKeyEl = document.getElementById("settings-api-mistral-key") as HTMLInputElement;
 
           if (geminiKeyEl) geminiKeyEl.value = settings.api_keys.GEMINI_API_KEY || "";
+          if (openaiKeyEl) openaiKeyEl.value = settings.api_keys.OPENAI_API_KEY || "";
           if (groqKeyEl) groqKeyEl.value = settings.api_keys.GROQ_API_KEY || "";
           if (youtubeKeyEl) youtubeKeyEl.value = settings.api_keys.YOUTUBE_API_KEY || "";
           if (grokKeyEl) grokKeyEl.value = settings.api_keys.XAI_API_KEY || "";
@@ -1188,8 +1516,7 @@ function connect(): void {
           if (anthropicKeyEl) anthropicKeyEl.value = settings.api_keys.ANTHROPIC_API_KEY || "";
           if (mistralKeyEl) mistralKeyEl.value = settings.api_keys.MISTRAL_API_KEY || "";
         }
-        
-        // Remplissage des checkboxes d'activation API
+                // Remplissage des checkboxes d'activation API
         const geminiEnabledEl = document.getElementById("settings-api-gemini-enabled") as HTMLInputElement;
         const groqEnabledEl = document.getElementById("settings-api-groq-enabled") as HTMLInputElement;
         const youtubeEnabledEl = document.getElementById("settings-api-youtube-enabled") as HTMLInputElement;
@@ -1219,12 +1546,29 @@ function connect(): void {
             menuAvLiveBtn.style.color = "#00ffcc";
             menuAvLiveBtn.style.borderColor = "#00ffcc";
           } else {
-            menuAvLiveBtn.classList.remove("active");
+                        menuAvLiveBtn.classList.remove("active");
             menuAvLiveBtn.style.color = "";
             menuAvLiveBtn.style.borderColor = "";
           }
         }
         
+        return;
+      }
+
+      if (data.type === "agent_models_data" || (data as any).action === "agent_models_data") {
+        const info = (data as any).info || (data as any).data;
+        if (info) setupAgentModelsUI(info);
+        return;
+      }
+
+      if (data.type === "agent_models_updated" || (data as any).action === "agent_models_updated") {
+        console.log("[AGENT MODELS] Modèles mis à jour avec succès");
+        return;
+      }
+
+      // ── VOICE VAULT WEBSOCKET HANDLERS ──
+      if (data.type === "vault_status" || data.type === "vault_unlock_result" || data.type === "vault_file_added" || data.type === "vault_file_deleted" || data.type === "vault_lock_result") {
+        updateVoiceVaultUI(data);
         return;
       }
 
@@ -1259,7 +1603,7 @@ function connect(): void {
         return;
       }
       // ── Globe 3D Navigation ─────────────────────────────────────────
-      if (data.action === "jarvis_globe") {
+            if (data.action === "jarvis_globe") {
         if (typeof (window as any).jarvisGlobe === "function") {
           (window as any).jarvisGlobe(data);
         }
@@ -1300,7 +1644,7 @@ function connect(): void {
       }
 
       if (data.action === "system_stats") {
-        const cpuVal = document.getElementById("cpu-value");
+                const cpuVal = document.getElementById("cpu-value");
         const ramVal = document.getElementById("ram-value");
         const cpuHud = document.getElementById("cpu-hud");
         const ramHud = document.getElementById("ram-hud");
@@ -1338,7 +1682,7 @@ function connect(): void {
           titleEl.textContent = (data as any).titre || "RECETTE J.A.R.V.I.S";
 
           ingListEl.innerHTML = "";
-          const ingredients = (data as any).ingredients || [];
+                    const ingredients = (data as any).ingredients || [];
           ingredients.forEach((ing: string) => {
             const li = document.createElement("li");
             li.textContent = ing;
@@ -1431,7 +1775,7 @@ function showSubtitles(text: string) {
     
     // Réinitialiser les logs au début du processus
     if (cleanText.includes("COMPILING NEW SKILL") || cleanText.includes("SYSTEM: ALLOCATING")) {
-      hudLogs = [];
+            hudLogs = [];
     }
     
     // Filtrer les codes de couleur console ANSI éventuels
@@ -1469,7 +1813,7 @@ function showSubtitles(text: string) {
     container.style.display = "none";
     return;
   }
-
+  
   container.style.display = "block";
   textEl.textContent = "";
   metaEl.textContent = "DECRYPTING_RESPONSE...";
@@ -1510,42 +1854,49 @@ function scheduleReconnect(): void {
 
 // ── Events ──────────────────────────────────────────────────────────────────
 // ── Unified Menu Event Listeners ─────────────────────────────────────────────
-if (jarvisMenuBtn && jarvisMenuDropdown) {
-  jarvisMenuBtn.addEventListener("click", (e) => {
-    e.stopPropagation();
-    const isOpen = !jarvisMenuDropdown.classList.contains("hidden");
-    if (isOpen) {
-      jarvisMenuDropdown.classList.add("hidden");
-      jarvisMenuBtn.classList.remove("active");
-    } else {
-      jarvisMenuDropdown.classList.remove("hidden");
-      jarvisMenuBtn.classList.add("active");
-    }
-  });
-
-  // Close menu when clicking outside of it
-  document.addEventListener("click", (e) => {
-    const target = e.target as HTMLElement;
-    if (!jarvisMenuDropdown.classList.contains("hidden")) {
-      if (!jarvisMenuDropdown.contains(target) && target !== jarvisMenuBtn) {
+// ⚠ Ce bloc était intégralement enveloppé dans « if (jarvisMenuBtn && jarvisMenuDropdown) ».
+// Or #jarvis-menu-btn / #jarvis-menu-dropdown n'existent PLUS dans index.html :
+// la condition était donc toujours fausse et TOUT ce qui suit (≈260 lignes) était
+// du code mort — dont le bouton SAUVEGARDER de la modale des clés API, qui n'avait
+// aucun écouteur et ne faisait donc jamais rien.
+// Le câblage propre au menu reste conditionné ; le reste s'exécute maintenant.
+{
+  if (jarvisMenuBtn && jarvisMenuDropdown) {
+    jarvisMenuBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const isOpen = !jarvisMenuDropdown.classList.contains("hidden");
+      if (isOpen) {
         jarvisMenuDropdown.classList.add("hidden");
         jarvisMenuBtn.classList.remove("active");
-      }
-    }
-  });
-
-  // Close menu when panel-opening buttons are clicked
-  jarvisMenuDropdown.querySelectorAll(".menu-action-btn").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const id = btn.id;
-      if (id === "menu-settings-btn" || id === "shopping-toggle-btn" || id === "menu-uninstaller-toggle-btn" || id === "winget-toggle-btn" || id === "menu-holo-btn" || id === "menu-iptv-toggle-btn" || id === "menu-ha-toggle-btn" || id === "browser-btn" || id === "menu-keyboard-toggle" || id === "clear-cache-btn" || id === "api-keys-button" || id === "menu-av-scan-btn" || id === "menu-av-live-btn") {
-        jarvisMenuDropdown.classList.add("hidden");
-        jarvisMenuBtn.classList.remove("active");
+      } else {
+        jarvisMenuDropdown.classList.remove("hidden");
+        jarvisMenuBtn.classList.add("active");
       }
     });
-  });
 
-  // Liaison des clics du menu unifié vers les boutons jumeaux originaux (évite les doublons d'IDs)
+    // Close menu when clicking outside of it
+    document.addEventListener("click", (e) => {
+      const target = e.target as HTMLElement;
+      if (!jarvisMenuDropdown.classList.contains("hidden")) {
+        if (!jarvisMenuDropdown.contains(target) && target !== jarvisMenuBtn) {
+          jarvisMenuDropdown.classList.add("hidden");
+          jarvisMenuBtn.classList.remove("active");
+        }
+      }
+    });
+
+    // Close menu when panel-opening buttons are clicked
+    jarvisMenuDropdown.querySelectorAll(".menu-action-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const id = btn.id;
+        if (id === "menu-settings-btn" || id === "shopping-toggle-btn" || id === "menu-uninstaller-toggle-btn" || id === "winget-toggle-btn" || id === "menu-holo-btn" || id === "menu-iptv-toggle-btn" || id === "menu-ha-toggle-btn" || id === "browser-btn" || id === "menu-keyboard-toggle" || id === "clear-cache-btn" || id === "api-keys-button" || id === "menu-av-scan-btn" || id === "menu-av-live-btn") {
+          jarvisMenuDropdown.classList.add("hidden");
+          jarvisMenuBtn.classList.remove("active");
+        }
+      });
+    });
+  }
+    // Liaison des clics du menu unifié vers les boutons jumeaux originaux (évite les doublons d'IDs)
   const menuGpuBtn = document.getElementById("menu-gpu-btn");
   if (menuGpuBtn && gpuButtonEl) {
     menuGpuBtn.addEventListener("click", () => gpuButtonEl.click());
@@ -1582,7 +1933,7 @@ if (jarvisMenuBtn && jarvisMenuDropdown) {
 
   const menuUninstallerToggleBtn = document.getElementById("menu-uninstaller-toggle-btn");
   if (menuUninstallerToggleBtn) {
-    menuUninstallerToggleBtn.addEventListener("click", () => {
+        menuUninstallerToggleBtn.addEventListener("click", () => {
       const uninstallerPanel = document.getElementById("uninstaller-panel");
       if (!uninstallerPanel) return;
       const isHidden = uninstallerPanel.classList.contains("hidden");
@@ -1618,7 +1969,7 @@ if (jarvisMenuBtn && jarvisMenuDropdown) {
     });
   }
 
-  const menuSettingsBtn = document.getElementById("menu-settings-btn");
+    const menuSettingsBtn = document.getElementById("menu-settings-btn");
   if (menuSettingsBtn) {
     menuSettingsBtn.addEventListener("click", () => {
       // Masquer le menu déroulant
@@ -1653,7 +2004,7 @@ if (jarvisMenuBtn && jarvisMenuDropdown) {
                 opt.textContent = cam.label || `Caméra ${index + 1} (${cam.deviceId.substring(0, 5)}...)`;
                 settingsCameraSelect.appendChild(opt);
               });
-              const savedCam = localStorage.getItem("jarvis-camera-id") || "";
+                            const savedCam = localStorage.getItem("jarvis-camera-id") || "";
               settingsCameraSelect.value = savedCam;
             }
           })
@@ -1671,16 +2022,10 @@ if (jarvisMenuBtn && jarvisMenuDropdown) {
   }
 
   // ── Antivirus Scan / Live Protection dans le menu unifié ──
-  const menuAvScanBtn = document.getElementById("menu-av-scan-btn");
-  const settingsAvScanBtn = document.getElementById("settings-av-scan-btn");
-  if (menuAvScanBtn && settingsAvScanBtn) {
-    menuAvScanBtn.addEventListener("click", () => {
-      // Fermer le menu déroulant et déclencher le scan antivirus
-      if (jarvisMenuDropdown) jarvisMenuDropdown.classList.add("hidden");
-      if (jarvisMenuBtn) jarvisMenuBtn.classList.remove("active");
-      settingsAvScanBtn.click();
-    });
-  }
+  // (L'écouteur de #menu-av-scan-btn a été retiré d'ici : un second existe plus
+  //  bas dans le fichier. Les deux étant désormais actifs, un seul clic aurait
+  //  lancé DEUX scans antivirus concurrents et réinitialisé l'affichage en
+  //  pleine progression. Voir « menuAvScanBtn » plus bas.)
 
   const menuAvLiveBtn = document.getElementById("menu-av-live-btn");
   const settingsAvLive = document.getElementById("settings-av-live") as HTMLInputElement;
@@ -1691,28 +2036,12 @@ if (jarvisMenuBtn && jarvisMenuDropdown) {
       settingsAvLive.click();
     });
   }
-
-  // ── Bouton Vider Cache / Recharger ──
+    // ── Bouton Vider Cache / Recharger ──
   const clearCacheBtn = document.getElementById("clear-cache-btn") as HTMLButtonElement;
   if (clearCacheBtn) {
-    clearCacheBtn.addEventListener("click", () => {
-      if (jarvisMenuDropdown) jarvisMenuDropdown.classList.add("hidden");
-      if (jarvisMenuBtn) jarvisMenuBtn.classList.remove("active");
-      clearCacheBtn.disabled = true;
-      clearCacheBtn.innerHTML = '<span class="btn-icon">⏳</span> NETTOYAGE EN COURS...';
-      const banner = document.getElementById("update-banner");
-      if (banner) {
-        banner.style.display = "block";
-        banner.style.cursor = "default";
-        banner.textContent = "⏳ NETTOYAGE DU CACHE EN COURS...";
-        banner.style.background = "linear-gradient(90deg, rgba(0,30,80,0.95), rgba(0,100,180,0.85))";
-      }
-      if (ws && ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ type: "clear_cache" }));
-      } else {
-        setTimeout(() => location.reload(), 1500);
-      }
-    });
+    // Écouteur direct supprimé (doublon du dispatcher du carrousel) : la logique
+    // complète — dont la bannière de progression — vit désormais dans
+    // bindCarouselAction("clear-cache-btn").
   }
 
   // ── Bouton Liste des Commandes ──
@@ -1724,7 +2053,6 @@ if (jarvisMenuBtn && jarvisMenuDropdown) {
       showHelpHUD();
     });
   }
-
   // ── Bouton de configuration des clés API ──
   if (apiKeysButtonEl && apiKeysModalEl) {
     apiKeysButtonEl.addEventListener("click", () => {
@@ -1752,8 +2080,7 @@ if (jarvisMenuBtn && jarvisMenuDropdown) {
       const serpapiEnabledEl = document.getElementById("settings-api-serpapi-enabled") as HTMLInputElement;
       const anthropicEnabledEl = document.getElementById("settings-api-anthropic-enabled") as HTMLInputElement;
       const mistralEnabledEl = document.getElementById("settings-api-mistral-enabled") as HTMLInputElement;
-
-      const geminiKeyEl = document.getElementById("settings-api-gemini-key") as HTMLInputElement;
+            const geminiKeyEl = document.getElementById("settings-api-gemini-key") as HTMLInputElement;
       const groqKeyEl = document.getElementById("settings-api-groq-key") as HTMLInputElement;
       const youtubeKeyEl = document.getElementById("settings-api-youtube-key") as HTMLInputElement;
       const grokKeyEl = document.getElementById("settings-api-grok-key") as HTMLInputElement;
@@ -1780,7 +2107,7 @@ if (jarvisMenuBtn && jarvisMenuDropdown) {
               SERPAPI_API_KEY: serpapiKeyEl ? serpapiKeyEl.value.trim() : "",
               ANTHROPIC_API_KEY: anthropicKeyEl ? anthropicKeyEl.value.trim() : "",
               MISTRAL_API_KEY: mistralKeyEl ? mistralKeyEl.value.trim() : ""
-            }
+                          }
           }
         }));
       }
@@ -1790,40 +2117,15 @@ if (jarvisMenuBtn && jarvisMenuDropdown) {
 }
 
 
-muteButtonEl.addEventListener("click", () => {
-  if (!ws || ws.readyState !== WebSocket.OPEN) return;
+// (Écouteur de #mute-button retiré ici : un second, plus complet, existe plus bas
+//  dans le fichier. Les deux étant actifs, un clic envoyait « stop_audio » DEUX
+//  fois et forçait l'orbe en « idle » sans attendre la confirmation du backend.)
 
-  // Envoi du signal stop au backend
-  ws.send(JSON.stringify({ type: "stop_audio" }));
-
-  // Feedback immédiat sur l'orbe
-  applyState("idle");
-});
-
-gpuButtonEl?.addEventListener("click", () => {
-  const isPressed = gpuButtonEl.getAttribute("aria-pressed") === "true";
-  const newState = !isPressed;
-  gpuButtonEl.setAttribute("aria-pressed", newState.toString());
-
-  if (newState) {
-    orb.setQuality("high");
-    // Feedback visuel / textuel
-    console.log("GPU Acceleration Enabled");
-  } else {
-    orb.setQuality("low");
-    console.log("GPU Acceleration Disabled");
-  }
-});
-
-subtitleToggleButtonEl?.addEventListener("click", () => {
-  subtitlesEnabled = !subtitlesEnabled;
-  subtitleToggleButtonEl.setAttribute("aria-pressed", subtitlesEnabled.toString());
-  subtitleToggleButtonEl.textContent = subtitlesEnabled ? "HUD TEXT" : "TEXT OFF";
-
-  if (!subtitlesEnabled) {
-    document.getElementById("subtitle-hud")!.style.display = "none";
-  }
-});
+// NOTE : les écouteurs "click" directs de #gpu-button et #subtitle-toggle ont été
+// supprimés. Ces boutons vivent dans le carrousel, dont le gestionnaire délégué
+// exécute déjà leur action via _carouselActions. Garder les deux faisait basculer
+// l'état DEUX fois par clic → le bouton semblait ne rien faire.
+// Voir bindCarouselAction("gpu-button") / ("subtitle-toggle") plus bas.
 
 keyboardToggleButtonEl.addEventListener("click", () => {
   keyboardEnabled = !keyboardEnabled;
@@ -1858,7 +2160,7 @@ keyboardInputEl.addEventListener("input", () => {
   for (let i = 0; i < 6; i++) {
     randomStr += chars[Math.floor(Math.random() * chars.length)];
   }
-  statusLabel.textContent = `DECRYPTING: [ ${randomStr} ]`;
+    statusLabel.textContent = `DECRYPTING: [ ${randomStr} ]`;
   statusLabel.style.color = "#ff8a1a"; // Orange pendant le décryptage
   statusLabel.style.textShadow = "0 0 8px rgba(255, 138, 26, 0.5)";
 
@@ -1875,7 +2177,9 @@ keyboardInputEl.addEventListener("keydown", (e) => {
   if (e.key === "Enter") {
     const val = keyboardInputEl.value.trim();
     if (val && ws && ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify({ type: "user_input", text: val }));
+      const folderInput = document.getElementById("wb-folder-input") as HTMLInputElement | null;
+      const targetDir = folderInput?.value.trim() || undefined;
+      ws.send(JSON.stringify({ type: "user_input", text: val, target_dir: targetDir }));
       keyboardInputEl.value = "";
       
       // Flash de statut d'envoi réussi
@@ -1893,18 +2197,79 @@ keyboardInputEl.addEventListener("keydown", (e) => {
     }
   }
 });
-
 // ── Settings UI Logic ────────────────────────────────────────────────────────
-settingsButtonEl?.addEventListener("click", () => {
+// ── Modale Paramètres : ouverture/fermeture centralisées ──────────────────────
+// #settings-modal a « display:none » par défaut dans le CSS : on pilote donc
+// uniquement la classe .visible. Toute pose de style inline (display:flex) doit
+// être évitée, sinon les boutons FERMER / SAUVEGARDER n'arrivent plus à refermer
+// la modale (le style inline gagne sur le CSS).
+function setupAgentModelsUI(info: { available_models: Record<string, string[]>, current_models: Record<string, string> }) {
+  const agents = ["PM", "DEV", "UI", "SEC", "QA", "OPS"];
+  const available = info.available_models || {};
+  const current = info.current_models || {};
+
+  agents.forEach((agent) => {
+    const select = document.getElementById(`agent-model-${agent}`) as HTMLSelectElement | null;
+    if (!select) return;
+
+    select.innerHTML = "";
+    Object.entries(available).forEach(([provider, models]) => {
+      const optgroup = document.createElement("optgroup");
+      optgroup.label = `── ${provider} ──`;
+      models.forEach((m) => {
+        const opt = document.createElement("option");
+        opt.value = m;
+        opt.textContent = m;
+        if (current[agent] === m) {
+          opt.selected = true;
+        }
+        optgroup.appendChild(opt);
+      });
+      select.appendChild(optgroup);
+    });
+
+    select.onchange = () => {
+      saveAgentModelsFromUI();
+    };
+  });
+}
+
+function saveAgentModelsFromUI() {
+  const agents = ["PM", "DEV", "UI", "SEC", "QA", "OPS"];
+  const newModels: Record<string, string> = {};
+  agents.forEach((agent) => {
+    const select = document.getElementById(`agent-model-${agent}`) as HTMLSelectElement | null;
+    if (select && select.value) {
+      newModels[agent] = select.value;
+    }
+  });
+
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({
+      type: "set_agent_models",
+      action: "set_agent_models",
+      models: newModels
+    }));
+  }
+}
+
+function openSettingsModal() {
+  if (!settingsModalEl) return;
+
+  // Fermer le clavier visuel pour éviter la superposition
   if (keyboardEnabled) {
     keyboardEnabled = false;
-    keyboardToggleButtonEl.setAttribute("aria-pressed", "false");
-    keyboardHudEl.style.display = "none";
+    keyboardToggleButtonEl?.setAttribute("aria-pressed", "false");
+    if (keyboardHudEl) keyboardHudEl.style.display = "none";
   }
 
+  ["display", "opacity", "visibility"].forEach(p => settingsModalEl.style.removeProperty(p));
+  settingsModalEl.classList.remove("hidden");
   settingsModalEl.classList.add("visible");
+
   if (ws && ws.readyState === WebSocket.OPEN) {
     ws.send(JSON.stringify({ type: "get_settings" }));
+    ws.send(JSON.stringify({ type: "get_agent_models" }));
   }
 
   // Énumération des caméras détectées
@@ -1928,14 +2293,23 @@ settingsButtonEl?.addEventListener("click", () => {
         console.error("Erreur lors de l'énumération des caméras:", err);
       });
   }
-});
+}
 
-settingsCloseBtn.addEventListener("click", () => {
+function closeSettingsModal() {
+  if (!settingsModalEl) return;
   settingsModalEl.classList.remove("visible");
-});
+  // On purge tout style inline hérité : sans cela un display:flex résiduel
+  // maintiendrait la modale affichée malgré le retrait de .visible.
+  ["display", "opacity", "visibility"].forEach(p => settingsModalEl.style.removeProperty(p));
+}
 
-swarmCloseBtn?.addEventListener("click", () => {
-  devSwarmHud?.classList.add("hidden");
+// (Pas d'écouteur direct sur #settings-button : il est dans le carrousel, dont le
+//  dispatcher appelle l'action — en avoir deux annulait le clic.)
+
+settingsCloseBtn?.addEventListener("click", closeSettingsModal);
+swarmLoungeClose?.addEventListener("click", () => {
+  swarmLoungeHud?.classList.add("hidden");
+  if (swarmLoungeHud) swarmLoungeHud.style.display = "none";
 });
 
 // ── Hologramme mode toggle ────────────────────────────────────────────────────
@@ -1964,12 +2338,9 @@ function _closeHolo() {
 }
 (window as any)._closeHolo = _closeHolo;
 
-holoButtonEl?.addEventListener("click", () => {
-  if (_holoActive) _closeHolo(); else _openHolo();
-});
-
+// Écouteur direct de #holo-button supprimé : doublon du dispatcher du carrousel
+// (double bascule par clic → ouverture/fermeture immédiate, donc « ne marche pas »).
 document.getElementById("holo-close-btn")?.addEventListener("click", _closeHolo);
-
 function renderCustomApps() {
   settingsAppsListEl.innerHTML = "";
   currentCustomApps.forEach((app, index) => {
@@ -2011,7 +2382,6 @@ if (appDetectBtn) {
     }
   });
 }
-
 if (appDetectSelect) {
   appDetectSelect.addEventListener("change", () => {
     const selectedPath = appDetectSelect.value;
@@ -2045,8 +2415,7 @@ settingsSaveBtn.addEventListener("click", () => {
   }
 
   const settingsAvLiveEl = document.getElementById("settings-av-live") as HTMLInputElement;
-
-  const settings = {
+    const settings = {
     user_name: settingsNameEl.value.trim(),
     user_age: settingsAgeEl.value.trim(),
     mic_device_index: selectedMic === "" ? null : parseInt(selectedMic, 10),
@@ -2084,7 +2453,6 @@ document.querySelectorAll(".toggle-password-eye").forEach(eye => {
     }
   });
 });
-
 function renderHaEntities() {
   if (!haEntitiesListEl) return;
   haEntitiesListEl.innerHTML = "";
@@ -2119,7 +2487,6 @@ function renderHaEntities() {
     });
   });
 }
-
 if (haAddBtn) {
   haAddBtn.addEventListener("click", () => {
     const name = haAddNom.value.trim();
@@ -2158,7 +2525,7 @@ document.querySelectorAll(".ha-tab-btn").forEach(btn => {
     activeHaTab = target.getAttribute("data-tab") as any;
     
     if (activeHaTab === "lumieres") {
-      haAddNom.placeholder = "Nom vocal (ex: escalier)";
+            haAddNom.placeholder = "Nom vocal (ex: escalier)";
       haAddEntity.placeholder = "entity_id (ex: light.escalier)";
     } else if (activeHaTab === "prises") {
       haAddNom.placeholder = "Nom vocal (ex: cafetiere)";
@@ -2186,7 +2553,6 @@ function runBootSequence(): void {
   if (buildYear) buildYear.textContent = new Date().getFullYear().toString();
 
   const MODULES = [
-
     "NEURAL_NETWORK_CORE",
     "SPEECH_RECOGNITION",
     "KNOWLEDGE_DATABASE",
@@ -2227,7 +2593,7 @@ function runBootSequence(): void {
       setProgress(done);
     } else {
       s.textContent = "[ EN ATTENTE ]";
-      s.classList.add("waiting");
+            s.classList.add("waiting");
     }
   }
 
@@ -2270,7 +2636,7 @@ function runBootSequence(): void {
         const s = line.querySelector(".boot-module-status") as HTMLSpanElement;
         s.classList.remove("waiting");
         s.textContent = "[ ONLINE ]";
-        s.classList.add("online");
+                s.classList.add("online");
         done++;
         setTimeout(finishBoot, 350);
       };
@@ -2302,11 +2668,29 @@ runBootSequence();
 // ── Carrousel de conseils (extrait dans ui/tips.ts) ──
 initDynamicUserTips();
 // ── Help HUD Logic ───────────────────────────────────────────────────────────
-function showHelpHUD() {
-  helpOverlayEl.style.display = "block";
-  helpOverlayEl.innerHTML = "";
+// Handle du masquage automatique de la liste des commandes (voir showHelpHUD)
+let helpAutoHideTimer: number | null = null;
 
-  // Select 16 random commands (8 on each side) to keep them visible within the viewport
+function hideHelpHUD() {
+  if (!helpOverlayEl) return;
+  if (helpAutoHideTimer !== null) {
+    clearTimeout(helpAutoHideTimer);
+    helpAutoHideTimer = null;
+  }
+  // On pilote la classe : le CSS #help-overlay.visible porte un display !important
+  // qu'un simple style.display = "none" inline ne peut pas battre.
+  helpOverlayEl.classList.remove("visible");
+  helpOverlayEl.classList.add("hidden");
+  ["display", "opacity", "visibility", "z-index"].forEach(p => helpOverlayEl.style.removeProperty(p));
+}
+
+function showHelpHUD() {
+  if (!helpOverlayEl) return;
+  ["display", "opacity", "visibility", "z-index"].forEach(p => helpOverlayEl.style.removeProperty(p));
+  helpOverlayEl.classList.remove("hidden");
+  helpOverlayEl.classList.add("visible");
+  helpOverlayEl.innerHTML = "";
+    // Select 16 random commands (8 on each side) to keep them visible within the viewport
   const shuffled = [...HELP_COMMANDS].sort(() => 0.5 - Math.random());
   const selected = shuffled.slice(0, 16);
 
@@ -2344,13 +2728,17 @@ function showHelpHUD() {
     });
   });
 
-  // Auto-hide after 20 seconds
-  setTimeout(() => {
+  // Masquage automatique au bout de 20 s.
+  // Le handle est mémorisé et annulé à chaque ouverture/fermeture : sans cela,
+  // ouvrir puis refermer puis rouvrir la liste faisait survivre le timer du
+  // PREMIER clic, qui refermait 20 s plus tard l'overlay fraîchement rouvert.
+  if (helpAutoHideTimer !== null) clearTimeout(helpAutoHideTimer);
+  helpAutoHideTimer = window.setTimeout(() => {
     const widgets = document.querySelectorAll(".help-widget");
     widgets.forEach((w, i) => {
       setTimeout(() => w.classList.remove("visible"), i * 100);
     });
-    setTimeout(() => helpOverlayEl.style.display = "none", 2000);
+    helpAutoHideTimer = window.setTimeout(() => hideHelpHUD(), 2000);
   }, 20000);
 }
 
@@ -2432,7 +2820,6 @@ function updateClock() {
 }
 setInterval(updateClock, 1000);
 updateClock();
-
 // Silence unused-import warning for showError
 void showError;
 
@@ -2471,22 +2858,24 @@ function showTempPanel(d: {
   const pct = tempToPercent(temp);
   const marker = document.getElementById("tp-marker") as HTMLElement;
   marker.style.left = `${pct}%`;
-
-  if (_tpTimer) clearInterval(_tpTimer);
+    if (_tpTimer) clearInterval(_tpTimer);
   if (_tpHideTimer) clearTimeout(_tpHideTimer);
 
   panel.classList.add("tp-visible");
   _tpEndTime = Date.now() + TEMP_DURATION_MS;
 
-  const progress = document.getElementById("tp-progress") as HTMLElement;
-  const timerEl  = document.getElementById("tp-timer") as HTMLElement;
+  // #tp-progress et #tp-timer n'existent pas (ou plus) dans index.html : le cast
+  // « as HTMLElement » masquait le null et l'intervalle levait un TypeError à
+  // CHAQUE seconde dès qu'on demandait une température. On les rend optionnels.
+  const progress = document.getElementById("tp-progress");
+  const timerEl  = document.getElementById("tp-timer");
 
   _tpTimer = setInterval(() => {
     const remaining = Math.max(0, _tpEndTime - Date.now());
     const fraction  = remaining / TEMP_DURATION_MS;
-    progress.style.transform = `scaleX(${fraction})`;
+    if (progress) progress.style.transform = `scaleX(${fraction})`;
     const secs = Math.ceil(remaining / 1000);
-    timerEl.textContent = `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, "0")}`;
+    if (timerEl) timerEl.textContent = `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, "0")}`;
     if (remaining <= 0) hideTempPanel();
   }, 1000);
 
@@ -2506,7 +2895,6 @@ document.getElementById("tp-close-btn")?.addEventListener("click", hideTempPanel
 // ── Weather Panel ────────────────────────────────────────────────────────────
 
 const WEATHER_DURATION_MS = 2 * 60 * 1000; // 2 minutes
-
 const WEATHER_ICONS: Record<number, string> = {
   0: "☀️", 1: "🌤", 2: "⛅", 3: "☁️",
   45: "🌫", 48: "🌫",
@@ -2543,16 +2931,17 @@ function showWeatherPanel(d: {
 
   panel.classList.add("wp-visible");
   _wpEndTime = Date.now() + WEATHER_DURATION_MS;
-
-  const progress = document.getElementById("wp-progress") as HTMLElement;
-  const timerEl  = document.getElementById("wp-timer") as HTMLElement;
+  // Mêmes éléments absents du HTML que pour le panneau température (voir plus haut) :
+  // sans ces gardes, demander la météo provoquait un TypeError chaque seconde.
+  const progress = document.getElementById("wp-progress");
+  const timerEl  = document.getElementById("wp-timer");
 
   _wpTimer = setInterval(() => {
     const remaining = Math.max(0, _wpEndTime - Date.now());
     const fraction  = remaining / WEATHER_DURATION_MS;
-    progress.style.transform = `scaleX(${fraction})`;
+    if (progress) progress.style.transform = `scaleX(${fraction})`;
     const secs = Math.ceil(remaining / 1000);
-    timerEl.textContent = `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, "0")}`;
+    if (timerEl) timerEl.textContent = `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, "0")}`;
     if (remaining <= 0) hideWeatherPanel();
   }, 1000);
 
@@ -2580,7 +2969,6 @@ if (closeRecipeBtn && recipeModal) {
     recipeModal.classList.add("hidden");
   });
 }
-
 // Drag & Drop for Recipe Modal
 if (recipeModal && recipeHeader) {
   let isDragging = false;
@@ -2621,7 +3009,6 @@ if (recipeModal && recipeHeader) {
     }
   });
 }
-
 // ── Image HUD Logic ──────────────────────────────────────────────────────────
 // (showImageHUD extrait dans panels/image_panels.ts)
 
@@ -2634,20 +3021,9 @@ document.getElementById("fullscreen-btn")?.addEventListener("click", () => {
 
 const gesturesToggleBtn = document.getElementById("gestures-toggle") as HTMLButtonElement;
 if (gesturesToggleBtn) {
-  gesturesToggleBtn.addEventListener("click", async () => {
-    const isPressed = gesturesToggleBtn.getAttribute("aria-pressed") === "true";
-    const newState = !isPressed;
-
-    gesturesToggleBtn.disabled = true;
-    gesturesToggleBtn.textContent = newState ? "LANCEMENT..." : "MODE AR";
-
-    const active = await toggleHandTracking(newState);
-
-    gesturesToggleBtn.disabled = false;
-    gesturesToggleBtn.setAttribute("aria-pressed", active.toString());
-    gesturesToggleBtn.textContent = active ? "AR ACTIF" : "MODE AR";
-    gesturesToggleBtn.classList.toggle("ar-active", active);
-  });
+  // Écouteur direct supprimé : doublon du dispatcher du carrousel. Les deux
+  // s'exécutaient à chaque clic, d'où « quand on reclique ça le réouvre ».
+  // L'action vit dans bindCarouselAction("gestures-toggle").
 }
 
 const gesturesMirrorBtn = document.getElementById("gestures-mirror") as HTMLButtonElement;
@@ -2685,14 +3061,13 @@ setTimeout(() => initWidgets(ws), 2000);
 
 // ── Drag & Drop souris pour les widgets HUD (extrait dans ui/draggable.ts) ──
 // Appliquer le drag à tous les widgets HUD au chargement (ils existent dans le DOM même si cachés)
-["calendar-hud", "weather-hud", "music-hud", "dev-swarm-hud"].forEach(id => {
+["calendar-hud", "weather-hud", "music-hud", "dev-swarm-hud", "website-builder-hud", "swarm-lounge-hud"].forEach(id => {
   const el = document.getElementById(id);
   if (el) makeDraggable(el);
 });
 
 // ── Dock carrousel (extrait dans ui/carousel.ts) ──
 initCarouselDock();
-
 // (Panneau antivirus extrait dans panels/antivirus_panel.ts)
 
 // Lancement manuel du scan antivirus depuis le menu des paramètres
@@ -2728,18 +3103,15 @@ if (menuAvScanBtn) {
 
 // ── LOGIQUE DU LECTEUR IPTV / VIDÉO ──
 document.getElementById("iptv-toggle-btn")?.addEventListener("click", () => {
-  const p = document.getElementById("iptv-panel");
-  if (!p) return;
   const btn = document.getElementById("iptv-toggle-btn");
-  if (p.classList.contains("hidden")) {
-    p.classList.remove("hidden");
-    btn?.setAttribute("aria-pressed", "true");
-  } else {
-    p.classList.add("hidden");
-    btn?.setAttribute("aria-pressed", "false");
+  if (!btn) return;
+  // On passe par toggleHudPanel : il gère .hidden/.visible ET purge le
+  // « display:none » inline du HTML, que le simple retrait de .hidden ne
+  // pouvait pas battre (le panneau restait invisible).
+  toggleHudPanel("iptv-panel", btn, undefined, () => {
     const vid = document.getElementById("iptv-video") as HTMLVideoElement | null;
     if (vid && !vid.paused) vid.pause();
-  }
+  });
 });
 
 // (Panneau courses extrait dans panels/shopping_panel.ts)
@@ -2810,7 +3182,6 @@ if (hudBrowserDockBtn) {
     }
   });
 }
-
 if (hudBrowserCloseBtn) {
   hudBrowserCloseBtn.addEventListener("click", () => {
     if (ws && ws.readyState === WebSocket.OPEN) {
@@ -2821,136 +3192,429 @@ if (hudBrowserCloseBtn) {
 
 // (Effets ambiants extraits dans ui/effects.ts)
 
-// ── BINDINGS D'ÉVÉNEMENTS POUR LE DOCK CAROUSEL OPERATIONAL (OPTION B) ──
-const bindCarouselAction = (btnId: string, actionFn: () => void) => {
-  const btn = document.getElementById(btnId);
-  if (btn) btn.addEventListener("click", actionFn);
+// ── BINDINGS D'ÉVÉNEMENTS POUR LE DOCK CAROUSEL OPERATIONAL ──
+(window as any)._carouselActions = (window as any)._carouselActions || {};
+
+const bindCarouselAction = (btnId: string, actionFn: (btn: HTMLElement) => void) => {
+  (window as any)._carouselActions[btnId] = actionFn;
 };
 
-// 1. Vision (déjà liée à vision-button par ailleurs, mais on assure la compatibilité)
-bindCarouselAction("vision-button", () => {
-  const original = document.getElementById("vision-button");
-  if (original && original !== document.activeElement) {
-    // La logique de Vision s'active déjà sur son clic, aucun doublon requis.
+// 0. Vision Button
+bindCarouselAction("vision-button", (btn) => {
+  toggleVision(btn);
+});
+
+// 1. GPU Boost
+bindCarouselAction("gpu-button", (btn) => {
+  const isPressed = btn.getAttribute("aria-pressed") === "true";
+  const newState = !isPressed;
+  // .active est réservée au bouton centré du carrousel → on passe par l'état
+  // « allumé » (aria-pressed + .is-toggled-on), sinon renderCarousel l'écrase.
+  setCarouselBtnState(btn, newState);
+  if (newState) {
+    orb.setQuality("high");
+    console.log("GPU Acceleration Enabled");
+  } else {
+    orb.setQuality("low");
+    console.log("GPU Acceleration Disabled");
+  }
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({ type: "toggle_gpu", enabled: newState }));
   }
 });
 
-// 2. IPTV / Lecteur Vidéo
-bindCarouselAction("carousel-iptv-btn", () => {
-  const p = document.getElementById("iptv-panel");
-  if (!p) return;
-  const isHidden = p.classList.contains("hidden");
-  if (isHidden) {
-    p.classList.remove("hidden");
-    const btn = document.getElementById("carousel-iptv-btn");
-    if (btn) { btn.classList.add("active"); btn.setAttribute("aria-pressed", "true"); }
+// 2. Hologramme
+bindCarouselAction("holo-button", (btn) => {
+  if (_holoActive) {
+    _closeHolo();
+    setCarouselBtnState(btn, false);
   } else {
+    _openHolo();
+    setCarouselBtnState(btn, true);
+  }
+});
+
+// 3. HUD Text Subtitles
+bindCarouselAction("subtitle-toggle", (btn) => {
+  subtitlesEnabled = !subtitlesEnabled;
+  setCarouselBtnState(btn, subtitlesEnabled);
+  btn.innerHTML = subtitlesEnabled ? '<span class="btn-icon">💬</span> HUD TEXT' : '<span class="btn-icon">💬</span> TEXT OFF';
+  const subHud = document.getElementById("subtitle-hud");
+  if (subHud && !subtitlesEnabled) {
+    // On masque à la désactivation. À l'activation on NE force PAS l'affichage :
+    // showSubtitles() ouvrira la boîte quand JARVIS aura réellement du texte à
+    // afficher — sinon on laissait un cadre vide impossible à faire disparaître.
+    subHud.style.display = "none";
+  }
+});
+
+// 4. Mode AR Gestures
+bindCarouselAction("gestures-toggle", async (btn) => {
+  const isPressed = btn.getAttribute("aria-pressed") === "true";
+  const newState = !isPressed;
+  (btn as HTMLButtonElement).disabled = true;
+  btn.innerHTML = newState ? '<span class="btn-icon">⏳</span> CHARGEMENT...' : '<span class="btn-icon">🖐️</span> MODE AR';
+  const active = await toggleHandTracking(newState);
+  (btn as HTMLButtonElement).disabled = false;
+  setCarouselBtnState(btn, active);
+  btn.classList.toggle("ar-active", active);
+  btn.innerHTML = active ? '<span class="btn-icon">🖐️</span> AR ACTIF' : '<span class="btn-icon">🖐️</span> MODE AR';
+});
+
+// ── État visuel des boutons du carrousel ──────────────────────────────────────
+// N.B. : on n'utilise PAS la classe .active ici — elle est réservée au bouton
+// centré par renderCarousel(). L'état « allumé » passe par aria-pressed +
+// .is-toggled-on, que le CSS du carrousel sait déjà styler.
+function setCarouselBtnState(btnOrId: HTMLElement | string, on: boolean): void {
+  const b = typeof btnOrId === "string" ? document.getElementById(btnOrId) : btnOrId;
+  if (!b) return;
+  b.setAttribute("aria-pressed", String(on));
+  b.classList.toggle("is-toggled-on", on);
+}
+
+// Helper d'ouverture/fermeture d'un panneau HUD.
+// IMPORTANT : on ne pilote QUE les classes .hidden/.visible, qui sont le contrat
+// des feuilles de style (.xxx-panel.hidden { display:none !important }).
+// Poser des styles inline !important ici (comme le faisait la version
+// précédente) les laissait collés sur l'élément après fermeture : tous les
+// autres chemins d'ouverture (commande vocale, menu déroulant, message
+// WebSocket) remettaient bien les bonnes classes mais le panneau restait
+// invisible, car le display:none inline gagnait sur le CSS.
+function toggleHudPanel(panelId: string, btn: HTMLElement, onOpen?: () => void, onClose?: () => void): boolean {
+  const p = document.getElementById(panelId);
+  if (!p) {
+    console.warn(`[CAROUSEL] Panneau introuvable : #${panelId}`);
+    return false;
+  }
+
+  // Purge des styles inline hérités qui écraseraient le CSS
+  ["display", "opacity", "visibility", "z-index"].forEach(prop => p.style.removeProperty(prop));
+
+  const estOuvert = !p.classList.contains("hidden");
+
+  if (estOuvert) {
     p.classList.add("hidden");
-    const btn = document.getElementById("carousel-iptv-btn");
-    if (btn) { btn.classList.remove("active"); btn.setAttribute("aria-pressed", "false"); }
+    p.classList.remove("visible");
+    setCarouselBtnState(btn, false);
+    if (onClose) onClose();
+    return false;
+  }
+
+  p.classList.remove("hidden");
+  p.classList.add("visible");
+  setCarouselBtnState(btn, true);
+  if (onOpen) onOpen();
+  return true;
+}
+
+// 5. IPTV / Lecteur Vidéo
+bindCarouselAction("carousel-iptv-btn", (btn) => {
+  toggleHudPanel("iptv-panel", btn as HTMLElement, undefined, () => {
     const vid = document.getElementById("iptv-video") as HTMLVideoElement | null;
     if (vid && !vid.paused) vid.pause();
-  }
+  });
 });
 
-// 3. Désinstallateur
-bindCarouselAction("carousel-uninstaller-btn", () => {
-  const uninstallerPanel = document.getElementById("uninstaller-panel");
-  if (!uninstallerPanel) return;
-  const isHidden = uninstallerPanel.classList.contains("hidden");
-  if (isHidden) {
-    // openUninstallerPanel est une fonction globale disponible dans main.ts
-    // Déclenchons-la :
-    const openBtn = document.getElementById("uninstaller-toggle-btn");
-    if (openBtn) {
-      openBtn.click();
-    } else {
-      uninstallerPanel.classList.remove("hidden");
-    }
-    const btn = document.getElementById("carousel-uninstaller-btn");
-    if (btn) { btn.classList.add("active"); btn.setAttribute("aria-pressed", "true"); }
+// 6. Désinstallateur
+bindCarouselAction("carousel-uninstaller-btn", (btn) => {
+  const panneau = document.getElementById("uninstaller-panel");
+  const estOuvert = panneau ? !panneau.classList.contains("hidden") : false;
+  if (estOuvert) {
+    closeUninstallerPanel();
+    setCarouselBtnState(btn, false);
   } else {
-    const closeBtn = document.getElementById("uninstaller-close-btn");
-    if (closeBtn) {
-      closeBtn.click();
-    } else {
-      uninstallerPanel.classList.add("hidden");
-    }
-    const btn = document.getElementById("carousel-uninstaller-btn");
-    if (btn) { btn.classList.remove("active"); btn.setAttribute("aria-pressed", "false"); }
+    openUninstallerPanel();
+    setCarouselBtnState(btn, true);
+    setCarouselBtnState("carousel-winget-btn", false); // openUninstallerPanel ferme l'autre
   }
 });
 
-// 4. Winget / Mises à jour
-bindCarouselAction("carousel-winget-btn", () => {
-  const wingetLogsPanel = document.getElementById("winget-logs-panel");
-  if (!wingetLogsPanel) return;
-  const isHidden = wingetLogsPanel.classList.contains("hidden");
-  if (isHidden) {
-    wingetLogsPanel.classList.remove("hidden");
-    const btn = document.getElementById("carousel-winget-btn");
-    if (btn) { btn.classList.add("active"); btn.setAttribute("aria-pressed", "true"); }
-    if (ws && ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify({ type: "winget_get_logs" }));
-    }
+// 7. Winget / Mises à jour
+// Le panneau réel est #winget-panel (l'ancien code ciblait #winget-logs-panel,
+// qui n'existe pas → le bouton ne faisait rien). On réutilise les fonctions du
+// module, qui gèrent aussi la requête des mises à jour et le bouton du menu.
+bindCarouselAction("carousel-winget-btn", (btn) => {
+  const panneau = document.getElementById("winget-panel");
+  const estOuvert = panneau ? !panneau.classList.contains("hidden") : false;
+  if (estOuvert) {
+    closeWingetPanel();
+    setCarouselBtnState(btn, false);
   } else {
-    wingetLogsPanel.classList.add("hidden");
-    const btn = document.getElementById("carousel-winget-btn");
-    if (btn) { btn.classList.remove("active"); btn.setAttribute("aria-pressed", "false"); }
+    openWingetPanel();
+    setCarouselBtnState(btn, true);
+    setCarouselBtnState("carousel-uninstaller-btn", false); // openWingetPanel ferme l'autre
   }
 });
 
-// 5. Antivirus Scan
-bindCarouselAction("carousel-av-scan-btn", () => {
-  // Déclenche le scan antivirus en simulant le clic sur le bouton de configuration d'origine
-  const settingsAvScanBtn = document.getElementById("settings-av-scan-btn");
-  if (settingsAvScanBtn) {
-    settingsAvScanBtn.click();
+// 8. Antivirus Scan
+// openAntivirusPanel() affiche le panneau ET envoie av_scan_start (le type
+// attendu par le backend ; l'ancien code envoyait start_av_scan, jamais traité).
+bindCarouselAction("carousel-av-scan-btn", (btn) => {
+  const panneau = document.getElementById("av-panel");
+  // On teste « .visible » et non « !.hidden » : la fermeture est animée sur
+  // 400 ms, pendant lesquelles le panneau ne porte NI l'une NI l'autre classe.
+  // Avec !.hidden, un clic dans cette fenêtre était interprété comme « c'est
+  // ouvert, referme » — le panneau ne se rouvrait donc jamais.
+  const estOuvert = panneau ? panneau.classList.contains("visible") : false;
+  if (estOuvert) {
+    closeAntivirusPanel();
+    setCarouselBtnState(btn, false);
+  } else {
+    openAntivirusPanel();
+    setCarouselBtnState(btn, true);
   }
 });
 
-// 6. Domotique (Home Assistant)
-bindCarouselAction("carousel-ha-btn", () => {
-  const haPanel = document.getElementById("ha-panel");
-  if (!haPanel) return;
-  const isHidden = haPanel.classList.contains("hidden");
-  if (isHidden) {
-    haPanel.classList.remove("hidden");
-    const btn = document.getElementById("carousel-ha-btn");
-    if (btn) { btn.classList.add("active"); btn.setAttribute("aria-pressed", "true"); }
+// 9. Domotique (Home Assistant)
+bindCarouselAction("carousel-ha-btn", (btn) => {
+  toggleHudPanel("ha-panel", btn as HTMLElement, () => {
     if (ws && ws.readyState === WebSocket.OPEN) {
       ws.send(JSON.stringify({ type: "ha_get_states" }));
     }
-  } else {
-    haPanel.classList.add("hidden");
-    const btn = document.getElementById("carousel-ha-btn");
-    if (btn) { btn.classList.remove("active"); btn.setAttribute("aria-pressed", "false"); }
-  }
+  });
 });
 
-// 7. Navigateur Sécurisé
+// 9.5. Application Mobile Smartphone
+bindCarouselAction("carousel-mobile-btn", (btn) => {
+  toggleHudPanel("mobile-info-modal", btn as HTMLElement, () => {
+    const urlDisplay = document.getElementById("mobile-url-display");
+    const host = window.location.hostname || "localhost";
+    if (urlDisplay) {
+      urlDisplay.textContent = `http://${host}:8080`;
+    }
+  });
+});
+
+
+
+// 10. Navigateur Sécurisé
 bindCarouselAction("carousel-browser-btn", () => {
   if (ws && ws.readyState === WebSocket.OPEN) {
     ws.send(JSON.stringify({ type: "open_browser" }));
   }
 });
 
-// 8. Liste des commandes
+// 11. Liste des commandes (Toggle ON/OFF)
 bindCarouselAction("carousel-commands-btn", () => {
-  if (ws && ws.readyState === WebSocket.OPEN) {
-    ws.send(JSON.stringify({ type: "open_commands_file" }));
+  if (!helpOverlayEl) return;
+  if (helpOverlayEl.classList.contains("visible")) {
+    hideHelpHUD();
+  } else {
+    showHelpHUD();
   }
 });
 
-// 9. API Keys Modal
+// 12. API Keys Modal (Toggle ON/OFF)
 bindCarouselAction("carousel-api-btn", () => {
   const modal = document.getElementById("api-keys-modal");
   if (modal) {
-    const isVisible = modal.classList.contains("visible");
-    if (isVisible) {
-      modal.classList.remove("visible");
-    } else {
-      modal.classList.add("visible");
+    const isHidden = modal.style.display === "none" || !modal.style.display;
+    modal.style.display = isHidden ? "flex" : "none";
+    if (isHidden && ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: "get_settings" }));
     }
   }
 });
+
+// 13. Vider Cache
+bindCarouselAction("clear-cache-btn", (btn) => {
+  // Refermer le menu déroulant s'il est ouvert (le bouton y figure aussi)
+  if (jarvisMenuDropdown) jarvisMenuDropdown.classList.add("hidden");
+  if (jarvisMenuBtn) jarvisMenuBtn.classList.remove("active");
+
+  (btn as HTMLButtonElement).disabled = true;
+  btn.innerHTML = '<span class="btn-icon">⏳</span> CACHE...';
+
+  const banner = document.getElementById("update-banner");
+  if (banner) {
+    banner.style.display = "block";
+    banner.style.cursor = "default";
+    banner.textContent = "⏳ NETTOYAGE DU CACHE EN COURS...";
+    banner.style.background = "linear-gradient(90deg, rgba(0,30,80,0.95), rgba(0,100,180,0.85))";
+  }
+
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({ type: "clear_cache" }));
+  } else {
+    setTimeout(() => location.reload(), 1500);
+  }
+});
+
+// 14. Paramètres Globaux (settings-modal)
+bindCarouselAction("settings-button", () => {
+  if (settingsModalEl?.classList.contains("visible")) {
+    closeSettingsModal();
+  } else {
+    openSettingsModal();
+  }
+});
+
+// ── SYNCHRONISATION D'ÉTAT DES BOUTONS DU CARROUSEL ───────────────────────────
+// Un panneau peut s'ouvrir/se fermer par bien d'autres chemins que le carrousel :
+// commande vocale, menu déroulant, message WebSocket, bouton ✕ interne...
+// Sans cela, le bouton du dock affichait un état mensonger (allumé alors que le
+// panneau est fermé, et inversement) et il fallait cliquer deux fois pour
+// retrouver la cohérence. On observe donc la classe .hidden des panneaux — seule
+// source de vérité — et on aligne le bouton correspondant.
+const CAROUSEL_PANEL_MAP: Record<string, string> = {
+  "iptv-panel":        "carousel-iptv-btn",
+  "uninstaller-panel": "carousel-uninstaller-btn",
+  "winget-panel":      "carousel-winget-btn",
+  "ha-panel":          "carousel-ha-btn",
+  "mobile-info-modal": "carousel-mobile-btn",
+  "av-panel":          "carousel-av-scan-btn",
+  "help-overlay":      "carousel-commands-btn",
+  "api-keys-modal":    "carousel-api-btn",
+  "settings-modal":    "settings-button",
+};
+
+Object.entries(CAROUSEL_PANEL_MAP).forEach(([panelId, btnId]) => {
+  const panneau = document.getElementById(panelId);
+  if (!panneau) return;
+
+  const synchroniser = () => {
+    const ouvert = !panneau.classList.contains("hidden")
+                && panneau.style.display !== "none"
+                && getComputedStyle(panneau).display !== "none";
+    setCarouselBtnState(btnId, ouvert);
+    refreshCarousel();
+  };
+
+  new MutationObserver(synchroniser).observe(panneau, {
+    attributes: true,
+    attributeFilter: ["class", "style"],
+  });
+
+  synchroniser(); // état initial
+});
+
+// ── VOICE VAULT UI LOGIC ──────────────────────────────────────────────────────
+function updateVoiceVaultUI(data: any) {
+  const panel = document.getElementById("vault-panel");
+  const lockedScreen = document.getElementById("vault-locked-screen");
+  const unlockedScreen = document.getElementById("vault-unlocked-screen");
+  const errorMsg = document.getElementById("vault-error-msg");
+  const filesList = document.getElementById("vault-files-list");
+
+  if (data.force_open_hud && panel) {
+    panel.classList.remove("hidden");
+    panel.classList.add("visible");
+    panel.style.setProperty("display", "flex", "important");
+  }
+
+  if (data.type === "vault_lock_result" && panel) {
+    panel.classList.remove("visible");
+    panel.classList.add("hidden");
+    panel.style.setProperty("display", "none", "important");
+  }
+
+  const isUnlocked = data.is_unlocked === true || data.success === true;
+  const isConfigured = data.is_configured !== false;
+  const lockTitle = document.getElementById("vault-lock-title");
+  const unlockBtn = document.getElementById("vault-unlock-btn");
+
+  if (lockTitle) {
+    lockTitle.textContent = isConfigured
+      ? "ENTREZ VOTRE CODE PIN OU MOT DE PASSE"
+      : "INITIALISATION : CRÉEZ VOTRE MOT DE PASSE OU CODE PIN";
+  }
+
+  if (unlockBtn) {
+    unlockBtn.textContent = isConfigured ? "DÉVERROUILLER" : "CRÉER LE COFFRE";
+  }
+
+  if (errorMsg) {
+    if (data.type === "vault_unlock_result" && !data.success) {
+      errorMsg.textContent = "❌ Mot de passe ou PIN incorrect.";
+    } else {
+      errorMsg.textContent = "";
+    }
+  }
+
+  if (isUnlocked) {
+    if (lockedScreen) lockedScreen.style.display = "none";
+    if (unlockedScreen) unlockedScreen.style.display = "flex";
+
+    if (filesList && data.files) {
+      if (data.files.length === 0) {
+        filesList.innerHTML = '<div style="font-size: 10px; color: rgba(255, 255, 255, 0.4); text-align: center; padding: 20px;">Aucun fichier dans le coffre-fort.</div>';
+      } else {
+        filesList.innerHTML = data.files.map((file: any) => `
+          <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(0, 229, 255, 0.05); border: 1px solid rgba(0, 229, 255, 0.15); padding: 8px 12px; border-radius: 6px; margin-bottom: 6px;">
+            <div>
+              <div style="font-size: 11px; font-weight: bold; color: #fff;">📄 ${file.filename}</div>
+              <div style="font-size: 9px; color: rgba(0, 229, 255, 0.6);">${file.size_kb} KB · Crypté AES-256</div>
+            </div>
+            <div style="display: flex; gap: 6px;">
+              <button onclick="window.exportVaultFile('${file.filename}')" style="background: rgba(0, 229, 255, 0.15); border: 1px solid #00e5ff; color: #00e5ff; padding: 4px 8px; border-radius: 4px; font-size: 9px; cursor: pointer;">📥 EXPORTER</button>
+              <button onclick="window.deleteVaultFile('${file.filename}')" style="background: rgba(255, 51, 102, 0.15); border: 1px solid #ff3366; color: #ff3366; padding: 4px 8px; border-radius: 4px; font-size: 9px; cursor: pointer;">🗑️</button>
+            </div>
+          </div>
+        `).join('');
+      }
+    }
+  } else {
+    if (lockedScreen) lockedScreen.style.display = "flex";
+    if (unlockedScreen) unlockedScreen.style.display = "none";
+  }
+}
+
+(window as any).exportVaultFile = (filename: string) => {
+  const wsInst = (window as any)._jarvisWs || (window as any).ws;
+  if (wsInst && wsInst.readyState === 1) {
+    wsInst.send(JSON.stringify({ type: "vault_export_file", filename }));
+    alert(`Fichier "${filename}" déchiffré et exporté vers votre dossier Téléchargements !`);
+  }
+};
+
+(window as any).deleteVaultFile = (filename: string) => {
+  const wsInst = (window as any)._jarvisWs || (window as any).ws;
+  if (confirm(`Voulez-vous vraiment supprimer "${filename}" du coffre-fort ?`)) {
+    if (wsInst && wsInst.readyState === 1) {
+      wsInst.send(JSON.stringify({ type: "vault_delete_file", filename }));
+    }
+  }
+};
+
+// Listeners Vault
+setTimeout(() => {
+  const unlockBtn = document.getElementById("vault-unlock-btn");
+  const lockBtn = document.getElementById("vault-lock-btn");
+  const pinInput = document.getElementById("vault-pin-input") as HTMLInputElement | null;
+  const addBtn = document.getElementById("vault-add-btn");
+  const fileInput = document.getElementById("vault-file-input") as HTMLInputElement | null;
+
+  if (unlockBtn && pinInput) {
+    const triggerUnlock = () => {
+      const pin = pinInput.value.trim();
+      const wsInst = (window as any)._jarvisWs || (window as any).ws;
+      if (pin && wsInst && wsInst.readyState === 1) {
+        wsInst.send(JSON.stringify({ type: "vault_unlock", password: pin }));
+      }
+    };
+    unlockBtn.onclick = triggerUnlock;
+    pinInput.onkeyup = (e) => { if (e.key === "Enter") triggerUnlock(); };
+  }
+
+  if (lockBtn) {
+    lockBtn.onclick = () => {
+      const wsInst = (window as any)._jarvisWs || (window as any).ws;
+      if (wsInst && wsInst.readyState === 1) {
+        wsInst.send(JSON.stringify({ type: "vault_lock" }));
+      }
+    };
+  }
+
+  if (addBtn && fileInput) {
+    addBtn.onclick = () => fileInput.click();
+    fileInput.onchange = () => {
+      if (fileInput.files && fileInput.files[0]) {
+        const filePath = (fileInput.files[0] as any).path || fileInput.files[0].name;
+        const wsInst = (window as any)._jarvisWs || (window as any).ws;
+        if (wsInst && wsInst.readyState === 1) {
+          wsInst.send(JSON.stringify({ type: "vault_add_file", file_path: filePath }));
+        }
+      }
+    };
+  }
+}, 1000);

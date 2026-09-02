@@ -37,13 +37,17 @@ def _charger_config():
 
 _location_cfg = _charger_config()
 CLIENT_LOCATION = {
-    "lat": _location_cfg.get("latitude", 45.2917),
-    "lon": _location_cfg.get("longitude", 4.1722),
-    "city": "Monistrol-sur-Loire"
+    "lat": _location_cfg.get("latitude", 45.2933),
+    "lon": _location_cfg.get("longitude", 4.1720),
+    "city": _location_cfg.get("city", "Monistrol-sur-Loire")
 } 
 
 async def update_client_city():
     global CLIENT_LOCATION
+    if _location_cfg.get("city"):
+        CLIENT_LOCATION["city"] = _location_cfg.get("city")
+        print(f"[METEO] Localisation configurée : {CLIENT_LOCATION['city']}")
+        return
     try:
         url = f"https://nominatim.openstreetmap.org/reverse?lat={CLIENT_LOCATION['lat']}&lon={CLIENT_LOCATION['lon']}&format=json"
         headers = {"User-Agent": "JARVIS-Assistant/1.0"}

@@ -5,7 +5,7 @@
       "name": "jarvis-frontend",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev"],
-      "cwd": "frontend",
+      "cwd": "interfaces/frontend",
       "port": 5173
     }
   ]

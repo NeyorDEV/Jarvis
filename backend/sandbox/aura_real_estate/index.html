@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AURA Real Estate | Immobilier de Prestige & Résidences d'Architecte</title>
+    
+    <!-- Meta SEO -->
+    <meta name="description" content="AURA Real Estate - Maison de haute négociation immobilière. Portefeuille privé de résidences d'architectes, penthouses confidentiels et propriétés off-market à Paris, Monaco, Genève et Dubaï.">
+    <meta name="keywords" content="immobilier de luxe, villa d'architecte, off-market, penthouse paris, immobilier monaco, domaine d'exception, aura real estate, achat villa luxe">
+    <meta name="author" content="AURA Real Estate">
+    <meta name="robots" content="index, follow">
+
+    <!-- Open Graph / Facebook / LinkedIn -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://www.aura-realestate.com/index.html">
+    <meta property="og:title" content="AURA Real Estate | Architecture de l'Exceptionnel & Off-Market">
+    <meta property="og:description" content="Découvrez notre sélection exclusive de villas d'architectes, penthouses et propriétés confidentielles aux adresses les plus prisées au monde.">
+    <meta property="og:image" content="assets/img_a4dffd70.jpg">
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="AURA Real Estate | Immobilier de Prestige">
+    <meta name="twitter:description" content="Portefeuille privé de résidences d'architectes et transactions off-market haut de gamme.">
+    <meta name="twitter:image" content="assets/img_a4dffd70.jpg">
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- CSS Centralized Design System -->
+    <link rel="stylesheet" href="css/main.css">
+
+    <!-- App JavaScript -->
+    <script src="js/app.js" defer></script>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+</head>
+<body>
+
+    <!-- Header & Navigation -->
+    <header class="site-header" id="header">
+        <div class="header-container">
+            <a href="index.html" class="brand-logo" aria-label="AURA Real Estate Page d'accueil">
+                <span class="logo-mark">AURA</span>
+                <span class="logo-sub">REAL ESTATE</span>
+            </a>
+
+            <!-- Desktop Navigation -->
+            <nav class="desktop-nav" aria-label="Navigation principale">
+                <ul class="nav-list">
+                    <li><a href="index.html" class="nav-link active">Accueil</a></li>
+                    <li><a href="annonces.html" class="nav-link">Propriétés</a></li>
+                    <li class="dropdown-item">
+                        <a href="services.html" class="nav-link">
+                            Services <span class="dropdown-arrow">▼</span>
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a href="services.html#off-market">Ventes Off-Market</a></li>
+                            <li><a href="services.html#acquisition-privee">Acquisition Privée</a></li>
+                            <li><a href="services.html#estimation">Estimation d'Exception</a></li>
+                            <li><a href="services.html#conciergerie">Conciergerie Patrimoniale</a></li>
+                        </ul>
+                    </li>
+                    <li><a href="faq.html" class="nav-link">FAQ</a></li>
+                    <li><a href="contact.html" class="nav-link">Contact</a></li>
+                </ul>
+            </nav>
+
+            <div class="header-actions">
+                <a href="contact.html" class="btn btn-gold btn-sm hide-mobile">Rendez-vous Privé</a>
+                <button class="mobile-toggle" id="mobileToggle" aria-label="Ouvrir le menu mobile" aria-expanded="false" aria-controls="mobileMenu">
+                    <span class="hamburger-bar"></span>
+                    <span class="hamburger-bar"></span>
+                    <span class="hamburger-bar"></span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Mobile Drawer Navigation -->
+        <div class="mobile-drawer" id="mobileMenu" aria-hidden="true">
+            <div class="drawer-header">
+                <span class="logo-mark">AURA</span>
+                <button class="drawer-close" id="drawerClose" aria-label="Fermer le menu mobile">&times;</button>
+            </div>
+            <nav class="mobile-nav">
+                <ul class="mobile-nav-list">
+                    <li><a href="index.html" class="mobile-nav-link active">Accueil</a></li>
+                    <li><a href="annonces.html" class="mobile-nav-link">Propriétés de Prestige</a></li>
+                    <li><a href="services.html" class="mobile-nav-link">Services & Off-Market</a></li>
+                    <li><a href="services.html#estimation" class="mobile-nav-link sub-link">Estimation sur-mesure</a></li>
+                    <li><a href="services.html#off-market" class="mobile-nav-link sub-link">Mandats Confidentiels</a></li>
+                    <li><a href="faq.html" class="mobile-nav-link">Foire aux Questions</a></li>
+                    <li><a href="contact.html" class="mobile-nav-link">Contact & Bureaux</a></li>
+                </ul>
+            </nav>
+            <div class="drawer-footer">
+                <a href="contact.html" class="btn btn-gold btn-full">Planifier un Rendez-vous</a>
+                <p class="drawer-contact-info">Paris • Monaco • Genève • Dubaï</p>
+            </div>
+        </div>
+    </header>
+
+    <main id="main-content">
+
+        <!-- Hero Section -->
+        <section class="hero-section">
+            <div class="hero-bg-wrapper">
+                <img src="https://images.unsplash.com/photo-1544829099-b9a0c07fad1a?w=800&auto=format&fit=crop" 
+                     alt="Résidence d'architecte contemporaine d'exception avec vue sur mer" 
+                     class="hero-bg-img"
+                     loading="eager">
+                <div class="hero-overlay"></div>
+            </div>
+
+            <div class="hero-content container">
+                <div class="hero-badge">
+                    <span class="badge-dot"></span> Maison de Haute Négociation Immobilière
+                </div>
+                <h1 class="hero-title">L'Architecture de l'Exceptionnel</h1>
+                <p class="hero-subtitle">
+                    Accédez aux biens d'exception les plus convoités. Portefeuille privé de résidences d'architectes, domaines d'exception et penthouses confidentiels.
+                </p>
+
+                <!-- Search Bar Container -->
+                <div class="hero-search-wrapper">
+                    <form action="annonces.html" method="GET" class="search-form-card">
+                        <div class="search-grid">
+                            <div class="search-field">
+                                <label for="search-type">Type de Transaction</label>
+                                <select id="search-type" name="type" class="search-select">
+                                    <option value="buy">Acheter</option>
+                                    <option value="offmarket">Off-Market Privé</option>
+                                    <option value="rent">Saisonnières d'Exception</option>
+                                </select>
+                            </div>
+
+                            <div class="search-field">
+                                <label for="search-location">Destination</label>
+                                <select id="search-location" name="location" class="search-select">
+                                    <option value="all">Toutes les destinations</option>
+                                    <option value="monaco">Monaco (Carré d'Or, Larvotto)</option>
+                                    <option value="paris">Paris (Triangle d'Or, 16ème)</option>
+                                    <option value="french-riviera">Côte d'Azur (Cap Ferrat, Cannes)</option>
+                                    <option value="geneva">Genève & Lac Léman</option>
+                                    <option value="dubai">Dubaï (Palm Jumeirah)</option>
+                                </select>
+                            </div>
+
+                            <div class="search-field">
+                                <label for="search-category">Typologie de Bien</label>
+                                <select id="search-category" name="category" class="search-select">
+                                    <option value="all">Tous les biens</option>
+                                    <option value="villa">Villa d'Architecte</option>
+                                    <option value="penthouse">Penthouse Vue Panoramique</option>
+                                    <option value="estate">Domaine Privé & Château</option>
+                                    <option value="mansion">Hôtel Particulier</option>
+                                </select>
+                            </div>
+
+                            <div class="search-field">
+                                <label for="search-budget">Budget Indicatif</label>
+                                <select id="search-budget" name="budget" class="search-select">
+                                    <option value="all">Tous montants</option>
+                                    <option value="5m-10m">5 M€ — 10 M€</option>
+                                    <option value="10m-25m">10 M€ — 25 M€</option>
+                                    <option value="25m-plus">Plus de 25 M€</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn btn-gold search-btn">
+                            <span>Rechercher les Biens</span>
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                        </button>
+                    </form>
+                </div>
+
+                <div class="hero-scroll-hint">
+                    <a href="#selection" aria-label="Faire défiler vers la sélection">
+                        <span>Explorer</span>
+                        <div class="mouse-icon"><div class="wheel"></div></div>
+                    </a>
+                </div>
+            </div>
+        </section>
+
+        <!-- Featured Properties Section -->
+        <section class="section-padding bg-dark" id="selection">
+            <div class="container">
+                <div class="section-header text-center">
+                    <span class="sub-heading">Portfolio Exclusif</span>
+                    <h2 class="section-title">Sélection Curatée & Biens Rarement Égalés</h2>
+                    <p class="section-description">
+                        Chaque résidence sélectionnée incarne un sommet d'ingénierie spatiale, de matériaux d'exception et de tranquillité absolue.
+                    </p>
+                </div>
+
+                <!-- Property Grid -->
+                <div class="properties-grid">
+                    
+                    <!-- Property Card 1 -->
+                    <article class="property-card glass-panel" data-category="monaco villa">
+                        <div class="card-media">
+                            <img src="https://images.unsplash.com/photo-1617814076367-b759c7d7e738?w=800&auto=format&fit=crop" 
+                                 alt="Villa Horizon à Monaco" 
+                                 loading="lazy" 
+                                 class="card-img">
+                            <div class="card-badges">
+                                <span class="badge badge-emerald">Vérifié & Validé</span>
+                                <span class="badge badge-gold">Off-Market</span>
+                            </div>
+                            <button class="favorite-btn" aria-label="Ajouter la Villa Horizon à vos favoris" data-property-id="01">
+                                &#9825;
+                            </button>
+                        </div>
+                        <div class="card-body">
+                            <div class="card-location">Monaco • Cap d'Ail</div>
+                            <h3 class="card-title"><a href="annonces.html">Villa Horizon & Panoramas Maritimes</a></h3>
+                            <div class="card-specs">
+                                <span><strong>650</strong> m²</span>
+                                <span class="divider">•</span>
+                                <span><strong>6</strong> Suites</span>
+                                <span class="divider">•</span>
+                                <span><strong>1 200</strong> m² Terrain</span>
+                            </div>
+                            <div class="card-footer">
+                                <div class="card-price">24 500 000 €</div>
+                                <a href="annonces.html" class="btn-text">Consulter le dossier &rarr;</a>
+                            </div>
+                        </div>
+                    </article>
+
+                    <!-- Property Card 2 -->
+                    <article class="property-card glass-panel" data-category="paris penthouse">
+                        <div class="card-media">
+                            <img src="https://images.unsplash.com/photo-1503376780353-7e6692767b70?w=800&auto=format&fit=crop" 
+                                 alt="Penthouse Triangle d'Or Paris" 
+                                 loading="lazy" 
+                                 class="card-img">
+                            <div class="card-badges">
+                                <span class="badge badge-gold">Exclusivité AURA</span>
+                            </div>
+                            <button class="favorite-btn" aria-label="Ajouter le Penthouse Triangle d'Or à vos favoris" data-property-id="02">
+                                &#9825;
+                            </button>
+                        </div>
+                        <div class="card-body">
+                            <div class="card-location">Paris 8ème • Avenue Montaigne</div>
+                            <h3 class="card-title"><a href="annonces.html">Penthouse Duplex Triangle d'Or</a></h3>
+                            <div class="card-specs">
+                                <span><strong>380</strong> m²</span>
+                                <span class="divider">•</span>
+                                <span><strong>4</strong> Suites</span>
+                                <span class="divider">•</span>
+                                <span><strong>150</strong> m² Terrasse</span>
+                            </div>
+                            <div class="card-footer">
+                                <div class="card-price">18 200 000 €</div>
+                                <a href="annonces.html" class="btn-text">Consulter le dossier &rarr;</a>
+                            </div>
+                        </div>
+                    </article>
+
+                    <!-- Property Card 3 -->
+                    <article class="property-card glass-panel" data-category="geneva estate">
+                        <div class="card-media">
+                            <img src="https://images.unsplash.com/photo-1555215695-3004980ad54e?w=800&auto=format&fit=crop" 
+                                 alt="Domaine de l'Ombre à Genève" 
+                                 loading="lazy" 
+                                 class="card-img">
+                            <div class="card-badges">
+                                <span class="badge badge-indigo">Mandat Confidentiel</span>
+                            </div>
+                            <button class="favorite-btn" aria-label="Ajouter le Domaine de l'Ombre à vos favoris" data-property-id="03">
+                                &#9825;
+                            </button>
+                        </div>
+                        <div class="card-body">
+                            <div class="card-location">Genève • Cologny</div>
+                            <h3 class="card-title"><a href="annonces.html">Domaine Contemporain Lémanique</a></h3>
+                            <div class="card-specs">
+                                <span><strong>920</strong> m²</span>
+                                <span class="divider">•</span>
+                                <span><strong>8</strong> Suites</span>
+                                <span class="divider">•</span>
+                                <span><strong>5 000</strong> m² Parc</span>
+                            </div>
+                            <div class="card-footer">
+                                <div class="card-price">31 000 000 CHF</div>
+                                <a href="annonces.html" class="btn-text">Consulter le dossier &rarr;</a>
+                            </div>
+                        </div>
+                    </article>
+
+                    <!-- Property Card 4 -->
+                    <article class="property-card glass-panel" data-category="dubai penthouse">
+                        <div class="card-media">
+                            <img src="https://images.unsplash.com/photo-1533473359331-0135ef1b58bf?w=800&auto=format&fit=crop" 
+                                 alt="Sky Villa Palm Jumeirah Dubaï" 
+                                 loading="lazy" 
+                                 class="card-img">
+                            <div class="card-badges">
+                                <span class="badge badge-emerald">Off-Market VIP</span>
+                            </div>
+                            <button class="favorite-btn" aria-label="Ajouter la Sky Villa Palm Jumeirah à vos favoris" data-property-id="04">
+                                &#9825;
+                            </button>
+                        </div>
+                        <div class="card-body">
+                            <div class="card-location">Dubaï • Palm Jumeirah</div>
+                            <h3 class="card-title"><a href="annonces.html">Sky Villa & Marina Privée</a></h3>
+                            <div class="card-specs">
+                                <span><strong>750</strong> m²</span>
+                                <span class="divider">•</span>
+                                <span><strong>5</strong> Suites</span>
+                                <span class="divider">•</span>
+                                <span>Piscine suspendue</span>
+                            </div>
+                            <div class="card-footer">
+                                <div class="card-price">29 800 000 $</div>
+                                <a href="annonces.html" class="btn-text">Consulter le dossier &rarr;</a>
+                            </div>
+                        </div>
+                    </article>
+
+                </div>
+
+                <div class="section-cta text-center margin-top-lg">
+                    <a href="annonces.html" class="btn btn-outline">Voir l'ensemble de la collection (24)</a>
+                </div>
+            </div>
+        </section>
+
+        <!-- Expertise & Services Highlight Section -->
+        <section class="section-padding bg-alt">
+            <div class="container">
+                <div class="grid-2-cols align-items-center">
+                    <div class="expertise-text-col">
+                        <span class="sub-heading">Notre Démarche</span>
+                        <h2 class="section-title">Ingénierie Immobilière & Confidentialité Absolue</h2>
+                        <p class="paragraph-text">
+                            Chez AURA Real Estate, nous ne commercialisons pas de simples mètres carrés. Nous orchestrons l'acquisition, la valorisation et la transmission d'œuvres d'art architecturales destinées aux collectionneurs de biens d'exception.
+                        </p>
+                        
+                        <div class="services-list-preview">
+                            <div class="service-preview-item">
+                                <div class="service-icon-box">
+                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#D4AF37" stroke-width="1.5"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                                </div>
+                                <div>
+                                    <h3 class="service-item-title"><a href="services.html#off-market">Accès Off-Market Secret</a></h3>
+                                    <p class="service-item-desc">Plus de 60% de nos transactions sont réalisées sans aucune publication publique pour garantir l'anonymat des acheteurs et vendeurs.</p>
+                                </div>
+                            </div>
+
+                            <div class="service-preview-item">
+                                <div class="service-icon-box">
+                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#D4AF37" stroke-width="1.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+                                </div>
+                                <div>
+                                    <h3 class="service-item-title"><a href="services.html#acquisition-privee">Chasse Sur-Mesure & Conseil Patrimonial</a></h3>
+                                    <p class="service-item-desc">Accompagnement juridique, fiscal et architectural dédié avec votre Family Office et conseillers financiers.</p>
+                                </div>
+                            </div>
+
+                            <div class="service-preview-item">
+                                <div class="service-icon-box">
+                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#D4AF37" stroke-width="1.5"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                                </div>
+                                <div>
+                                    <h3 class="service-item-title"><a href="services.html#estimation">Expertise d'Estimation Sous 48h</a></h3>
+                                    <p class="service-item-desc">Évaluation certifiée basée sur les données financières réelles des micro-marchés ultra-prime.</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="margin-top-md">
+                            <a href="services.html" class="btn btn-gold">Découvrir l'ensemble des Services</a>
+                        </div>
+                    </div>
+
+                    <div class="expertise-media-col">
+                        <div class="image-stack-container">
+                            <img src="https://images.unsplash.com/photo-1583121274602-3e2820c69888?w=800&auto=format&fit=crop" 
+                                 alt="Salon privé de conciergerie AURA Real Estate" 
+                                 class="stack-img stack-img-main" 
+                                 loading="lazy">
+                            <img src="https://images.unsplash.com/photo-1502877338535-766e1452684a?w=800&auto=format&fit=crop" 
+                                 alt="Plans d'architecte et étude de valorisation" 
+                                 class="stack-img stack-img-secondary hide-mobile" 
+                                 loading="lazy">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Dynamic Statistics Counter Section -->
+        <section class="section-padding bg-dark border-y-gold">
+            <div class="container">
+                <div class="stats-grid">
+                    <div class="stat-card glass-panel text-center">
+                        <div class="stat-number-wrapper">
+                            <span class="stat-counter" data-target="2.8" data-decimals="1">0</span>
+                            <span class="stat-unit">Mds €</span>
+                        </div>
+                        <p class="stat-label">Volume de transactions géré en Off-Market</p>
+                    </div>
+
+                    <div class="stat-card glass-panel text-center">
+                        <div class="stat-number-wrapper">
+                            <span class="stat-counter" data-target="145" data-decimals="0">0</span>
+                            <span class="stat-unit">+</span>
+                        </div>
+                        <p class="stat-label">Propriétés rares dans notre catalogue privé</p>
+                    </div>
+
+                    <div class="stat-card glass-panel text-center">
+                        <div class="stat-number-wrapper">
+                            <span class="stat-counter" data-target="98" data-decimals="0">0</span>
+                            <span class="stat-unit">%</span>
+                        </div>
+                        <p class="stat-label">Taux de succès sur mandats exclusifs</p>
+                    </div>
+
+                    <div class="stat-card glass-panel text-center">
+                        <div class="stat-number-wrapper">
+                            <span class="stat-counter" data-target="15" data-decimals="0">0</span>
+                            <span class="stat-unit">Ans</span>
+                        </div>
+                        <p class="stat-label">D'excellence sur les marchés internationaux</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Valuation Lead Capture Form Section -->
+        <section class="section-padding bg-alt" id="estimation-section">
+            <div class="container">
+                <div class="valuation-card glass-panel">
+                    <div class="grid-2-cols align-items-center">
+                        <div class="valuation-info">
+                            <span class="sub-heading">Estimation Privée</span>
+                            <h2 class="section-title">Soumettez votre Résidence à l'Évaluation</h2>
+                            <p class="paragraph-text">
+                                Vous êtes propriétaire d'un appartement d'architecte, d'une villa d'exception ou d'un domaine privé ? Nos experts réalisent une analyse comparative et confidentielle de la valeur marchande de votre bien.
+                            </p>
+
+                            <div class="trust-list">
+                                <div class="trust-item">
+                                    <span class="check-icon">&#10003;</span>
+                                    <span>Accord de confidentialité (NDA) automatique dès la prise de contact</span>
+                                </div>
+                                <div class="trust-item">
+                                    <span class="check-icon">&#10003;</span>
+                                    <span>Rapport personnalisé sous 48 heures ouvrées</span>
+                                </div>
+                                <div class="trust-item">
+                                    <span class="check-icon">&#10003;</span>
+                                    <span>Aucune publication publique sans votre consentement explicite</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="valuation-form-wrapper">
+                            <form id="valuationForm" class="valuation-form" action="contact.html" method="POST">
+                                <h3 class="form-title">Demande d'Éléments d'Estimation</h3>
+
+                                <div class="form-group">
+                                    <label for="val-fullname" class="form-label">Nom et Prénom *</label>
+                                    <input type="text" id="val-fullname" name="fullname" class="form-input" placeholder="ex. M. Jean de Saint-Germain" required>
+                                </div>
+
+                                <div class="grid-2-cols gap-sm">
+                                    <div class="form-group">
+                                        <label for="val-email" class="form-label">Adresse Email *</label>
+                                        <input type="email" id="val-email" name="email" class="form-input" placeholder="votre@adresse.com" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="val-phone" class="form-label">Téléphone *</label>
+                                        <input type="tel" id="val-phone" name="phone" class="form-input" placeholder="+33 6 00 00 00 00" required>
+                                    </div>
+                                </div>
+
+                                <div class="grid-2-cols gap-sm">
+                                    <div class="form-group">
+                                        <label for="val-type" class="form-label">Nature du Bien</label>
+                                        <select id="val-type" name="property_type" class="form-select">
+                                            <option value="villa">Villa d'Architecte</option>
+                                            <option value="penthouse">Penthouse / Duplex</option>
+                                            <option value="estate">Domaine / Chateau</option>
+                                            <option value="mansion">Hôtel Particulier</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="val-location" class="form-label">Localisation</label>
+                                        <input type="text" id="val-location" name="location" class="form-input" placeholder="ex. Monaco, Paris 16e, Cap Ferrat">
+                                    </div>
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="val-details" class="form-label">Spécificités & Surface approximative</label>
+                                    <textarea id="val-details" name="details" class="form-textarea" rows="3" placeholder="Ex: 450 m², vue mer, piscine à débordement, état neuf..."></textarea>
+                                </div>
+
+                                <div class="form-group checkbox-group">
+                                    <input type="checkbox" id="val-rgpd" name="rgpd" required class="form-checkbox">
+                                    <label for="val-rgpd" class="checkbox-label">
+                                        J'accepte que mes données soient traitées dans le cadre strict de cette étude d'estimation confidentielle conformément aux <a href="legal.html#confidentialite">Règles de Confidentialité</a>.
+                                    </label>
+                                </div>
+
+                                <button type="submit" class="btn btn-gold btn-full">
+                                    Demander mon Analyse Confidentielle
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Testimonial Quote Banner -->
+        <section class="section-padding bg-dark text-center">
+            <div class="container container-narrow">
+                <div class="quote-symbol">“</div>
+                <blockquote class="testimonial-quote">
+                    L'acquisition de notre domaine à Cologny a été menée avec une discrétion magistrale et une rigueur remarquable. AURA Real Estate redéfinira votre perception de la transaction immobilière de prestige.
+                </blockquote>
+                <div class="testimonial-author">
+                    <span class="author-name">Directeur de Family Office</span>
+                    <span class="author-title">Genève — Transaction de 32M€</span>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Global Footer -->
+    <footer class="site-footer">
+        <div class="footer-top section-padding bg-dark">
+            <div class="container">
+                <div class="footer-grid">
+                    
+                    <!-- Brand Info Column -->
+                    <div class="footer-col brand-col">
+                        <a href="index.html" class="brand-logo footer-logo">
+                            <span class="logo-mark">AURA</span>
+                            <span class="logo-sub">REAL ESTATE</span>
+                        </a>
+                        <p class="footer-about">
+                            Maison internationale d'architecture et de négociation immobilière de prestige. Portefeuille privé réservé aux acquéreurs et vendeurs exigeants.
+                        </p>
+                        <div class="agency-badges">
+                            <span class="agency-badge">Carte T N° CPI 7501 2021 000 000 888</span>
+                            <span class="agency-badge">Garantie Financière Galian 5 000 000 €</span>
+                        </div>
+                    </div>
+
+                    <!-- Navigation Links Column -->
+                    <div class="footer-col">
+                        <h4 class="footer-heading">Navigation</h4>
+                        <ul class="footer-links">
+                            <li><a href="index.html">Accueil</a></li>
+                            <li><a href="annonces.html">Propriétés en vente</a></li>
+                            <li><a href="services.html#off-market">Portefeuille Off-Market</a></li>
+                            <li><a href="services.html#estimation">Estimation sur-mesure</a></li>
+                            <li><a href="faq.html">Foire aux Questions</a></li>
+                            <li><a href="contact.html">Prendre Rendez-vous</a></li>
+                        </ul>
+                    </div>
+
+                    <!-- Services Links Column -->
+                    <div class="footer-col">
+                        <h4 class="footer-heading">Savoir-Faire</h4>
+                        <ul class="footer-links">
+                            <li><a href="services.html#acquisition-privee">Acquisition Privée</a></li>
+                            <li><a href="services.html#estimation">Expertise d'Évaluation</a></li>
+                            <li><a href="services.html#off-market">Ventes Confidentielles</a></li>
+                            <li><a href="services.html#conciergerie">Conciergerie Patrimoniale</a></li>
+                            <li><a href="legal.html#cgv">Conditions d'Accompagnement</a></li>
+                        </ul>
+                    </div>
+
+                    <!-- Offices Column -->
+                    <div class="footer-col">
+                        <h4 class="footer-heading">Bureaux Internationaux</h4>
+                        <ul class="office-list">
+                            <li>
+                                <strong>Paris :</strong> 12 Avenue Montaigne, 75008 Paris
+                            </li>
+                            <li>
+                                <strong>Monaco :</strong> 1 Place du Casino, 98000 Monaco
+                            </li>
+                            <li>
+                                <strong>Genève :</strong> Rue du Rhône 42, 1204 Genève
+                            </li>
+                            <li>
+                                <strong>Dubaï :</strong> Gate Village 04, DIFC, Dubaï
+                            </li>
+                        </ul>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer Bottom Bar -->
+        <div class="footer-bottom">
+            <div class="container footer-bottom-container">
+                <p class="copyright">
+                    &copy; <span id="currentYear">2025</span> AURA Real Estate. Tous droits réservés.
+                </p>
+                <ul class="legal-links">
+                    <li><a href="legal.html">Mentions Légales</a></li>
+                    <li><a href="legal.html#confidentialite">Politique de Confidentialité</a></li>
+                    <li><a href="legal.html#cookies">Gestion des Cookies</a></li>
+                    <li><a href="legal.html#bareme">Barème d'Honoraires</a></li>
+                </ul>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Global Toast / Notification Container -->
+    <div id="toastContainer" class="toast-container" aria-live="polite" aria-atomic="true"></div>
+
+</body>
+</html>

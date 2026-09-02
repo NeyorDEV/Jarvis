@@ -27,6 +27,15 @@ if (avPanelEl && avHeaderEl) {
 export function openAntivirusPanel() {
   if (!avPanelEl) return;
 
+  // Annule un masquage différé encore en attente : rouvrir le panneau dans les
+  // 400 ms suivant sa fermeture laissait le timer précédent se déclencher et
+  // remettre « hidden » sur un panneau tout juste rouvert (scan lancé mais
+  // panneau invisible, et bouton du dock repassé à « éteint »).
+  if (avTimerMasquage !== null) {
+    clearTimeout(avTimerMasquage);
+    avTimerMasquage = null;
+  }
+
   // Initial positioning
   const left = Math.max(20, (window.innerWidth - 460) / 2);
   const top = Math.max(20, (window.innerHeight - 420) / 2);
@@ -78,16 +87,21 @@ export function openAntivirusPanel() {
   }
 }
 
+// Handle du masquage différé, pour pouvoir l'annuler à la réouverture.
+let avTimerMasquage: number | null = null;
+
 export function closeAntivirusPanel() {
   if (!avPanelEl) return;
-  
+
   if (avScanInProgress) {
     cancelAvScan();
   }
 
   avPanelEl.classList.remove("visible");
-  setTimeout(() => {
+  if (avTimerMasquage !== null) clearTimeout(avTimerMasquage);
+  avTimerMasquage = window.setTimeout(() => {
     avPanelEl.classList.add("hidden");
+    avTimerMasquage = null;
   }, 400);
 }
 

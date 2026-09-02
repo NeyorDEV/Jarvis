@@ -328,7 +328,7 @@ try:
         WAKEWORD_MODEL = WakeWordDetector()
         WAKEWORD_THRESHOLD = float(_cfg_ww.get("wakeword_threshold", 0.35))
         _ww_nom = next(iter(WAKEWORD_MODEL.model.models), "?")
-        print(f"✔  [WAKEWORD] openWakeWord '{_ww_nom}' initialisé (seuil {WAKEWORD_THRESHOLD}). Le STT n'est appelé qu'après détection locale.")
+        print(f"✔  [WAKEWORD] openWakeWord '{_ww_nom}' initialisé (seuil {WAKEWORD_THRESHOLD}). Le STT n'est appelé qu'après détection locale.")    
     else:
         print("ℹ  [WAKEWORD] openWakeWord désactivé via config (use_openwakeword=false).")
 except Exception as e:
@@ -350,7 +350,7 @@ builtins.spotify_lancer_playlist = spotify_lancer_playlist
 
 from controller.deezer_controller import *
 from controller.app_launcher import *
-from module.image_generator import generer_image_ia
+from module.image_generator import generer_image_ia, generer_affiche_ia
 from module.chess_manager import ChessGame
 import chess
 CHESS_GAME = None
@@ -379,6 +379,8 @@ def _charger_plugins():
     import plugins.image_search_resolver
     import plugins.uninstaller_resolver
     import plugins.iptv_resolver
+    import plugins.website_resolver
+    import plugins.image_edit_resolver
     _plugins_prets.set()
 threading.Thread(target=_charger_plugins, daemon=True).start()
 
@@ -457,6 +459,7 @@ async def envoyer_image_web(url, prompt):
         "timestamp": time.time()
     })
     _safe_ws_send(msg)
+builtins.envoyer_image_web = envoyer_image_web
 from openai import OpenAI
 import uuid
 import base64
@@ -526,7 +529,7 @@ except ImportError:
 FORCE_BROWSER_MODE = False
 
 # --- CONFIGURATION VERSION & MAJ ---
-CURRENT_VERSION = "9.0"
+CURRENT_VERSION = "9.0.0"
 UPDATE_JSON_URL = "https://www.techenclair.fr/updates/jarvis_update.json"
 DERNIERE_MAJ_INFO = None  # Stocke l'info si une MAJ est détectée
 
@@ -580,7 +583,7 @@ def _sauvegarder_env(data: dict) -> None:
 
 def recharger_clients_ia():
     global GEMINI_API_KEY, YOUTUBE_API_KEY, XAI_API_KEY, SERPAPI_API_KEY, GROQ_API_KEY, ANTHROPIC_API_KEY, MISTRAL_API_KEY
-    global gemini_actif, client, grok_client, groq_client, anthropic_client, mistral_client
+    global gemini_actif, client, grok_client, groq_client, anthropic_client
     
     from dotenv import load_dotenv
     load_dotenv(override=True)
@@ -595,14 +598,41 @@ def recharger_clients_ia():
     
     gemini_actif = _cle_valide(GEMINI_API_KEY)
     
-    # Recharger les clients de l'API
+    # Recharger TOUS les clients d'API, pas seulement Gemini.
+    # Auparavant grok/groq/anthropic/mistral étaient déclarés `global` mais jamais
+    # reconstruits : après avoir changé une clé dans les réglages, l'interface
+    # annonçait « sauvegardé » alors que l'ancien client (ou None) restait utilisé
+    # jusqu'au redémarrage complet.
     try:
-        if gemini_actif:
-            client = genai.Client(api_key=GEMINI_API_KEY)
-            builtins.client = client
-            print("[IA RELOAD] Gemini client rechargé.")
+        client = genai.Client(api_key=GEMINI_API_KEY) if gemini_actif else None
+        builtins.client = client
+        print(f"[IA RELOAD] Gemini : {'rechargé' if client else 'désactivé (clé absente)'}.")
     except Exception as e:
-        print(f"[IA RELOAD] Erreur rechargement Gemini client : {e}")
+        print(f"[IA RELOAD] Erreur rechargement Gemini : {e}")
+
+    try:
+        grok_client = OpenAI(api_key=XAI_API_KEY, base_url="https://api.x.ai/v1") \
+            if _cle_valide(XAI_API_KEY) else None
+        print(f"[IA RELOAD] Grok : {'rechargé' if grok_client else 'désactivé'}.")
+    except Exception as e:
+        grok_client = None
+        print(f"[IA RELOAD] Erreur rechargement Grok : {e}")
+
+    try:
+        groq_client = OpenAI(api_key=GROQ_API_KEY, base_url="https://api.groq.com/openai/v1") \
+            if _cle_valide(GROQ_API_KEY) else None
+        print(f"[IA RELOAD] Groq : {'rechargé' if groq_client else 'désactivé'}.")
+    except Exception as e:
+        groq_client = None
+        print(f"[IA RELOAD] Erreur rechargement Groq : {e}")
+
+    try:
+        anthropic_client = _anthropic_lib.Anthropic(api_key=ANTHROPIC_API_KEY) \
+            if (_anthropic_lib and _cle_valide(ANTHROPIC_API_KEY)) else None
+        print(f"[IA RELOAD] Claude : {'rechargé' if anthropic_client else 'désactivé'}.")
+    except Exception as e:
+        anthropic_client = None
+        print(f"[IA RELOAD] Erreur rechargement Claude : {e}")
 
 GEMINI_API_KEY       = os.getenv("GEMINI_API_KEY")
 YOUTUBE_API_KEY      = os.getenv("YOUTUBE_API_KEY")
@@ -662,8 +692,8 @@ if _anthropic_lib and _cle_valide(ANTHROPIC_API_KEY):
     anthropic_client = _anthropic_lib.Anthropic(api_key=ANTHROPIC_API_KEY)
 
 MODELS_LIST = [
-    "gemini-3.1-flash-lite",   # Rapide ~0.9s, parfait pour usage vocal
-    "gemini-2.5-flash",        # Fallback puissant
+    "gemini-3.5-flash-lite",   # Rapide, parfait pour usage vocal (succède à 3.1-flash-lite)
+    "gemini-3.7-flash",        # Fallback puissant — le Flash le plus fort actuellement (sorti 13/08/2026)
     "gemini-flash-latest",
     "gemini-pro-latest",
 ]
@@ -676,7 +706,7 @@ builtins.CHOSEN_MODEL = CHOSEN_MODEL
 
 # Ollama (LLMs locaux — fallback 100% offline)
 OLLAMA_URL      = "http://127.0.0.1:11434"
-OLLAMA_MODELS   = ["llama3.2", "mistral:instruct", "mistral", "llama3:8b", "gemma4"]
+OLLAMA_MODELS   = ["llama3.1:8b", "mistral:instruct", "mistral", "gemma4"]
 
 
 # ══════════════════════════════════════════════════════════════
@@ -703,8 +733,85 @@ interface_deja_connectee = False
 _skip_pc_audio = False  # True quand la commande vient du mobile (le tél gère son propre TTS)
 PENDING_SCREEN_CAPTURES = {}
 
+
+# ── SÉCURITÉ WEBSOCKET ────────────────────────────────────────────────────────
+# Les WebSockets ne sont PAS soumis à la politique CORS : n'importe quel site web
+# visité dans un navigateur peut ouvrir ws://localhost:8765 et piloter JARVIS.
+# On filtre donc l'en-tête Origin : les clients légitimes sont soit natifs
+# (pywebview / mobile natif : pas d'Origin), soit servis en local (Vite, serveur
+# mobile). Tout le reste — c'est-à-dire un vrai site distant — est refusé.
+def _origine_autorisee(websocket) -> bool:
+    try:
+        # websockets >= 12 expose request.headers ; les versions antérieures request_headers
+        entetes = getattr(getattr(websocket, "request", None), "headers", None)
+        if entetes is None:
+            entetes = getattr(websocket, "request_headers", None)
+        origine = entetes.get("Origin") if entetes else None
+    except Exception:
+        return True  # en cas de doute on n'enferme pas l'utilisateur dehors
+
+    if not origine:
+        return True  # client natif (pywebview, appli mobile) : pas d'Origin
+
+    o = origine.lower().strip()
+    if o == "null" or o.startswith("file://"):
+        return True
+    # Hôtes locaux + adresses privées du réseau domestique
+    import re as _re_o
+    return bool(_re_o.match(
+        r"^https?://("
+        r"localhost|127\.0\.0\.1|\[::1\]|"
+        r"10\.\d+\.\d+\.\d+|"
+        r"192\.168\.\d+\.\d+|"
+        r"172\.(1[6-9]|2\d|3[01])\.\d+\.\d+"
+        r")(:\d+)?$", o))
+
+
+# Racine autorisée pour les lectures/écritures de fichiers demandées par l'interface.
+_RACINE_PROJET = os.path.dirname(os.path.abspath(__file__))
+
+
+def _chemin_projet_valide(chemin: str):
+    """Résout `chemin` et vérifie qu'il reste DANS le dossier du projet.
+
+    Retourne le chemin absolu si c'est le cas, sinon None. Sans ce garde-fou,
+    un client pouvait lire n'importe quel fichier de la machine (« ../../.env »,
+    « C:\\Users\\...\\ »), ou en écraser un — y compris main.py lui-même.
+    """
+    if not chemin or not isinstance(chemin, str):
+        return None
+    try:
+        absolu = os.path.abspath(os.path.join(_RACINE_PROJET, chemin))
+        if os.path.commonpath([absolu, _RACINE_PROJET]) != _RACINE_PROJET:
+            return None
+        return absolu
+    except Exception:
+        return None
+
+
+# Sentinelle renvoyée à la place des vraies clés API : l'interface affiche que la
+# clé existe sans jamais recevoir sa valeur. Si elle nous la renvoie telle quelle
+# lors d'une sauvegarde, cela signifie « inchangée » et on conserve l'existante.
+_MASQUE_CLE = "••••••••••••"
+
+
+def _masquer_cle(valeur: str) -> str:
+    if not valeur:
+        return ""
+    return _MASQUE_CLE + (valeur[-4:] if len(valeur) > 8 else "")
+
+
 async def ws_handler(websocket):
     global interface_deja_connectee, STOP_PARLER, CHESS_GAME, CHESS_GAME_ACTIVE
+
+    if not _origine_autorisee(websocket):
+        print("[WEB] ⛔ Connexion refusée : origine non autorisée (site web distant ?).")
+        try:
+            await websocket.close(code=1008, reason="Origine non autorisee")
+        except Exception:
+            pass
+        return
+
     CONNECTED_CLIENTS.add(websocket)
     interface_deja_connectee = True
     print(f"[WEB] Interface connectee (Clients actifs: {len(CONNECTED_CLIENTS)})")
@@ -760,15 +867,14 @@ async def ws_handler(websocket):
                     except Exception:
                         config_data = {}
                     
-                    # Charger les clés API de l'environnement .env
+                    # Clés API : on n'envoie JAMAIS leur valeur réelle sur le
+                    # WebSocket, seulement un masque indiquant qu'elles existent.
+                    # (Auparavant un simple message suffisait à toutes les voler.)
                     config_data["api_keys"] = {
-                        "GEMINI_API_KEY": os.getenv("GEMINI_API_KEY", ""),
-                        "GROQ_API_KEY": os.getenv("GROQ_API_KEY", ""),
-                        "YOUTUBE_API_KEY": os.getenv("YOUTUBE_API_KEY", ""),
-                        "XAI_API_KEY": os.getenv("XAI_API_KEY", ""),
-                        "SERPAPI_API_KEY": os.getenv("SERPAPI_API_KEY", ""),
-                        "ANTHROPIC_API_KEY": os.getenv("ANTHROPIC_API_KEY", ""),
-                        "MISTRAL_API_KEY": os.getenv("MISTRAL_API_KEY", "")
+                        nom: _masquer_cle(os.getenv(nom, ""))
+                        for nom in ("GEMINI_API_KEY", "OPENAI_API_KEY", "GROQ_API_KEY",
+                                    "YOUTUBE_API_KEY", "XAI_API_KEY", "SERPAPI_API_KEY",
+                                    "ANTHROPIC_API_KEY", "MISTRAL_API_KEY")
                     }
                     # État d'activation des API
                     config_data["api_gemini_enabled"] = config_data.get("api_gemini_enabled", _cle_valide(os.getenv("GEMINI_API_KEY")))
@@ -833,10 +939,18 @@ async def ws_handler(websocket):
                     # Séparer les clés d'API pour les enregistrer dans le fichier .env
                     if "api_keys" in settings:
                         api_keys = settings.pop("api_keys")
-                        # Mettre à jour le fichier .env
-                        _sauvegarder_env(api_keys)
-                        # Recharger les variables et réinitialiser les clients d'IA à chaud
-                        recharger_clients_ia()
+                        # On ignore les clés renvoyées masquées : elles signifient
+                        # « inchangée ». Sans ce filtre, ouvrir puis sauvegarder les
+                        # réglages écrasait les vraies clés par la chaîne de masque.
+                        api_keys = {
+                            k: v for k, v in (api_keys or {}).items()
+                            if isinstance(v, str) and _MASQUE_CLE not in v
+                        }
+                        if api_keys:
+                            # Mettre à jour le fichier .env
+                            _sauvegarder_env(api_keys)
+                            # Recharger les variables et réinitialiser les clients d'IA à chaud
+                            recharger_clients_ia()
 
                     config_data.update(settings)
                     with open(_p, "w", encoding="utf-8") as _f:
@@ -864,6 +978,82 @@ async def ws_handler(websocket):
                         _charger_custom_ha_entities()
                     except: pass
                     print("[WEB] Parametres mis a jour avec succes.")
+                # ── Voice Vault (coffre-fort chiffré) ────────────────────────
+                # Le module backend/module/voice_vault.py existe déjà et gère le
+                # chiffrement AES (Fernet + PBKDF2). Seule la commande vocale
+                # ("coffre fort") était câblée ; les boutons du panneau HUD
+                # (#vault-unlock-btn, #vault-lock-btn, #vault-add-btn, export,
+                # suppression) envoyaient ces types de message sans qu'aucun
+                # handler n'existe ici : ils ne faisaient donc rien.
+                elif data.get("type") in ("vault_unlock", "vault_lock", "vault_add_file",
+                                          "vault_export_file", "vault_delete_file"):
+                    from module import voice_vault
+
+                    async def _diffuser_vault(msg):
+                        if CONNECTED_CLIENTS:
+                            await asyncio.gather(*[ws.send(json.dumps(msg)) for ws in CONNECTED_CLIENTS],
+                                                 return_exceptions=True)
+
+                    action_vault = data.get("type")
+
+                    if action_vault == "vault_unlock":
+                        mdp = data.get("password", "")
+                        deja_configure = voice_vault.is_vault_configured()
+                        ok = await asyncio.to_thread(voice_vault.unlock_vault, mdp) if mdp else False
+                        await websocket.send(json.dumps({
+                            "type": "vault_unlock_result",
+                            "success": ok,
+                            "is_unlocked": voice_vault.is_vault_unlocked(),
+                            "is_configured": voice_vault.is_vault_configured() if deja_configure else True,
+                            "files": voice_vault.list_vault_files() if ok else [],
+                        }))
+
+                    elif action_vault == "vault_lock":
+                        voice_vault.lock_vault()
+                        await _diffuser_vault({"type": "vault_lock_result", "is_unlocked": False})
+
+                    elif action_vault == "vault_add_file":
+                        # Le chemin vient du sélecteur de fichier natif du navigateur
+                        # (input[type=file].path côté Electron/webview) : on ne le
+                        # confine pas à un dossier — l'utilisateur choisit lui-même
+                        # le fichier via une boîte de dialogue système, il n'y a pas
+                        # de risque de traversée de chemin côté serveur ici.
+                        chemin_fichier = data.get("file_path", "")
+                        ok = await asyncio.to_thread(voice_vault.add_file_to_vault, chemin_fichier) if chemin_fichier else False
+                        await _diffuser_vault({
+                            "type": "vault_file_added",
+                            "success": ok,
+                            "is_unlocked": voice_vault.is_vault_unlocked(),
+                            "is_configured": True,
+                            "files": voice_vault.list_vault_files(),
+                        })
+
+                    elif action_vault == "vault_export_file":
+                        nom_fichier = data.get("filename", "")
+                        dossier_telechargements = os.path.join(os.environ.get("USERPROFILE", ""), "Downloads")
+                        chemin_final = ""
+                        if nom_fichier:
+                            chemin_final = await asyncio.to_thread(
+                                voice_vault.export_file_from_vault, nom_fichier, dossier_telechargements
+                            )
+                        await websocket.send(json.dumps({
+                            "type": "vault_export_result",
+                            "success": bool(chemin_final),
+                            "filename": nom_fichier,
+                            "path": chemin_final,
+                        }))
+
+                    elif action_vault == "vault_delete_file":
+                        nom_fichier = data.get("filename", "")
+                        ok = await asyncio.to_thread(voice_vault.delete_file_from_vault, nom_fichier) if nom_fichier else False
+                        await _diffuser_vault({
+                            "type": "vault_file_deleted",
+                            "success": ok,
+                            "is_unlocked": voice_vault.is_vault_unlocked(),
+                            "is_configured": True,
+                            "files": voice_vault.list_vault_files(),
+                        })
+
                 # ── Shopping List ──────────────────────────────────────────
                 elif data.get("type") == "get_shopping_list":
                     listes = _charger_listes()
@@ -926,6 +1116,78 @@ async def ws_handler(websocket):
                         "total_count": len(items_to_clean),
                         "errors": errors
                     }))
+                elif data.get("type") in ["read_file", "write_file"] or data.get("action") in ["read_file", "write_file"]:
+                    action_type = data.get("action") or data.get("type")
+                    filepath = data.get("filepath", "")
+                    # Confinement obligatoire au dossier du projet (cf. _chemin_projet_valide)
+                    chemin_sur = _chemin_projet_valide(filepath)
+                    if chemin_sur is None:
+                        print(f"[WEB] ⛔ Accès fichier refusé (hors projet) : {filepath!r}")
+                        await websocket.send(json.dumps({
+                            "action": "file_content" if action_type == "read_file" else "file_saved",
+                            "type": "file_content" if action_type == "read_file" else "file_saved",
+                            "filepath": filepath,
+                            "success": False,
+                            "error": "Chemin refusé : en dehors du dossier du projet.",
+                            "content": "// Accès refusé : ce fichier est en dehors du dossier JARVIS."
+                        }))
+                    elif action_type == "read_file":
+                        content = ""
+                        try:
+                            if os.path.exists(chemin_sur):
+                                with open(chemin_sur, "r", encoding="utf-8", errors="ignore") as f_in:
+                                    content = f_in.read()
+                            else:
+                                content = f"// Fichier introuvable sur le disque : {filepath}"
+                        except Exception as ex_rf:
+                            content = f"// Erreur lors de la lecture : {ex_rf}"
+                        await websocket.send(json.dumps({
+                            "action": "file_content",
+                            "type": "file_content",
+                            "filepath": filepath,
+                            "content": content
+                        }))
+                    elif action_type == "write_file":
+                        content = data.get("content", "")
+                        try:
+                            dossier = os.path.dirname(chemin_sur)
+                            if dossier:
+                                os.makedirs(dossier, exist_ok=True)
+                            with open(chemin_sur, "w", encoding="utf-8") as f_out:
+                                f_out.write(content)
+                            await websocket.send(json.dumps({
+                                "action": "file_saved",
+                                "type": "file_saved",
+                                "filepath": filepath,
+                                "success": True
+                            }))
+                        except Exception as ex_wf:
+                            await websocket.send(json.dumps({
+                                "action": "file_saved",
+                                "type": "file_saved",
+                                "filepath": filepath,
+                                "success": False,
+                                "error": str(ex_wf)
+                            }))
+                elif data.get("type") in ["get_agent_models", "set_agent_models"] or data.get("action") in ["get_agent_models", "set_agent_models"]:
+                    action_type = data.get("action") or data.get("type")
+                    from plugins.agent_model_manager import get_agent_models_info, set_agent_models
+                    if action_type == "get_agent_models":
+                        info = get_agent_models_info()
+                        await websocket.send(json.dumps({
+                            "type": "agent_models_data",
+                            "action": "agent_models_data",
+                            "data": info
+                        }))
+                    elif action_type == "set_agent_models":
+                        new_models = data.get("models", {})
+                        updated = set_agent_models(new_models)
+                        await websocket.send(json.dumps({
+                            "type": "agent_models_updated",
+                            "action": "agent_models_updated",
+                            "success": True,
+                            "current_models": updated
+                        }))
                 elif data.get("type") == "get_winget_upgrades":
                     print("[WINGET] Scan des mises à jour demandé...")
                     upgrades = await asyncio.to_thread(lister_mises_a_jour_winget)
@@ -1045,7 +1307,8 @@ async def ws_handler(websocket):
                             set_stop_parler(True)
                             speech.vider_files()
                         else:
-                            asyncio.ensure_future(traiter_reponse_ia(texte))
+                            # Clavier du HUD local (utilisateur physiquement présent) → de confiance
+                            asyncio.ensure_future(traiter_reponse_ia(texte, de_confiance=True))
                 elif data.get("type") == "screen_frame":
                     req_id = data.get("id")
                     if req_id in PENDING_SCREEN_CAPTURES:
@@ -1186,11 +1449,11 @@ async def ws_handler(websocket):
                                 import time
                                 time.sleep(1.0)
                                 if webview.windows:
-                                    current_url = webview.windows[0].get_current_url()
-                                    clean_url = current_url.split('?')[0] if '?' in current_url else current_url
-                                    new_url = f"{clean_url}?cb={int(time.time())}"
-                                    webview.windows[0].load_url(new_url)
-                                    print("[CACHE] Fenêtre rechargée avec cache-bust.")
+                                    try:
+                                        webview.windows[0].evaluate_js("location.reload(true);")
+                                        print("[CACHE] Fenêtre rechargée de façon fluide.")
+                                    except Exception as _e_js:
+                                        print(f"[CACHE] Rechargement JS alternatif : {_e_js}")
                             except Exception as _e:
                                 print(f"[CACHE] Erreur rechargement fenêtre : {_e}")
                         threading.Thread(target=_reload_window_cachebust, daemon=True).start()
@@ -1448,41 +1711,8 @@ async def send_globe_command(**kwargs):
     payload.update(kwargs)
     _safe_ws_send(json.dumps(payload))
 
-async def broadcast_system_stats():
-    """Récupère et diffuse l'utilisation CPU et RAM périodiquement."""
-    global psutil
-    if psutil is None:
-        try:
-            import psutil as ps
-            psutil = ps
-        except ImportError:
-            print("[SYS] psutil non disponible. Monitoring désactivé.")
-            return
-
-    print("[SYS] Démarrage du monitoring CPU/RAM...")
-    # Initialisation de la mesure CPU
-    psutil.cpu_percent(interval=None)
-    
-    while True:
-        try:
-            if CONNECTED_CLIENTS:
-                cpu = psutil.cpu_percent(interval=None)
-                ram = psutil.virtual_memory().percent
-                msg = json.dumps({
-                    "action": "system_stats",
-                    "cpu": cpu,
-                    "ram": ram
-                })
-                # Copie pour éviter les erreurs de modification pendant l'itération
-                clients = list(CONNECTED_CLIENTS)
-                if clients:
-                    await asyncio.gather(*[ws.send(msg) for ws in clients], return_exceptions=True)
-        except Exception as e:
-            print(f"[SYS] Erreur monitoring : {e}")
-        
-        await asyncio.sleep(2) # Mise à jour toutes les 2 secondes
-
-
+# (Première définition de broadcast_system_stats supprimée : elle était morte —
+#  la définition située plus bas dans le fichier l'écrasait systématiquement.)
 
 async def geocode_lieu(nom_lieu: str):
     """Géocode un nom de lieu via Nominatim (OpenStreetMap) — gratuit, sans clé API."""
@@ -1567,6 +1797,7 @@ SCOPES = [
 def lister_applications_installees():
     """Détecte les applications installées sur le PC à partir des raccourcis du menu Démarrer."""
     import win32com.client
+    import pythoncom
     import os
     
     apps = []
@@ -1575,6 +1806,7 @@ def lister_applications_installees():
         os.path.join(os.environ.get("APPDATA", ""), r"Microsoft\Windows\Start Menu\Programs")
     ]
     
+    pythoncom.CoInitialize()
     try:
         shell = win32com.client.Dispatch("WScript.Shell")
         seen_paths = set()
@@ -1590,6 +1822,7 @@ def lister_applications_installees():
                         try:
                             shortcut = shell.CreateShortcut(lnk_path)
                             target_path = shortcut.TargetPath
+                            shortcut = None
                             if target_path and target_path.lower().endswith(".exe") and os.path.exists(target_path):
                                 target_lower = target_path.lower()
                                 if target_lower not in seen_paths:
@@ -1601,9 +1834,15 @@ def lister_applications_installees():
                                     })
                         except Exception:
                             pass
+        shell = None
         apps.sort(key=lambda x: x["nom"].lower())
     except Exception as e:
         print(f"[APPS SCAN] Erreur lors du scan : {e}")
+    finally:
+        try:
+            pythoncom.CoUninitialize()
+        except Exception:
+            pass
         
     return apps
 
@@ -1793,7 +2032,8 @@ async def resoudre_globe_localement(texte: str):
         return "Navigation fermée. Je reviens à l'interface principale, mylane."
     
     # Éviter de déclencher le globe si on cherche un fichier ou dossier local ou une info générale/HUD
-    if any(k in t for k in ["dossier", "fichier", "document", "archive", "programme", "histoire", "blague", "raconte", "explique", "définition", "carte"]):
+    # (ni si "affiche" est utilisé comme nom commun : "une affiche", "l'affiche" pour un poster/image)
+    if any(k in t for k in ["dossier", "fichier", "document", "archive", "programme", "histoire", "blague", "raconte", "explique", "définition", "carte", "une affiche", "l'affiche", "cette affiche", "image", "photo", "dessin"]):
         return None
 
     # ── Mots-clés déclencheurs ───────────────────────────────────────────────
@@ -2504,7 +2744,7 @@ async def demander_ia(texte, update_hist=True, skip_local=False):
 
         # ── PRIORITÉ 1 — GROQ (Llama 3.3) ───────────────────────────────────
         if groq_client and _quota_mgr.is_available("groq"):
-            print("[CERVEAU] Tentative avec Groq (Llama 3.3 Versatile)...")
+            print("[CERVEAU] Tentative avec Groq (GPT-OSS 120B)...")
             try:
                 rep_groq = await demander_groq(texte, update_hist=update_hist, skip_local=skip_local)
                 if rep_groq:
@@ -2539,9 +2779,16 @@ async def demander_ia(texte, update_hist=True, skip_local=False):
             if not gemini_actif:
                 raise Exception("Clé Gemini non configurée — agent ignoré")
 
+            from plugins.agent_model_manager import load_chosen_models
+            chosen_models_cfg = load_chosen_models()
+            pm_model = chosen_models_cfg.get("PM", "gemini-2.5-flash")
+
+            # Mettre le modèle PM sélectionné en priorité absolue
+            priorite_modeles = [pm_model] + [m for m in MODELS_LIST if m != pm_model]
+
             # Filtrer les modèles dont le quota est épuisé individuellement
             modeles_disponibles = [
-                m for m in MODELS_LIST
+                m for m in priorite_modeles
                 if _quota_mgr.is_available(f"gemini_{m}")
             ]
             if not modeles_disponibles:
@@ -2549,7 +2796,7 @@ async def demander_ia(texte, update_hist=True, skip_local=False):
                 _quota_mgr.mark_quota_exceeded("gemini")
                 raise _QuotaExceededError("Tous les modèles Gemini sont en cooldown")
 
-            print(f"[CERVEAU] Tentative avec Gemini (Disponibles: {modeles_disponibles})...")
+            print(f"[CERVEAU] Modèle principal sélectionné : {pm_model} (Disponibles: {modeles_disponibles})...")
             souvenirs = rechercher_souvenirs(texte)
             temp_hist = historique + [types.Content(role="user", parts=[types.Part(text=texte)])]
             prompt_actuel = construire_system_prompt(souvenirs=souvenirs)
@@ -2894,7 +3141,7 @@ async def demander_grok(texte, update_hist=True):
         messages.append({"role": "user", "content": texte})
         
         completion = grok_client.chat.completions.create(
-            model="grok-3", 
+            model="grok-4.6",
             messages=messages,
             temperature=0.7,
         )
@@ -2997,13 +3244,18 @@ async def demander_groq(texte, update_hist=True, skip_local=False):
             
         messages.append({"role": "user", "content": texte})
 
-        # Démarrage de la complétion en mode streaming
-        stream = await asyncio.to_thread(
-            groq_client.chat.completions.create,
-            model="llama-3.3-70b-versatile",
-            messages=messages,
-            temperature=0.7,
-            stream=True
+        # Démarrage de la complétion en mode streaming (borné dans le temps :
+        # une création de stream qui ne répond jamais bloquait sinon toute la
+        # conversation, sans qu'aucun fournisseur de secours ne prenne le relais).
+        stream = await asyncio.wait_for(
+            asyncio.to_thread(
+                groq_client.chat.completions.create,
+                model="openai/gpt-oss-120b",  # llama-3.3-70b-versatile retiré du catalogue Groq
+                messages=messages,
+                temperature=0.7,
+                stream=True
+            ),
+            timeout=15.0
         )
 
         full_text = ""
@@ -3014,7 +3266,15 @@ async def demander_groq(texte, update_hist=True, skip_local=False):
             if get_stop_parler():
                 print("[CERVEAU] Interruption de la génération Groq car stop_parler=True")
                 break
-            chunk = await asyncio.to_thread(safe_next, iterator)
+            # Chaque lecture de chunk est bornée : sans ce timeout, un simple
+            # aléa réseau pendant le streaming bloquait next() indéfiniment —
+            # aucune exception, aucun fallback, JARVIS restait planté sur
+            # « Réflexion (Cloud)... » jusqu'au redémarrage.
+            try:
+                chunk = await asyncio.wait_for(asyncio.to_thread(safe_next, iterator), timeout=15.0)
+            except asyncio.TimeoutError:
+                print("[CERVEAU] Groq : flux de streaming bloqué (> 15s sans donnée). Abandon.")
+                raise
             if chunk is None:
                 break
 
@@ -3057,7 +3317,9 @@ async def demander_groq(texte, update_hist=True, skip_local=False):
         if _quota_mgr.is_quota_error(e):
             _quota_mgr.mark_quota_exceeded("groq")
             raise _QuotaExceededError(f"Groq quota: {e}")
-        print(f"[ERREUR GROQ] {e}")
+        # str(e) peut être vide pour certaines exceptions (ex: asyncio.TimeoutError) —
+        # sans le nom du type en secours, le log "[ERREUR GROQ]" ne dit rien d'exploitable.
+        print(f"[ERREUR GROQ] {e or type(e).__name__}")
         return None
 
 async def demander_claude(texte, update_hist=True):
@@ -3079,7 +3341,7 @@ async def demander_claude(texte, update_hist=True):
         message = await asyncio.wait_for(
             asyncio.to_thread(
                 anthropic_client.messages.create,
-                model="claude-3-5-sonnet-20241022",
+                model="claude-sonnet-5",
                 max_tokens=2048,
                 system=system_prompt,
                 messages=messages
@@ -3342,6 +3604,44 @@ async def resoudre_echecs_localement(texte):
             
     return None
 
+def _parser_demande_affiche(t):
+    """
+    Extrait d'une demande d'affiche vocale : le sujet visuel (pour l'IA image),
+    les dates/lieu, et le texte explicite à superposer ("... met le texte : ...").
+    Heuristique volontairement simple (regex), pas de NLP lourd.
+    """
+    import re
+    texte_bas = None
+    m_texte = re.search(r"texte\s*:\s*(.+)$", t)
+    if m_texte:
+        texte_bas = m_texte.group(1).strip().rstrip(".")
+        t_sans_texte = t[:m_texte.start()]
+    else:
+        t_sans_texte = t
+
+    m_dates = re.search(r"du\s+\d{1,2}/\d{1,2}\s+au\s+\d{1,2}/\d{1,2}", t_sans_texte)
+    dates_str = m_dates.group(0) if m_dates else None
+
+    m_lieu = re.search(r"(?<![\wÀ-ÖØ-öø-ÿ])(?:a|à)\s+([A-Za-zÀ-ÖØ-öø-ÿ\-]{3,})\s+du\s+\d{1,2}/\d{1,2}", t_sans_texte)
+    lieu = m_lieu.group(1).title() if m_lieu else None
+
+    m_visuel = re.search(
+        r"image\s+d['’](?:un|une)\s+(.+?)(?:\s+avec\s+les\s+dates|\s+avec\s+la\s+date|\s+met\s|$)",
+        t_sans_texte
+    )
+    visuel = m_visuel.group(1).strip() if m_visuel else t_sans_texte.strip()
+
+    lignes_bas = []
+    if lieu and dates_str:
+        lignes_bas.append(f"{lieu} — {dates_str}".title())
+    elif dates_str:
+        lignes_bas.append(dates_str)
+    if texte_bas:
+        lignes_bas.append(texte_bas)
+
+    return visuel, lignes_bas
+
+
 async def resoudre_commandes_locales(texte):
 
     """Détecte et exécute les commandes locales (Spotify, dossiers, apps) sans IA."""
@@ -3420,6 +3720,31 @@ async def resoudre_commandes_locales(texte):
                 msg = json.dumps({"type": "av_open"})
                 await asyncio.gather(*[ws.send(msg) for ws in CONNECTED_CLIENTS], return_exceptions=True)
             return "J'ouvre la console de sécurité et j'initialise le scan antivirus de votre ordinateur, Mylane."
+
+    # --- GÉNÉRATION D'IMAGES / AFFICHES (Priorité 0.5) ---
+    # Placé avant le garde-fou "commande complexe" ci-dessous : un prompt d'image
+    # contient très souvent " et " (ex: "noir et blanc") et se faisait sinon
+    # avaler par ce garde-fou avant d'atteindre le vrai bloc de génération plus bas.
+    if any(k in t for k in ["génère", "genere", "crée une image", "cree une image", "dessine"]):
+        import re
+        prompt = re.sub(r'(jarvis|génère(-moi| moi|)?|genere(-moi| moi|)?|crée|cree|dessine(-moi| moi|)?)( une| l\'| des| de l\'|) ?(image|photo|dessin|illustration)? ?(de |d\'|d\'une |d\'un |des )?', '', t).strip()
+
+        if prompt:
+            # Demande d'AFFICHE (poster) avec texte explicite à superposer (dates, infos...) :
+            # un modèle d'image ne sait pas écrire du texte lisible, donc on sépare le
+            # visuel (généré par l'IA) du texte (superposé proprement avec Pillow).
+            if "affiche" in t and ("texte" in t or re.search(r"\d{1,2}/\d{1,2}", t)):
+                visuel, lignes_bas = _parser_demande_affiche(t)
+                parler("Très bien mylane, je compose l'affiche. Un instant...")
+                img_data = await asyncio.to_thread(generer_affiche_ia, visuel, lignes_bas)
+            else:
+                parler(f"Très bien mylane, je génère l'image de {prompt}. Un instant...")
+                img_data = await asyncio.to_thread(generer_image_ia, prompt)
+            if img_data:
+                await envoyer_image_web(img_data, prompt)
+                return f"Voici l'image demandée, mylane. Elle s'affiche sur votre interface."
+            return "Désolé mylane, la génération d'image a échoué."
+        return "Que souhaitez-vous que je dessine, mylane ?"
 
     # S'il s'agit d'une commande complexe avec des enchaînements ou des actions DOM/saisie,
     # on renvoie None pour laisser le "cerveau" IA (LLM) s'en occuper de façon autonome.
@@ -3659,21 +3984,6 @@ async def resoudre_commandes_locales(texte):
         _safe_ws_send(json.dumps({"action": "demo"}))
         return "Initialisation du protocole de démonstration visuelle, mylane."
 
-    # --- GÉNÉRATION D'IMAGES (Priorité 0.5) ---
-    if any(k in t for k in ["génère", "genere", "crée une image", "cree une image", "dessine"]):
-        import re
-        # On supprime toutes les expressions qui servent à demander l'image
-        prompt = re.sub(r'(jarvis|génère(-moi| moi|)?|genere(-moi| moi|)?|crée|cree|dessine(-moi| moi|)?)( une| l\'| des| de l\'|) ?(image|photo|dessin|illustration)? ?(de |d\'|d\'une |d\'un |des )?', '', t).strip()
-        
-        if prompt:
-            parler(f"Très bien mylane, je génère l'image de {prompt}. Un instant...")
-            img_data = generer_image_ia(prompt)
-            if img_data:
-                await envoyer_image_web(img_data, prompt)
-                return f"Voici l'image demandée, mylane. Elle s'affiche sur votre interface."
-            return "Désolé mylane, la génération d'image a échoué."
-        return "Que souhaitez-vous que je dessine, mylane ?"
-
     prefixes_dossiers = ["ouvre le dossier ", "ouvre mon dossier ", "ouvre le répertoire ", "ouvre le repertoire ", "ouvre dossier ", "ouvre ", "mets "]
     # On vérifie d'abord si c'est un dossier connu
     mots_cles_dossiers = ["bureau", "document", "téléchargement", "image", "photo", "vidéo", "musique", "corbeille"]
@@ -3854,6 +4164,42 @@ async def resoudre_commandes_locales(texte):
             if len(recherche) > 1:
                 return await deezer_rechercher(recherche)
 
+    # --- COFFRE-FORT CRYPTÉ (VOICE VAULT) ---
+    if any(k in t for k in ["coffre fort", "coffre-fort", "coffre"]):
+        # Import sans le préfixe « backend. » — cohérent avec le handler WebSocket
+        # des boutons du panneau (ws_handler) et avec le reste du fichier. Les deux
+        # formes chargeaient sinon le même fichier comme deux modules Python
+        # distincts, chacun avec son propre état _is_unlocked : déverrouiller via
+        # la voix ne déverrouillait pas la version vue par les boutons du HUD.
+        from module import voice_vault
+        async def _bc_vault(msg):
+            if CONNECTED_CLIENTS:
+                try:
+                    await asyncio.gather(*[ws.send(json.dumps(msg)) for ws in CONNECTED_CLIENTS], return_exceptions=True)
+                except Exception:
+                    pass
+
+        if any(m in t for m in ["verrouille", "ferme", "bloque"]):
+            voice_vault.lock_vault()
+            m_out = {"type": "vault_lock_result", "is_unlocked": False}
+            asyncio.create_task(_bc_vault(m_out))
+            return "Le coffre-fort a été verrouillé avec succès, mylane."
+        else:
+            m_out = {
+                "type": "vault_status",
+                "is_configured": voice_vault.is_vault_configured(),
+                "is_unlocked": voice_vault.is_vault_unlocked(),
+                "files": voice_vault.list_vault_files() if voice_vault.is_vault_unlocked() else [],
+                "force_open_hud": True
+            }
+            asyncio.create_task(_bc_vault(m_out))
+            if voice_vault.is_vault_unlocked():
+                return "Le coffre-fort est ouvert et vos fichiers sont accessibles, mylane."
+            elif not voice_vault.is_vault_configured():
+                return "J'ouvre le coffre-fort. Veuillez créer votre code PIN ou mot de passe de protection, mylane."
+            else:
+                return "J'ouvre le coffre-fort. Entrez votre code PIN pour déverrouiller vos fichiers, mylane."
+
     raccourcis_dossiers = {
         "bureau": "bureau", "documents": "documents",
         "téléchargements": "downloads", "téléchargement": "downloads",
@@ -3900,6 +4246,20 @@ def est_action_oriented(texte):
     ]
     return any(m in t for m in mots_actions)
 
+
+def _texte_substantiel(texte: str) -> bool:
+    """False pour du bruit (ponctuation seule, interjection isolée, « ! »…).
+
+    Sert de garde-fou avant d'interroger le dispatcher d'intentions LLM : sans
+    elle, dire juste « Jarvis ! » (rien après le mot de réveil) envoyait « ! »
+    au modèle de function calling, qui pouvait halluciner un appel de fonction
+    sur une entrée aussi pauvre — vécu en réel : « ! » a été classé comme
+    « crée un site web », déclenchant tout un swarm de 6 agents pour rien.
+    """
+    lettres = sum(1 for c in texte if c.isalpha())
+    return lettres >= 3
+
+
 async def _essayer_resolvers_statiques(texte):
     """Chaîne des resolvers par mots-clés, dans l'ordre de priorité.
 
@@ -3909,6 +4269,9 @@ async def _essayer_resolvers_statiques(texte):
     reponse = None
     if not reponse: reponse = await builtins.resoudre_dom_hud(texte)
     if not reponse: reponse = await resoudre_commandes_locales(texte)
+    if not reponse:
+        if hasattr(builtins, "resoudre_creation_site_web"):
+            reponse = await builtins.resoudre_creation_site_web(texte)
     if not reponse: reponse = await builtins.resoudre_commandes_systeme(texte)
     if not reponse: reponse = await builtins.resoudre_tv_localement(texte)
     if not reponse: reponse = await builtins.resoudre_apps_localement(texte)
@@ -3923,25 +4286,55 @@ async def _essayer_resolvers_statiques(texte):
     if not reponse: reponse = await builtins.resoudre_extras_locaux(texte)
     return reponse
 
-async def traiter_reponse_ia(texte_utilisateur, mobile_ws=None, from_voice=False):
+async def traiter_reponse_ia(texte_utilisateur, mobile_ws=None, from_voice=False, de_confiance=False):
+    """Enveloppe garantissant que l'état « réflexion » est toujours relâché.
+
+    Sans ce try/finally, is_thinking restait à True dès qu'une commande était
+    traitée par un resolver local (le cas le plus fréquent) : seul le chemin LLM
+    le réinitialisait. Conséquence : la détection de claps se désactivait
+    définitivement après la première commande, et le HUD ne repassait jamais
+    en état « idle ».
+    """
+    global is_thinking
+    try:
+        return await _traiter_reponse_ia_impl(
+            texte_utilisateur, mobile_ws=mobile_ws,
+            from_voice=from_voice, de_confiance=de_confiance
+        )
+    finally:
+        is_thinking = False
+        try:
+            await send_web_state("idle")
+        except Exception:
+            pass
+
+
+async def _traiter_reponse_ia_impl(texte_utilisateur, mobile_ws=None, from_voice=False, de_confiance=False):
     global MODE_IRON_MAN, jarvis_actif, dernier_message, _skip_pc_audio, is_thinking, _derniere_reponse_streamed, phrases_streamed, ACTIVE_SPEAKER, CHESS_GAME, CHESS_GAME_ACTIVE, STOP_PARLER
-    STOP_PARLER = False
-    set_stop_parler(False)
     dernier_message = time.time()
     _derniere_reponse_streamed = False
     phrases_streamed = []
     if from_voice:
         jarvis_actif = True  # Seules les commandes vocales ouvrent/maintiennent la session
-    else:
-        # Saisie clavier/écrite : l'utilisateur physique est toujours détecté comme "mylane"
+    elif de_confiance:
+        # Clavier du HUD local : l'utilisateur est physiquement devant la machine.
         ACTIVE_SPEAKER = "mylane"
         builtins.ACTIVE_SPEAKER = "mylane"
+    # NB : les commandes distantes (mobile) ne promeuvent PLUS le locuteur.
+    # Auparavant tout message écrit forçait ACTIVE_SPEAKER = "mylane" : un locuteur
+    # classé « guest » par la biométrie n'avait qu'à passer par le mobile pour
+    # débloquer toutes les actions sensibles pour le reste de la session.
 
     if traiter_lock.locked():
         parler("Je termine ce que je fais, mylane. Un instant.")
         return
 
     async with traiter_lock:
+        # STOP_PARLER doit être réarmé APRÈS l'obtention du verrou : le remettre à
+        # False dès l'entrée annulait le barge-in (« stop ») d'une réponse encore
+        # en cours d'énonciation, qui repartait alors de plus belle.
+        STOP_PARLER = False
+        set_stop_parler(False)
         is_thinking = True
         reponse = None
         # Reset du flag audio au début de chaque commande
@@ -3954,7 +4347,14 @@ async def traiter_reponse_ia(texte_utilisateur, mobile_ws=None, from_voice=False
         print(f"[DEBUG] Tentative de résolution locale pour : {texte_utilisateur}")
         # Échecs (Priorité absolue pour intercepter les coups et éviter de charger la DB vectorielle de la mémoire locale)
         if not reponse: reponse = await resoudre_echecs_localement(texte_utilisateur)
-        
+
+        # Modification d'image en attente d'instruction (Priorité absolue pour éviter qu'un
+        # mot de l'instruction de retouche ne soit intercepté par un autre resolver avant elle)
+        if not reponse and hasattr(builtins, "resoudre_modifier_image"):
+            from plugins.image_edit_resolver import _attente_modif_image
+            if _attente_modif_image["actif"]:
+                reponse = await builtins.resoudre_modifier_image(texte_utilisateur)
+
         # Interception prioritaire des compétences vocales personnalisées pour éviter les conflits avec les plugins (ex: radar réseau)
         if not reponse and any(k in texte_utilisateur.lower() for k in ["compétence", "competence"]):
             reponse = await resoudre_commandes_locales(texte_utilisateur)
@@ -3980,7 +4380,8 @@ async def traiter_reponse_ia(texte_utilisateur, mobile_ws=None, from_voice=False
         # FUNCTION CALLING GEMINI : aucun resolver par mots-clés n'a compris la phrase.
         # Un modèle rapide la mappe sur une intention connue (→ phrase canonique) qu'on
         # repasse dans les resolvers. Tout échec suit le chemin historique (demander_ia).
-        if not reponse and _USE_LLM_INTENT and (est_action_oriented(texte_utilisateur) or len(texte_utilisateur.split()) <= 12):
+        if (not reponse and _USE_LLM_INTENT and _texte_substantiel(texte_utilisateur)
+                and (est_action_oriented(texte_utilisateur) or len(texte_utilisateur.split()) <= 12)):
             try:
                 from core.intent_dispatcher import resoudre_intention_llm
                 phrase_canonique = await resoudre_intention_llm(texte_utilisateur)
@@ -4004,6 +4405,14 @@ async def traiter_reponse_ia(texte_utilisateur, mobile_ws=None, from_voice=False
         # Robustesse type : Si le résolveur a retourné un booléen, le convertir en chaîne
         if isinstance(reponse, bool):
             reponse = "Commande exécutée." if reponse else ""
+        # ... et si ce n'est toujours pas du texte (None, dict, etc.), normaliser :
+        # extract_json_blocks() itère sur la valeur et levait un TypeError hors de
+        # tout try, ce qui interrompait le traitement avant la moindre parole et
+        # laissait is_thinking bloqué à True.
+        if reponse is None:
+            reponse = ""
+        elif not isinstance(reponse, str):
+            reponse = str(reponse)
 
         # 1. Extraction robuste des blocs JSON
         def extract_json_blocks(text):
@@ -4157,7 +4566,9 @@ async def traiter_reponse_ia(texte_utilisateur, mobile_ws=None, from_voice=False
                         except ValueError as e:
                             parler(str(e))
                 elif action == "mode_iron_man":
-
+                    # `etat` n'était jamais lu depuis le JSON : NameError systématique,
+                    # avalé par le catch-all → le mode ne s'activait jamais.
+                    etat = data.get("etat", "on")
                     MODE_IRON_MAN = (etat == "on")
                     msg = "Mode Iron Man activé, Monsieur. Je reste à l'écoute de vos signaux." if MODE_IRON_MAN else "Mode Iron Man désactivé. Je repasse en veille domotique."
                     parler(msg)
@@ -4199,11 +4610,16 @@ async def traiter_reponse_ia(texte_utilisateur, mobile_ws=None, from_voice=False
                         for cle, data_m in memoire.items():
                             lignes.append(f"{cle} : {data_m['valeur']}.")
                         parler(" ".join(lignes))
+                elif action in ["creer_site_web", "creer_site", "generer_site"]:
+                    desc = data.get("description") or data.get("sujet") or data.get("prompt") or "un site web"
+                    from backend.plugins.dev_swarm_resolver import run_dev_swarm_process
+                    asyncio.create_task(run_dev_swarm_process(desc))
+                    parler("Très bien mylane, je mobilise l'essaim d'agents d'élite pour coder votre projet. Suivi actif sur le HUD.")
                 elif action == "generer_image":
                     prompt = data.get("prompt", "")
                     if prompt:
                         parler(f"Très bien mylane, je génère l'image de {prompt}. Un instant...")
-                        img_data = generer_image_ia(prompt)
+                        img_data = await asyncio.to_thread(generer_image_ia, prompt)
                         if img_data:
                             await envoyer_image_web(img_data, prompt)
                             parler("Voici l'image demandée, mylane. Elle s'affiche sur votre interface.")
@@ -4924,7 +5340,7 @@ def transcribe_audio_groq(raw_audio_bytes, sample_rate=16000, recognizer=None):
             # Appel API Groq Whisper
             transcription = groq_client.audio.transcriptions.create(
                 file=("audio.wav", audio_buffer.read()),
-                model="whisper-large-v3",
+                model="whisper-large-v3-turbo",
                 language="fr",
                 response_format="text",
             )
@@ -5000,6 +5416,9 @@ def ecouter():
         pass
     ENERGY_THRESHOLD = cfg_eco.get("energy_threshold", 250)
     SILENCE_LIMIT = 0.7 if VAD_MODEL is not None else 1.0  # s de silence avant de couper
+    # Durée maximale d'un énoncé capté avant troncature (garde-fou mémoire)
+    MAX_UTTERANCE_SEC = 45
+    _MAX_CHUNKS_ENONCE = int(MAX_UTTERANCE_SEC * RATE / CHUNK)
     
     audio_manager = AudioStreamManager()
     try:
@@ -5053,7 +5472,7 @@ def ecouter():
                     audio_buffer.seek(0)
                     result = groq_client.audio.transcriptions.create(
                         file=("interim.wav", audio_buffer.read()),
-                        model="whisper-large-v3",
+                        model="whisper-large-v3-turbo",
                         language="fr",
                         response_format="text",
                     )
@@ -5146,7 +5565,13 @@ def ecouter():
             if VAD_MODEL is not None:
                 try:
                     speech_prob = VAD_MODEL(audio_chunk_int16, RATE)
-                    is_speech = speech_prob > 0.65
+                    # Seuil abaissé de 0.65 à 0.55 : au-dessus de 0.65, une voix
+                    # un peu douce ou du bruit de fond ne franchissait jamais le
+                    # seuil, donc aucun enregistrement ne démarrait — l'utilisateur
+                    # devait répéter, sans qu'aucune erreur ne l'indique. 0.55 reste
+                    # nettement au-dessus du seuil d'enrôlement (0.45) pour limiter
+                    # le risque de faux positifs sur bruit ambiant/TV.
+                    is_speech = speech_prob > 0.55
                 except Exception as ev:
                     energy = np.sqrt(np.mean(audio_chunk_int16.astype(np.float64)**2))
                     is_speech = energy > ENERGY_THRESHOLD
@@ -5170,10 +5595,19 @@ def ecouter():
                         except: pass
                     is_recording = True
                     audio_buffer = [data]
+                    ecouter._buffer_sature = False
                     last_interim_time = time.time()  # Reset timer interim
                     ecouter._recorded_during_speech = get_is_speaking()
                 else:
-                    audio_buffer.append(data)
+                    # Plafond de sécurité : sans lui, un bruit continu détecté comme
+                    # parole (TV, musique, VAD bloqué haut) faisait grossir la liste
+                    # indéfiniment, jusqu'à un b"".join() de plusieurs centaines de Mo
+                    # envoyé au STT. On coupe l'énoncé à MAX_UTTERANCE_SEC.
+                    if len(audio_buffer) < _MAX_CHUNKS_ENONCE:
+                        audio_buffer.append(data)
+                    elif not getattr(ecouter, "_buffer_sature", False):
+                        ecouter._buffer_sature = True
+                        print(f"[VAD] Énoncé trop long (> {MAX_UTTERANCE_SEC}s) : capture tronquée.")
                     if get_is_speaking():
                         ecouter._recorded_during_speech = True
                     # --- TRANSCRIPTION INTÉRIMAIRE EN TEMPS RÉEL (Active uniquement si réveillé) ---
@@ -5189,7 +5623,8 @@ def ecouter():
                         ).start()
                 silence_start = None
             elif is_recording:
-                audio_buffer.append(data)
+                if len(audio_buffer) < _MAX_CHUNKS_ENONCE:
+                    audio_buffer.append(data)
                 if get_is_speaking():
                     ecouter._recorded_during_speech = True
                 if silence_start is None:
@@ -5329,17 +5764,32 @@ def ecouter():
                                         phrases = [
                                             "Il fait un temps magnifique aujourd'hui pour aller se promener.",
                                             "J'utilise cet assistant vocal pour contrôler mes applications au quotidien.",
-                                            "La reconnaissance vocale s'adapte parfaitement à ma façon de parler."
+                                            "La reconnaissance vocale s'adapte parfaitement à ma façon de parler.",
+                                            "Chaque voix possède une empreinte unique, comme une signature acoustique.",
+                                            "Merci de m'avoir aidé à mieux reconnaître votre voix aujourd'hui."
                                         ]
-                                        
-                                        parler(f"Très bien. Pour créer un profil robuste pour {prenom.capitalize()}, je vais enregistrer votre voix trois fois avec des phrases différentes. Répétez distinctement chaque phrase après mon signal.")
+
+                                        parler(f"Très bien. Pour créer un profil robuste pour {prenom.capitalize()}, je vais enregistrer votre voix cinq fois avec des phrases différentes. Répétez distinctement chaque phrase après mon signal.")
                                         
                                         idx_phrase = 0
+                                        enrolement_annule = False
                                         while idx_phrase < len(phrases):
+                                            # Un appui sur STOP (mobile/HUD) doit annuler tout le protocole,
+                                            # pas seulement couper la phrase en cours : avant ce correctif,
+                                            # la boucle continuait à capturer sans plus rien annoncer, et
+                                            # enregistrait n'importe quel bruit ambiant comme échantillon
+                                            # vocal valide, écrasant au passage de bons échantillons.
+                                            if STOP_PARLER:
+                                                print("🛑 [BIOMETRICS] Enrôlement annulé : signal STOP reçu.")
+                                                enrolement_annule = True
+                                                break
+
                                             phrase = phrases[idx_phrase]
-                                            
+
                                             # Attendre la fin de la parole précédente de JARVIS
                                             while get_is_speaking():
+                                                if STOP_PARLER:
+                                                    break
                                                 time.sleep(0.1)
                                             time.sleep(0.5)
                                             
@@ -5371,8 +5821,23 @@ def ecouter():
                                             phrase_start_time = time.time()
                                             speech_detected_local = False
                                             timeout_local = 15.0  # Limite de temps par phrase (15s)
-                                            
+                                            # Silence toléré plus long qu'en écoute normale : les phrases
+                                            # d'enrôlement sont volontairement longues (plusieurs mots),
+                                            # et une simple respiration/hésitation en cours de phrase avec
+                                            # le SILENCE_LIMIT normal (0.7-1.0s) coupait l'enregistrement
+                                            # en cours de route, ne capturant que les 2-3 premiers mots —
+                                            # une empreinte vocale bien trop courte pour être fiable.
+                                            silence_limit_local = max(SILENCE_LIMIT, 1.5)
+                                            # Durée minimale d'audio acceptée : 1.5s (24 chunks de 1024
+                                            # échantillons à 16kHz). L'ancien seuil (5 chunks = 0.32s)
+                                            # acceptait des empreintes bien trop courtes pour être stables.
+                                            min_chunks_local = int(1.5 * RATE / CHUNK)
+
                                             while time.time() - phrase_start_time < timeout_local:
+                                                if STOP_PARLER:
+                                                    print("🛑 [BIOMETRICS] Enrôlement annulé pendant la capture : signal STOP reçu.")
+                                                    enrolement_annule = True
+                                                    break
                                                 try:
                                                     chunk_data = queue_ecoute.get(timeout=0.1)
                                                     chunk_int16 = np.frombuffer(chunk_data, dtype=np.int16)
@@ -5405,18 +5870,21 @@ def ecouter():
                                                     if silence_start_local is None:
                                                         silence_start_local = time.time()
                                                     
-                                                    # Si l'utilisateur a fini de parler (silence > SILENCE_LIMIT)
-                                                    if time.time() - silence_start_local > SILENCE_LIMIT:
+                                                    # Si l'utilisateur a fini de parler (silence > silence_limit_local)
+                                                    if time.time() - silence_start_local > silence_limit_local:
                                                         break
                                             
                                             try:
                                                 asyncio.run(send_web_state("idle"))
                                             except:
                                                 pass
-                                            
+
+                                            if enrolement_annule:
+                                                break
+
                                             # Validation de l'audio de l'utilisateur
-                                            if not speech_detected_local or len(enroll_buffer) < 5:
-                                                parler("Je n'ai pas entendu de parole claire. Recommençons cette phrase.")
+                                            if not speech_detected_local or len(enroll_buffer) < min_chunks_local:
+                                                parler("Je n'ai pas entendu la phrase en entier, ou elle était trop courte. Recommençons, en parlant bien jusqu'au bout sans vous arrêter.")
                                                 continue
                                                 
                                             raw_enroll_audio = b"".join(enroll_buffer)
@@ -5438,11 +5906,13 @@ def ecouter():
                                                 break
                                                 
                                         # Fin du protocole complet
-                                        if idx_phrase == len(phrases):
+                                        if enrolement_annule:
+                                            print(f"🛑 [BIOMETRICS] Enrôlement de {prenom} interrompu par l'utilisateur ({idx_phrase}/{len(phrases)} échantillons capturés avant l'annulation).")
+                                        elif idx_phrase == len(phrases):
                                             ACTIVE_SPEAKER = prenom
                                             builtins.ACTIVE_SPEAKER = ACTIVE_SPEAKER
                                             parler(f"C'est parfait {prenom.capitalize()}, le protocole d'enregistrement est terminé. Votre profil vocal multi-empreintes est maintenant actif et sécurisé.")
-                                            
+
                                         audio_buffer = []
                                         continue
 
@@ -5450,9 +5920,29 @@ def ecouter():
                                     if action_pc:
                                         parler(action_pc)
                                     else:
-                                        loop = asyncio.new_event_loop()
-                                        loop.run_until_complete(traiter_reponse_ia(commande, from_voice=True))
-                                        loop.close()
+                                        # On exécute la commande sur la boucle du WebSocket, pas sur
+                                        # une boucle jetable. L'ancienne version créait une boucle,
+                                        # la fermait aussitôt, et emportait avec elle :
+                                        #   - les asyncio.create_task() lancés pendant le traitement
+                                        #     (ex. le dev swarm ne démarrait jamais à la voix),
+                                        #   - les envois WebSocket, dont les objets appartiennent à
+                                        #     WS_LOOP (HUD jamais mis à jour, échec silencieux),
+                                        #   - les futures de capture d'écran (« regarde l'écran »
+                                        #     attendait systématiquement les 15 s de timeout).
+                                        if WS_LOOP is not None and not WS_LOOP.is_closed():
+                                            _fut_cmd = asyncio.run_coroutine_threadsafe(
+                                                traiter_reponse_ia(commande, from_voice=True), WS_LOOP
+                                            )
+                                            _fut_cmd.result()   # bloquant, comme l'ancien comportement
+                                        else:
+                                            # Repli si le serveur WebSocket n'est pas encore prêt
+                                            loop = asyncio.new_event_loop()
+                                            try:
+                                                loop.run_until_complete(
+                                                    traiter_reponse_ia(commande, from_voice=True)
+                                                )
+                                            finally:
+                                                loop.close()
                                 elif WAKE_WORD in texte:
                                     parler("Oui mylane, je vous écoute.")
                         else:
@@ -5781,14 +6271,8 @@ def verifier_mises_a_jour_loop():
         time.sleep(14400)
         verifier_mises_a_jour()
 
-def _charger_config():
-    import json as _j
-    _p = os.path.join(os.path.dirname(os.path.abspath(__file__)), "jarvis_config.json")
-    try:
-        with open(_p, "r", encoding="utf-8") as _f:
-            return _j.load(_f)
-    except Exception:
-        return {}
+# (Doublon de _charger_config supprimé ici : il écrasait silencieusement la
+#  version définie plus haut, contre laquelle _sauvegarder_config est écrite.)
 
 # ── Protection Antivirus en temps réel (LIVE) ───────────────────────────────
 AV_LIVE_PROTECTION_ENABLED = False
@@ -6150,10 +6634,13 @@ def main():
 
     def _servir_dist_python(port=5173):
         """Sert le dossier dist/ avec le serveur HTTP Python (fallback sans npm)."""
-        import http.server, socketserver
+        import http.server, socketserver, functools
         dist_dir = os.path.join(frontend_dir, "dist")
-        os.chdir(dist_dir)
-        handler = http.server.SimpleHTTPRequestHandler
+        # On passe le dossier au handler au lieu de faire os.chdir() : cette fonction
+        # tourne dans un thread d'arrière-plan, et os.chdir() change le répertoire de
+        # travail de TOUT le process — tous les chemins relatifs (jarvis_run.log, les
+        # fichiers TTS temporaires…) se seraient mis à pointer dans dist/.
+        handler = functools.partial(http.server.SimpleHTTPRequestHandler, directory=dist_dir)
         handler.log_message = lambda *a: None  # silencieux
         with socketserver.TCPServer(("", port), handler) as httpd:
             print(f"[JARVIS] Frontend servi via Python HTTP sur http://localhost:{port}")
@@ -6939,18 +7426,39 @@ builtins._notify_factual_memory_added = _notify_factual_memory_added
 builtins.envoyer_carte_contextuelle = envoyer_carte_contextuelle
 
 async def broadcast_system_stats():
-    """Diffuse les stats CPU/RAM et envoie des alertes contextuelles si nécessaire."""
+    """Diffuse les stats CPU/RAM et envoie des alertes contextuelles si nécessaire.
+
+    (Cette définition écrase une première version située plus haut dans le fichier ;
+    la garde psutil de celle-ci y a été rapatriée — sans elle, si psutil manquait,
+    l'appel levait une AttributeError toutes les 2 s dans un `except: pass` et les
+    jauges restaient plates sans le moindre diagnostic.)
+    """
+    global psutil
+    if psutil is None:
+        try:
+            import psutil as ps
+            psutil = ps
+        except ImportError:
+            print("[SYS] psutil non disponible. Monitoring CPU/RAM désactivé.")
+            return
+
+    print("[SYS] Démarrage du monitoring CPU/RAM...")
+    psutil.cpu_percent(interval=None)   # amorce la mesure différentielle
+
     last_alert_time = 0
+    erreurs_consecutives = 0
     while True:
         try:
             if CONNECTED_CLIENTS:
-                cpu = psutil.cpu_percent()
+                cpu = psutil.cpu_percent(interval=None)
                 ram = psutil.virtual_memory().percent
-                
+
                 # Stats classiques (pour les jauges)
                 msg = json.dumps({"action": "system_stats", "cpu": cpu, "ram": ram})
-                await asyncio.gather(*[ws.send(msg) for ws in CONNECTED_CLIENTS], return_exceptions=True)
-                
+                clients = list(CONNECTED_CLIENTS)
+                if clients:
+                    await asyncio.gather(*[ws.send(msg) for ws in clients], return_exceptions=True)
+
                 # Alerte contextuelle si CPU > 90%
                 if cpu > 90 and (time.time() - last_alert_time > 60):
                     await envoyer_carte_contextuelle(
@@ -6961,8 +7469,12 @@ async def broadcast_system_stats():
                         duree=15000
                     )
                     last_alert_time = time.time()
-        except Exception:
-            pass
+            erreurs_consecutives = 0
+        except Exception as e:
+            # On ne spamme pas la console, mais on ne masque plus totalement la panne
+            erreurs_consecutives += 1
+            if erreurs_consecutives in (1, 10) or erreurs_consecutives % 100 == 0:
+                print(f"[SYS] Monitoring en échec ({erreurs_consecutives}x) : {e}")
         await asyncio.sleep(2)
 
 # ── Météo/musique & cache webview (extraits dans module/ et core/) ────────

@@ -72,7 +72,7 @@ def transcribe_audio_groq(
             audio_buffer.seek(0)
             transcription = groq_client.audio.transcriptions.create(
                 file=("audio.wav", audio_buffer.read()),
-                model="whisper-large-v3",
+                model="whisper-large-v3-turbo",
                 language="fr",
                 response_format="text",
             )

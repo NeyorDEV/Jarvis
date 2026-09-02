@@ -1130,9 +1130,16 @@ function bindVideoEvents(): void {
 }
 
 // ── Open / Close Panel ─────────────────────────────────────────────────────
-function openPanel(): void { 
+function openPanel(): void {
   panel.classList.remove("hidden");
-  
+  // #iptv-panel porte un « display:none » en style inline dans index.html.
+  // Retirer la classe .hidden ne suffit donc PAS : seule la règle CSS
+  // « .iptv-panel.visible { display:flex !important } » peut battre l'inline.
+  // Sans cette ligne, ouvrir le lecteur à la voix ou via un message du backend
+  // marquait le panneau comme ouvert sans que rien n'apparaisse à l'écran.
+  panel.classList.add("visible");
+  panel.style.removeProperty("display");
+
   // Synchroniser avec le bouton du menu dropdown unifié
   const btn = document.getElementById("menu-iptv-toggle-btn");
   if (btn) {
@@ -1142,8 +1149,9 @@ function openPanel(): void {
 }
 function closePanel(): void {
   panel.classList.add("hidden");
+  panel.classList.remove("visible");   // symétrique de openPanel()
   if (videoEl && !videoEl.paused) videoEl.pause();
-  
+
   // Synchroniser avec le bouton du menu dropdown unifié
   const btn = document.getElementById("menu-iptv-toggle-btn");
   if (btn) {
@@ -1337,7 +1345,9 @@ export function initIPTVPlayer(ws: WebSocket | null): void {
   panel = document.getElementById("iptv-panel") as HTMLDivElement;
   if (!panel) { console.error("[IPTV] Panel introuvable"); return; }
 
-  panel.innerHTML = buildPanelHTML();
+  if (!panel.firstElementChild) {
+    panel.innerHTML = buildPanelHTML();
+  }
 
   videoEl        = document.getElementById("iptv-video")         as HTMLVideoElement;
   playlistDrawer = document.getElementById("iptv-playlist-drawer") as HTMLDivElement;
