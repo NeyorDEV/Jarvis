@@ -24,8 +24,15 @@ adb_key
 adb_key.pub
 
 
-# Base vectorielle
-data/chroma_db/
+# Base vectorielle (conversations passées — données personnelles)
+**/chroma_db/
+
+# Empreintes vocales biométriques
+backend/core/voiceprints/
+
+# Sorties de test/démo, non essentielles au projet
+scratch/
+backend/sandbox/
 
 # Frontend (patterns robustes : n'importe quel emplacement)
 **/node_modules/
