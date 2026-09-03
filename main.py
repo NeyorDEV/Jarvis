@@ -529,10 +529,8 @@ except ImportError:
 # Passer à True si WebView2 est définitivement cassé sur votre système
 FORCE_BROWSER_MODE = False
 
-# --- CONFIGURATION VERSION & MAJ ---
+# --- CONFIGURATION VERSION (utilisée pour l'invalidation du cache WebView2) ---
 CURRENT_VERSION = "9.0.0"
-UPDATE_JSON_URL = "https://www.techenclair.fr/updates/jarvis_update.json"
-DERNIERE_MAJ_INFO = None  # Stocke l'info si une MAJ est détectée
 
 # Chargement des variables d'environnement
 load_dotenv()
@@ -659,18 +657,16 @@ VOIX_ACTUELLE = "homme" # "homme" ou "femme"
 
 
 
-# Configuration domotique, météo et entités Home Assistant
+# Météo + API REST Home Assistant (tableau de bord HUD uniquement)
 from module.ha_config import (
-    HA_URL, HA_HEADERS,
+    HA_URL,
     VILLE_PAR_DEFAUT, LAT_PAR_DEFAUT, LON_PAR_DEFAUT,
-    PIECES_LUMIERES, PIECES_PRISES, PIECES_CAPTEURS, PIECES_HUMIDITE,
-    HA_TARIFS, APPAREILS_ENERGIE, APPAREILS_BATTERIE,
-    COULEURS_MAP, CODES_METEO,
-    ha_appeler_service, ha_get_etat, ha_get_calendrier,
-    ha_lumiere, ha_interrupteur, ha_thermostat, ha_scene, ha_verrou,
+    ha_appeler_service,
     geocoder_ville, get_meteo_actuelle, get_meteo_ha, get_alertes_meteo,
     handle_ha_ws_message,
 )
+# Domotique pilotée à la voix : client MCP Home Assistant (voir docstring du module)
+from core.ha_mcp_client import executer_action_ha
 
 gemini_actif    = _cle_valide(GEMINI_API_KEY)
 # Utilisation du client Gemini (supporte .aio pour l'asynchrone natif)
@@ -826,13 +822,6 @@ async def ws_handler(websocket):
         "data": {"status": "Stopped", "title": "DEEZER_SYNC...", "artist": "INITIALISATION"}
     })))
     
-    # Push de la mise à jour si déjà détectée
-    if DERNIERE_MAJ_INFO:
-        try:
-            await websocket.send(json.dumps(DERNIERE_MAJ_INFO))
-        except:
-            pass
-
     try:
         async for message in websocket:
             try:
@@ -971,12 +960,6 @@ async def ws_handler(websocket):
                     try:
                         from controller.app_launcher import _charger_custom_apps
                         _charger_custom_apps()
-                    except: pass
-                    
-                    # Recharger les appareils Home Assistant
-                    try:
-                        from module.ha_config import _charger_custom_ha_entities
-                        _charger_custom_ha_entities()
                     except: pass
                     print("[WEB] Parametres mis a jour avec succes.")
                 # ── Voice Vault (coffre-fort chiffré) ────────────────────────
@@ -2935,23 +2918,9 @@ async def demander_ia(texte, update_hist=True, skip_local=False):
                            "temperature dehors", "température extérieure",
                            "temperature exterieure", "combien fait-il dehors",
                            "il fait combien dehors"]
-            _mots_temp_int = ["température", "temperature", "il fait chaud",
-                              "il fait froid", "combien de degrés",
-                              "combien fait-il", "il fait combien"]
-            _mots_maison   = ["chez moi", "à la maison", "dans la maison",
-                              "intérieur", "interieur", "dans le salon",
-                              "dans la chambre", "dans le bureau"]
-            _pieces_fallback = {
-                "salon"   : "salon",
-                "chambre" : "chambre",
-                "bureau"  : "bureau",
-                "extérieur": "exterieur",
-                "dehors"  : "dehors",
-            }
-
             # --- DOMOTIQUE (HOME ASSISTANT) ---
             has_ha = HA_URL and "votre_ip_ha" not in HA_URL.lower()
-            
+
             if has_ha and any(m in t_low for m in _mots_meteo):
                 print("[CERVEAU] Requête météo détectée → Home Assistant weather")
                 reponse_ha = get_meteo_ha()
@@ -2962,22 +2931,12 @@ async def demander_ia(texte, update_hist=True, skip_local=False):
                 # Fallback direct si pas de HA
                 return get_meteo_actuelle(None)
 
-            if has_ha and any(m in t_low for m in _mots_temp_int):
-                for mot_piece, piece_key in _pieces_fallback.items():
-                    if mot_piece in t_low:
-                        entity_id = PIECES_CAPTEURS.get(piece_key)
-                        if entity_id:
-                            print(f"[CERVEAU] Temp intérieure détectée → HA {entity_id}")
-                            temp = ha_get_etat(entity_id)
-                            return f"La température dans le {mot_piece} est de {temp} degrés, mylane."
-                if any(m in t_low for m in _mots_maison):
-                    entity_id = PIECES_CAPTEURS.get("salon")
-                    if entity_id:
-                        print(f"[CERVEAU] Temp intérieure 'chez moi' → HA {entity_id}")
-                        temp = ha_get_etat(entity_id)
-                        return f"La température chez vous est de {temp} degrés, mylane."
-
-
+            # Note : le fallback "température intérieure sans LLM" a été retiré avec
+            # l'ancien système HA codé en dur. Le nouveau système (client MCP,
+            # core/ha_mcp_client.py) route les demandes de domotique via un appel
+            # Gemini — il ne peut donc pas servir de secours quand Gemini est
+            # justement indisponible. C'est un compromis assumé : ce cas (panne
+            # totale du LLM + question de température intérieure) est marginal.
 
         # --- FALLBACK GROQ (LLAMA 3.3) ---
         if groq_client and _quota_mgr.is_available("groq"):
@@ -4742,80 +4701,16 @@ async def _traiter_reponse_ia_impl(texte_utilisateur, mobile_ws=None, from_voice
                     chemin = data.get("chemin", "")
                     ok, msg = ouvrir_fichier_ou_dossier(chemin)
                     parler(msg if ok else f"Erreur : {msg}")
-                elif action == "ha_lumiere":
-                    piece      = data.get("piece",      "salon").lower().strip()
-                    etat       = data.get("etat",       "on")
-                    couleur    = data.get("couleur",    None)
-                    luminosite = data.get("luminosite", None)
-                    entity_id  = PIECES_LUMIERES.get(piece, f"light.{piece}")
-                    rgb        = COULEURS_MAP.get(couleur) if couleur else None
-                    ha_lumiere(entity_id, etat, luminosite, rgb)
-                    
-                    # Message de confirmation amélioré
-                    if etat == "off":
-                        msg = f"J'éteins {piece}."
-                    else:
-                        details = []
-                        if couleur: details.append(f"en {couleur}")
-                        if luminosite is not None: 
-                            pourcent = int((int(luminosite)/255)*100)
-                            details.append(f"à {pourcent}%")
-                        
-                        if details:
-                            msg = f"C'est fait, {piece} est réglé{' '.join(details)}."
-                        else:
-                            msg = f"Lumière {piece} allumée."
-                    parler(msg)
-                elif action == "ha_prise":
-                    piece     = data.get("piece", "bureau").lower().strip()
-                    etat      = data.get("etat",  "on")
-                    entity_id = PIECES_PRISES.get(piece, f"switch.prise_{piece}")
-                    ha_interrupteur(entity_id, etat)
-                    msg = f"Prise {piece} {'activée' if etat == 'on' else 'désactivée'}."
-                    parler(msg)
-                elif action == "ha_temperature":
-                    piece     = data.get("piece", "salon").lower().strip()
-                    entity_id = PIECES_CAPTEURS.get(piece)
-                    if entity_id:
-                        temp = ha_get_etat(entity_id)
-                        parler(f"La température dans le {piece} est de {temp} degrés.")
-                    else:
-                        parler(f"Désolé, je n'ai pas de capteur configuré pour le {piece}.")
-                elif action == "ha_humidite":
-                    piece     = data.get("piece", "bureau").lower().strip()
-                    entity_id = PIECES_HUMIDITE.get(piece)
-                    if entity_id:
-                        humi = ha_get_etat(entity_id)
-                        parler(f"Le taux d'humidité dans le {piece} est de {humi}%.")
-                    else:
-                        parler(f"Je n'ai pas de capteur d'humidité pour le {piece}.")
-                elif action == "ha_batterie":
-                    appareil  = data.get("appareil", "").lower()
-                    entity_id = APPAREILS_BATTERIE.get(appareil)
-                    if entity_id:
-                        batt = ha_get_etat(entity_id)
-                        if batt == "unknown":
-                            parler(f"Je n'arrive pas à récupérer l'état de la batterie pour {appareil}.")
-                        else:
-                            suff = ""
-                            if "telephone" in appareil or "papa" in appareil or "mylane" in appareil:
-                                suff = "Ton téléphone est à "
-                            elif "julie" in appareil or "maman" in appareil:
-                                suff = "Le téléphone de Julie est à "
-                            else:
-                                suff = f"La batterie de {appareil} est à "
-                            parler(f"{suff}{batt}%.")
-                    else:
-                        parler(f"Je n'ai pas l'appareil {appareil} dans ma liste de batterie.")
-                elif action == "ha_thermostat":
-                    temp = data.get("temperature", 20)
-                    ha_thermostat("climate.thermostat", temp)
-                    parler(f"Thermostat réglé à {temp} degrés.")
-                elif action == "ha_scene":
-                    nom      = data.get("nom", "")
-                    scene_id = f"scene.{nom}"
-                    ha_scene(scene_id)
-                    parler(f"Ambiance {nom} activée.")
+                elif action == "ha_action":
+                    # Domotique générique via le client MCP Home Assistant : Gemini
+                    # reformule la demande en instruction, un second appel Gemini
+                    # (dans executer_action_ha) choisit l'outil MCP exposé par HA
+                    # et ses paramètres. Remplace l'ancien bloc d'actions codées en
+                    # dur par type d'appareil (voir core/ha_mcp_client.py).
+                    instruction = data.get("instruction", "")
+                    if instruction:
+                        resultat = await executer_action_ha(instruction)
+                        parler(resultat)
                 elif action == "dom_sequence":
                     steps = data.get("steps", [])
                     if hasattr(builtins, "send_web_action"):
@@ -4837,120 +4732,6 @@ async def _traiter_reponse_ia_impl(texte_utilisateur, mobile_ws=None, from_voice
                         if remaining_steps:
                             payload = {"type": "dom_action", "action": "dom_sequence", "steps": remaining_steps}
                             _safe_ws_send(json.dumps(payload))
-                elif action == "ha_alarme":
-                    etat = data.get("etat", "on")
-                    if etat == "on":
-                        ha_appeler_service("alarm_control_panel", "alarm_arm_away", "alarm_control_panel.home_base_2")
-                        parler("Alarme activée.")
-                    else:
-                        ha_appeler_service("alarm_control_panel", "alarm_disarm", "alarm_control_panel.home_base_2")
-                        parler("Alarme désactivée.")
-                elif action == "ha_verrou":
-                    entity_id = data.get("entity_id", "lock.porte_maison")
-                    etat = data.get("etat", "lock")
-                    ha_verrou(entity_id, etat)
-                    msg = "Porte verrouillée, mylane." if etat == "lock" else "Porte déverrouillée, mylane."
-                    parler(msg)
-                elif action == "ha_simulation":
-                    etat = data.get("etat", "on")
-                    ha_interrupteur("switch.simulation", etat)
-                    msg = "Simulation de présence activée." if etat == "on" else "Simulation de présence désactivée."
-                    parler(msg)
-                elif action == "ha_anniversaires":
-                    events = ha_get_calendrier("calendar.anniversaires")
-                    if not events:
-                        parler("Rien de prévu aujourd'hui.")
-                    else:
-                        noms = [e.get("summary", "Anniversaire sans nom") for e in events]
-                        if len(noms) == 1:
-                            parler(f"Aujourd'hui, nous fêtons l'anniversaire de {noms[0]}. N'oubliez pas de lui souhaiter !")
-                        else:
-                            liste = ", ".join(noms[:-1]) + " et " + noms[-1]
-                            parler(f"Aujourd'hui, il y a plusieurs anniversaires : {liste}. C'est une journée chargée !")
-                elif action == "ha_consommation":
-                    entity_id = PIECES_CAPTEURS.get("consommation")
-                    puissance = ha_get_etat(entity_id)
-                    if puissance == "unknown" or puissance == "inconnu":
-                        parler("Je n'arrive pas à lire la consommation électrique pour le moment.")
-                    else:
-                        parler(f"La consommation actuelle de la maison est de {puissance} Volt-Ampères.")
-                elif action == "ha_tiktok":
-                    entity_id = PIECES_CAPTEURS.get("tiktok")
-                    followers = ha_get_etat(entity_id)
-                    parler(f"Tu as actuellement {followers} abonnés sur ton compte TikTok mylane. Félicitations !")
-                elif action == "ha_oeufs":
-                    entity_id = PIECES_CAPTEURS.get("oeufs")
-                    # On récupère l'état (le dernier choix) et le moment de la modif
-                    try:
-                        r = requests.get(f"{HA_URL}/api/states/{entity_id}", headers=HA_HEADERS, timeout=5)
-                        data = r.json()
-                        last_changed = data.get("last_changed", "")
-                        if last_changed:
-                            dt = datetime.fromisoformat(last_changed.replace("Z", "+00:00"))
-                            phrase = dt.strftime("le %d %B à %Hh%M")
-                            parler(f"Le dernier ramassage des œufs a été enregistré {phrase}.")
-                        else:
-                            parler("Je n'ai pas d'historique pour le ramassage des œufs.")
-                    except:
-                        parler("Je n'arrive pas à accéder aux informations sur les œufs.")
-                elif action == "ha_energie":
-                    periode  = data.get("periode", "mois")
-                    appareil = data.get("appareil", "")
-                    
-                    if appareil:
-                        appareil_clean = appareil.lower()
-                        entite = APPAREILS_ENERGIE.get(appareil_clean)
-                        if entite:
-                            val = ha_get_etat(entite)
-                            if val != "inconnu" and val != "unknown":
-                                kwh = float(val)
-                                parler(f"La consommation de {appareil} pour ce mois est de {kwh:.1f} kWh.")
-                            else:
-                                parler(f"Je n'ai pas de données de consommation pour {appareil} pour le moment.")
-                        else:
-                            parler(f"Je n'ai pas d'appareil nommé {appareil} dans mon suivi énergétique.")
-                    elif periode == "hier":
-                        total_kwh = 0
-                        total_cost = 0
-                        try:
-                            for i in range(1, 7):
-                                e_id = f"sensor.lixee_zlinky_tic_zlinky_p{i}_daily"
-                                val = ha_get_etat(e_id, attribut="last_period")
-                                if val != "inconnu" and val != "unknown":
-                                    k = float(val)
-                                    total_kwh += k
-                                    total_cost += k * HA_TARIFS.get(f"p{i}", 0.16)
-                            parler(f"Hier, la maison a consommé {total_kwh:.1f} kWh, pour un coût estimé à {total_cost:.2f} euros.")
-                        except:
-                            parler("J'ai eu un problème pour calculer la consommation d'hier.")
-                    else: # mois
-                        total_kwh = 0
-                        total_cost = 0
-                        try:
-                            for i in range(1, 7):
-                                e_id = f"sensor.lixee_zlinky_tic_zlinky_p{i}_mensuel"
-                                val = ha_get_etat(e_id)
-                                if val != "inconnu" and val != "unknown":
-                                    k = float(val)
-                                    total_kwh += k
-                                    total_cost += k * HA_TARIFS.get(f"p{i}", 0.16)
-                            parler(f"Ce mois-ci, la consommation totale est de {total_kwh:.1f} kWh, pour un montant de {total_cost:.2f} euros.")
-                        except:
-                            parler("Je n'ai pas pu calculer la consommation mensuelle.")
-                elif action == "ha_aspirateur":
-                    commande = data.get("commande", "start")
-                    if commande == "start":
-                        ha_appeler_service("vacuum", "start", "vacuum.bob")
-                        parler("C'est parti, Bob lance le nettoyage.")
-                    elif commande == "stop":
-                        ha_appeler_service("vacuum", "stop", "vacuum.bob")
-                        parler("J'ai arrêté l'aspirateur.")
-                    elif commande == "pause":
-                        ha_appeler_service("vacuum", "pause", "vacuum.bob")
-                        parler("Bob est en pause.")
-                    elif commande == "base":
-                        ha_appeler_service("vacuum", "return_to_base", "vacuum.bob")
-                        parler("Bob retourne à sa base.")
                 elif action == "homepod_action":
                     cmd   = data.get("commande", "play")
                     val   = data.get("valeur")
@@ -6239,39 +6020,6 @@ def monitor_claps():
     except Exception as e:
         print(f"[CLAP] Erreur fatale détection claps : {e}")
 
-def verifier_mises_a_jour():
-    """Vérifie si une nouvelle version est disponible sur le serveur."""
-    global DERNIERE_MAJ_INFO
-    try:
-        print(f"[UPDATE] Verification des mises a jour...")
-        response = requests.get(UPDATE_JSON_URL, timeout=10)
-        if response.status_code == 200:
-            data = response.json()
-            remote_version = data.get("version", "4.0")
-            
-            # Comparaison de version
-            if remote_version > CURRENT_VERSION:
-                print(f"[UPDATE] NOUVELLE VERSION DETECTEE : {remote_version}")
-                DERNIERE_MAJ_INFO = {
-                    "type": "update_available",
-                    "version": remote_version,
-                    "url": data.get("download_url", "https://www.techenclair.fr/pages/jarvis.html"),
-                    "changelog": data.get("changelog", "")
-                }
-            else:
-                print(f"[UPDATE] Systeme a jour (v{CURRENT_VERSION})")
-                DERNIERE_MAJ_INFO = None
-        else:
-            print(f"[UPDATE] Serveur injoignable (Status: {response.status_code})")
-    except Exception as e:
-        print(f"[UPDATE] Erreur lors de la verification : {e}")
-
-def verifier_mises_a_jour_loop():
-    """Boucle de vérification périodique (toutes les 4 heures)."""
-    while True:
-        time.sleep(14400)
-        verifier_mises_a_jour()
-
 # (Doublon de _charger_config supprimé ici : il écrasait silencieusement la
 #  version définie plus haut, contre laquelle _sauvegarder_config est écrite.)
 
@@ -6700,13 +6448,9 @@ def main():
         print("[JARVIS] ATTENTION : l'interface visuelle ne sera pas disponible.")
         print("[JARVIS] JARVIS reste fonctionnel en mode vocal uniquement.")
 
-    # Verification initiale des mises a jour
-    verifier_mises_a_jour()
-
     # Lancer les services en arriere-plan
     threading.Thread(target=start_mobile_http_server, daemon=True).start()
     threading.Thread(target=start_ia, daemon=True).start()
-    threading.Thread(target=verifier_mises_a_jour_loop, daemon=True).start()
 
     # Nettoyage automatique du cache WebView2 si version changée
     vider_cache_webview_si_nouvelle_version(CURRENT_VERSION)

@@ -1631,18 +1631,6 @@ function openCodeEditorModal(filePath: string, projectName?: string) {
         }
         return;
       }
-      if (data.type === "update_available") {
-        const banner = document.getElementById("update-banner");
-        if (banner) {
-          banner.style.display = "block";
-          banner.textContent = `SYSTEM_UPDATE_AVAILABLE_V${data.version}`;
-          banner.onclick = () => {
-            window.open(data.url, "_blank");
-          };
-        }
-        return;
-      }
-
       if (data.action === "system_stats") {
                 const cpuVal = document.getElementById("cpu-value");
         const ramVal = document.getElementById("ram-value");

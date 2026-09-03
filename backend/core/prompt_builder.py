@@ -53,28 +53,18 @@ def construire_system_prompt(souvenirs=""):
     )
     
     base += (
-        "\n\nTu es connecte a Home Assistant, la domotique de mylane.\n"
-        "Quand mylane parle de lumieres, prises, chauffage, temperature, "
-        "scenes, alarme, serrures ou portes (verrous), tu DOIS generer une commande JSON.\n"
-        "Pour CES demandes domotiques UNIQUEMENT, reponds avec le JSON ci-dessous. Pour TOUTES les autres questions (actualites, meteo, calculs, conversations, recherches internet...), reponds en texte normal.\n\n"
-        "COMMANDES HOME ASSISTANT :\n"
-        '{"action": "ha_lumiere", "piece": "salon", "etat": "on/off", "couleur": "rouge/bleu/blanc/...", "luminosite": 0-255}\n'
-        "Note : Pour la luminosité, 255 est le maximum (100%). Si mylane dit '50%', utilise 127.\n"
-        '{"action": "ha_prise", "piece": "bureau", "etat": "on/off"}\n'
-        '{"action": "ha_temperature", "piece": "salon/chambre/bureau"}\n'
-        '{"action": "ha_humidite", "piece": "bureau"}\n'
-        '{"action": "ha_batterie", "appareil": "mon telephone/julie/bob/dyad/esteban/montre/toner/..."}\n'
-        '{"action": "ha_simulation", "etat": "on/off"}\n'
-        '{"action": "ha_anniversaires"}\n'
-        '{"action": "ha_consommation"}\n'
-        '{"action": "ha_tiktok"}\n'
-        '{"action": "ha_oeufs"}\n'
-        '{"action": "ha_energie", "periode": "hier/mois", "appareil": "zoe/tv/pc/esteban/bureau/..."}\n'
-        '{"action": "ha_aspirateur", "commande": "start/stop/pause/base"}\n'
-        '{"action": "ha_thermostat", "temperature": 21}\n'
-        '{"action": "ha_scene", "nom": "cinema/diner/nuit/reveil"}\n'
-        '{"action": "ha_alarme", "etat": "on/off"}\n'
-        '{"action": "ha_verrou", "entity_id": "lock.porte_maison", "etat": "lock/unlock"}\n'
+        "\n\nTu es connecte a Home Assistant, la domotique de mylane, via un serveur MCP "
+        "qui expose dynamiquement chaque appareil : tu n'as PAS besoin de connaitre les "
+        "noms exacts des appareils, entites ou pieces a l'avance.\n"
+        "Quand mylane parle de lumieres, prises, chauffage, temperature, humidite, scenes, "
+        "alarme, serrures/portes, aspirateur, ou de tout autre appareil connecte, tu DOIS "
+        "generer la commande JSON ci-dessous. Pour TOUTES les autres questions (actualites, "
+        "meteo, calculs, conversations, recherches internet...), reponds en texte normal.\n\n"
+        "COMMANDE DOMOTIQUE (unique, generique) :\n"
+        '{"action": "ha_action", "instruction": "reformulation claire et complete de la demande, ex: \'allume la lumiere du salon en bleu a 50%\', \'quelle est la temperature dans le bureau\', \'lance l\'aspirateur\', \'active la scene cinema\', \'verrouille la porte d\'entree\'"}\n'
+        "Le champ 'instruction' doit reprendre tous les details donnes par mylane (piece, couleur, "
+        "intensite, appareil precis...) car c'est lui qui sera transmis a Home Assistant pour "
+        "trouver et executer l'action exacte.\n"
         '{"action": "homepod_action", "commande": "play/pause/stop/next/previous/volume", "valeur": 0-100, "piece": "séjour/salle de jeux"}\n'
         '{"action": "domotic_route_audio", "source": "séjour/salle de jeux", "destination": "séjour/salle de jeux"}\n'
         '{"action": "chess_start"}\n'
@@ -225,7 +215,7 @@ def construire_system_prompt(souvenirs=""):
         '{"action": "dom_sequence", "steps": [{"action_type": "open_url", "text": "https://youtube.com", "delay": 0.5}, {"action_type": "type", "selector": "input[name=\\"search_query\\"]", "text": "zen", "delay": 0.8}, {"action_type": "click", "selector": "#search-icon-legacy", "delay": 0.5}]}\n\n'
         "REGLES MULTI-COMMANDES :\n"
         "Si mylane demande plusieurs choses en une seule phrase, tu PEUX et DOIS générer plusieurs blocs JSON.\n"
-        "Exemple: { \"action\": \"ha_lumiere\", ... } { \"action\": \"meteo\", ... }\n\n"
+        "Exemple: { \"action\": \"ha_action\", ... } { \"action\": \"meteo\", ... }\n\n"
         "REGLES DE SECURITE JSON :\n"
         "1. NE DONNE JAMAIS d'exemples de commandes JSON dans tes explications.\n"
         "2. NE JUSTIFIE PAS l'utilisation d'une commande. Contente-toi de répondre en texte et d'ajouter le JSON.\n"

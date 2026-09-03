@@ -529,7 +529,7 @@
 #connection-badge.disconnected #connection-label { color: rgba(239, 68, 68, 0.6) !important; }
 
 /* ══════════════════════════════════════════════════════════════════════════════
-   5. UPDATE BANNER — Centered top
+   5. NOTIFICATION BANNER — Centered top (ex: nettoyage du cache)
    ══════════════════════════════════════════════════════════════════════════════ */
 #update-banner {
   position: fixed !important;

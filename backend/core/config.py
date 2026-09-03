@@ -7,7 +7,6 @@ load_dotenv()
 
 # --- VERSION ---
 CURRENT_VERSION = "8.9.5"
-UPDATE_JSON_URL = "https://www.techenclair.fr/updates/jarvis_update.json"
 
 # --- RÉSEAU ---
 def get_local_ip():

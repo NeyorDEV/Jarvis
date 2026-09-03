@@ -16,6 +16,7 @@ jarvis_listes.json
 jarvis_run.log
 alarmes.json
 jarvis_config.json
+.jarvis_cache_version
 token_*.json
 token.pickle
 *.pickle
