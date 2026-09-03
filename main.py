@@ -381,6 +381,7 @@ def _charger_plugins():
     import plugins.iptv_resolver
     import plugins.website_resolver
     import plugins.image_edit_resolver
+    import plugins.document_generator_resolver
     _plugins_prets.set()
 threading.Thread(target=_charger_plugins, daemon=True).start()
 
