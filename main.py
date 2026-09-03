@@ -707,7 +707,7 @@ builtins.CHOSEN_MODEL = CHOSEN_MODEL
 
 # Ollama (LLMs locaux — fallback 100% offline)
 OLLAMA_URL      = "http://127.0.0.1:11434"
-OLLAMA_MODELS   = ["llama3.1:8b", "mistral:instruct", "mistral", "gemma4"]
+OLLAMA_MODELS   = ["mistral-nemo", "llama3.1:8b", "gemma4"]
 
 
 # ══════════════════════════════════════════════════════════════
